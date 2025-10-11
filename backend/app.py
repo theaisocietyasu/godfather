@@ -438,6 +438,15 @@ def list_pod_files(pod_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'godfather-backend',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
 @app.route('/api/pods/<pod_id>/files/upload', methods=['POST'])
 @require_auth
 def upload_file_to_pod(pod_id):
