@@ -1,0 +1,56 @@
+# Godfather
+node_modules/
+.env
+.env.local
+.next/
+dist/
+build/
+.DS_Store
+*.log
+.cache/
+
+# Backend
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
+# Database
+data/
+*.db
+*.sqlite
+
+# SSH Keys
+*.pem
+*.key
+ssh_keys/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Docker
+.docker/
+
+# Nginx
+nginx/ssl/*.pem
+nginx/ssl/*.key
+!nginx/ssl/.gitkeep
+
+# CLI
+*.egg-info/
+.coverage
+htmlcov/

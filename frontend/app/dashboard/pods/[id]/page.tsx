@@ -1,0 +1,413 @@
+'use client';
+
+import { useAuth, UserButton } from '@clerk/nextjs';
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import axios from 'axios';
+import toast, { Toaster } from 'react-hot-toast';
+import { 
+  ArrowLeftIcon,
+  ServerIcon,
+  PlayIcon,
+  StopIcon,
+  RestartIcon,
+  TrashIcon,
+  SettingsIcon,
+  FolderIcon,
+  FileIcon,
+  DownloadIcon,
+  UploadIcon,
+  PlusIcon
+} from 'lucide-react';
+import moment from 'moment';
+
+interface Pod {
+
+  id: string;
+  name: string;
+  status: string;
+  machine_type: string;
+  created_at: string;
+  runtime?: Record<string, unknown>;
+  ports?: Record<string, unknown>;
+  machine?: Record<string, unknown>;
+  is_public: boolean;
+  allowed_users: string[];
+  custom_config: Record<string, unknown>;
+}
+
+interface FileItem {
+  name: string;
+  type: 'file' | 'directory';
+  size?: number;
+  modified?: string;
+}
+
+export default function PodDetail() {
+  const { getToken } = useAuth();
+  const router = useRouter();
+  const params = useParams();
+  const podId = params.id as string;
+
+  const [pod, setPod] = useState<Pod | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [currentPath, setCurrentPath] = useState('/workspace');
+  const [showFileManager, setShowFileManager] = useState(false);
+
+  useEffect(() => {
+    fetchPodDetails();
+  }, [podId]);
+
+  const fetchPodDetails = async () => {
+    try {
+      const token = await getToken();
+      const response = await axios.get(`/api/pods/${podId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPod(response.data.pod);
+    } catch (error: unknown) {
+      toast.error('Failed to fetch pod details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePodAction = async (action: string) => {
+    setActionLoading(true);
+    try {
+      const token = await getToken();
+      await axios.post(`/api/pods/${podId}/action`, 
+        { action }, 
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success(`Pod ${action} successful`);
+      fetchPodDetails(); // Refresh details
+    } catch (error: unknown) {
+      toast.error(`Failed to ${action} pod`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const togglePublicAccess = async () => {
+    if (!pod) return;
+    
+    try {
+      const token = await getToken();
+      await axios.put(`/api/pods/${podId}`, 
+        { is_public: !pod.is_public }, 
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setPod({ ...pod, is_public: !pod.is_public });
+      toast.success(`Pod is now ${!pod.is_public ? 'public' : 'private'}`);
+    } catch (error: unknown) {
+      toast.error('Failed to update pod access');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'running': return 'bg-green-100 text-green-800';
+      case 'stopped': return 'bg-red-100 text-red-800';
+      case 'starting': return 'bg-yellow-100 text-yellow-800';
+      case 'stopping': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Simulated file manager (in real implementation, this would connect to pod's filesystem)
+  const mockFiles: FileItem[] = [
+    { name: 'notebooks', type: 'directory', modified: '2024-01-01' },
+    { name: 'datasets', type: 'directory', modified: '2024-01-01' },
+    { name: 'models', type: 'directory', modified: '2024-01-01' },
+    { name: 'requirements.txt', type: 'file', size: 1024, modified: '2024-01-01' },
+    { name: 'main.py', type: 'file', size: 2048, modified: '2024-01-01' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading pod details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!pod) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <ServerIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Pod not found</h3>
+          <p className="text-gray-500 mb-4">The requested pod could not be found.</p>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <ArrowLeftIcon className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">{pod.name}</h1>
+                <p className="text-sm text-gray-500">{pod.id}</p>
+              </div>
+              <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(pod.status)}`}>
+                {pod.status}
+              </span>
+            </div>
+            <UserButton />
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Pod Information */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Basic Info */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Pod Information</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Machine Type</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{pod.machine_type}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Created</dt>
+                  <dd className="mt-1 text-sm text-gray-900">{moment(pod.created_at).format('MMMM Do YYYY, h:mm a')}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Runtime</dt>
+                  <dd className="mt-1 text-sm text-gray-900">
+                    {pod.runtime ? moment(pod.created_at).fromNow() : 'Not started'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Access</dt>
+                  <dd className="mt-1">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      pod.is_public ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {pod.is_public ? 'Public' : 'Private'}
+                    </span>
+                  </dd>
+                </div>
+              </div>
+            </div>
+
+            {/* Machine Details */}
+            {pod.machine && (
+              <div className="bg-white shadow rounded-lg p-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Machine Details</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(pod.machine).map(([key, value]) => (
+                    <div key={key}>
+                      <dt className="text-sm font-medium text-gray-500 capitalize">
+                        {key.replace(/([A-Z])/g, ' $1').trim()}
+                      </dt>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                      </dd>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* File Manager */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-medium text-gray-900">File Manager</h2>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setShowFileManager(!showFileManager)}
+                    className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-200"
+                  >
+                    {showFileManager ? 'Hide' : 'Show'} Files
+                  </button>
+                  {pod.status?.toLowerCase() === 'running' && (
+                    <button className="bg-blue-100 text-blue-700 px-3 py-1 rounded-md text-sm hover:bg-blue-200">
+                      <UploadIcon className="w-4 h-4 inline mr-1" />
+                      Upload
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {showFileManager && (
+                <div className="border rounded-lg">
+                  <div className="bg-gray-50 px-4 py-2 border-b">
+                    <p className="text-sm text-gray-600">Path: {currentPath}</p>
+                  </div>
+                  <div className="divide-y">
+                    {mockFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 hover:bg-gray-50">
+                        <div className="flex items-center space-x-3">
+                          {file.type === 'directory' ? (
+                            <FolderIcon className="w-5 h-5 text-blue-500" />
+                          ) : (
+                            <FileIcon className="w-5 h-5 text-gray-400" />
+                          )}
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                            {file.size && (
+                              <p className="text-xs text-gray-500">{file.size} bytes</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-gray-500">{file.modified}</span>
+                          {file.type === 'file' && (
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <DownloadIcon className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {pod.status?.toLowerCase() !== 'running' && (
+                <div className="text-center py-8 text-gray-500">
+                  <FolderIcon className="mx-auto h-12 w-12 text-gray-300 mb-2" />
+                  <p>File manager is only available when the pod is running</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
+              <div className="space-y-3">
+                {pod.status?.toLowerCase() === 'stopped' && (
+                  <button
+                    onClick={() => handlePodAction('start')}
+                    disabled={actionLoading}
+                    className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                  >
+                    <PlayIcon className="w-4 h-4 mr-2" />
+                    Start Pod
+                  </button>
+                )}
+                
+                {pod.status?.toLowerCase() === 'running' && (
+                  <>
+                    <button
+                      onClick={() => handlePodAction('restart')}
+                      disabled={actionLoading}
+                      className="w-full flex items-center justify-center px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50"
+                    >
+                      <RestartIcon className="w-4 h-4 mr-2" />
+                      Restart Pod
+                    </button>
+                    <button
+                      onClick={() => handlePodAction('stop')}
+                      disabled={actionLoading}
+                      className="w-full flex items-center justify-center px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50"
+                    >
+                      <StopIcon className="w-4 h-4 mr-2" />
+                      Stop Pod
+                    </button>
+                  </>
+                )}
+                
+                <button
+                  onClick={() => handlePodAction('terminate')}
+                  disabled={actionLoading}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                >
+                  <TrashIcon className="w-4 h-4 mr-2" />
+                  Terminate Pod
+                </button>
+              </div>
+            </div>
+
+            {/* Access Control */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Access Control</h2>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Public Access</span>
+                  <button
+                    onClick={togglePublicAccess}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 ${
+                      pod.is_public ? 'bg-black' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        pod.is_public ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+                
+                <div className="text-xs text-gray-500">
+                  {pod.is_public 
+                    ? 'Users can connect to this pod via CLI' 
+                    : 'Only administrators can access this pod'
+                  }
+                </div>
+
+                {pod.is_public && (
+                  <div className="bg-blue-50 p-3 rounded-md">
+                    <p className="text-sm text-blue-800">
+                      <strong>CLI Connection:</strong> Users can run the godfather CLI and connect to this pod.
+                      Each user will get their own isolated workspace folder.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Port Information */}
+            {pod.ports && Object.keys(pod.ports).length > 0 && (
+              <div className="bg-white shadow rounded-lg p-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">Exposed Ports</h2>
+                <div className="space-y-2">
+                  {Object.entries(pod.ports).map(([port, details]) => (
+                    <div key={port} className="flex justify-between text-sm">
+                      <span className="font-medium">{port}</span>
+                      <span className="text-gray-500">
+                        {typeof details === 'object' ? JSON.stringify(details) : String(details)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+
+      <Toaster />
+    </div>
+  );
+}

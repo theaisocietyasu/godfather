@@ -1,0 +1,461 @@
+import os
+from datetime import datetime, timedelta
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from pymongo import MongoClient
+import runpod
+import requests
+import jwt
+from functools import wraps
+import secrets
+import hashlib
+from file_manager import PodFileManager
+
+app = Flask(__name__)
+CORS(app)
+
+# Configuration
+MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/godfather')
+RUNPOD_API_KEY = os.getenv('RUNPOD_API_KEY')
+CLERK_SECRET_KEY = os.getenv('CLERK_SECRET_KEY')
+DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+DISCORD_GUILD_ID = os.getenv('DISCORD_GUILD_ID')
+
+# Initialize MongoDB
+client = MongoClient(MONGODB_URI)
+db = client.godfather
+pods_collection = db.pods
+users_collection = db.users
+ssh_keys_collection = db.ssh_keys
+
+# Initialize RunPod
+runpod.api_key = RUNPOD_API_KEY
+
+def verify_discord_admin(discord_user_id):
+    """Verify if user has Admin role in Discord server"""
+    try:
+        headers = {
+            'Authorization': f'Bot {DISCORD_BOT_TOKEN}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Get guild member
+        url = f'https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/members/{discord_user_id}'
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code != 200:
+            return False
+            
+        member_data = response.json()
+        
+        # Get guild roles to find Admin role ID
+        roles_url = f'https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/roles'
+        roles_response = requests.get(roles_url, headers=headers)
+        
+        if roles_response.status_code != 200:
+            return False
+            
+        roles = roles_response.json()
+        admin_role_id = None
+        
+        for role in roles:
+            if role['name'].lower() == 'admin':
+                admin_role_id = role['id']
+                break
+                
+        if not admin_role_id:
+            return False
+            
+        # Check if user has admin role
+        return admin_role_id in member_data.get('roles', [])
+        
+    except Exception as e:
+        print(f"Error verifying Discord admin: {e}")
+        return False
+
+def verify_clerk_token(token):
+    """Verify Clerk JWT token and extract user info"""
+    try:
+        # In production, fetch the public key from Clerk's JWKS endpoint
+        # For now, we'll decode without verification for development
+        # You should implement proper JWT verification with Clerk's public key
+        import base64
+        import json
+        
+        # Split the JWT token
+        parts = token.split('.')
+        if len(parts) != 3:
+            return None
+            
+        # Decode the payload (second part)
+        payload = parts[1]
+        # Add padding if needed
+        payload += '=' * (4 - len(payload) % 4)
+        
+        decoded_payload = base64.urlsafe_b64decode(payload)
+        user_data = json.loads(decoded_payload)
+        
+        return user_data
+    except Exception as e:
+        print(f"Error verifying Clerk token: {e}")
+        return None
+
+def require_auth(f):
+    """Decorator to require authentication"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({'error': 'No token provided'}), 401
+            
+        if token.startswith('Bearer '):
+            token = token[7:]
+            
+        user_data = verify_clerk_token(token)
+        if not user_data:
+            return jsonify({'error': 'Invalid token'}), 401
+            
+        # Get Discord user ID from Clerk
+        discord_user_id = user_data.get('external_accounts', [{}])[0].get('external_id')
+        if not discord_user_id:
+            return jsonify({'error': 'Discord account not linked'}), 401
+            
+        # Verify admin role
+        if not verify_discord_admin(discord_user_id):
+            return jsonify({'error': 'Admin access required'}), 403
+            
+        request.user = user_data
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/api/auth/verify', methods=['POST'])
+def verify_auth():
+    """Verify user authentication and Discord admin status"""
+    data = request.get_json()
+    token = data.get('token')
+    
+    if not token:
+        return jsonify({'error': 'No token provided'}), 400
+        
+    user_data = verify_clerk_token(token)
+    if not user_data:
+        return jsonify({'error': 'Invalid token'}), 401
+        
+    # Get Discord user ID
+    discord_user_id = user_data.get('external_accounts', [{}])[0].get('external_id')
+    if not discord_user_id:
+        return jsonify({'error': 'Discord account not linked'}), 401
+        
+    # Verify admin role
+    if not verify_discord_admin(discord_user_id):
+        return jsonify({'error': 'Admin access required'}), 403
+        
+    # Store/update user in database
+    user_doc = {
+        'clerk_id': user_data.get('sub'),
+        'discord_id': discord_user_id,
+        'username': user_data.get('username'),
+        'last_login': datetime.utcnow()
+    }
+    
+    users_collection.update_one(
+        {'clerk_id': user_data.get('sub')},
+        {'$set': user_doc},
+        upsert=True
+    )
+    
+    return jsonify({'success': True, 'user': user_data})
+
+@app.route('/api/pods', methods=['GET'])
+@require_auth
+def get_pods():
+    """Get all pods"""
+    try:
+        # Get pods from RunPod
+        runpod_pods = runpod.get_pods()
+        
+        # Get additional data from MongoDB
+        db_pods = list(pods_collection.find())
+        
+        # Merge data
+        pods = []
+        for rp_pod in runpod_pods:
+            pod_id = rp_pod['id']
+            db_pod = next((p for p in db_pods if p['runpod_id'] == pod_id), {})
+            
+            pod_data = {
+                'id': pod_id,
+                'name': rp_pod.get('name'),
+                'status': rp_pod.get('desiredStatus'),
+                'machine_type': rp_pod.get('machineType'),
+                'created_at': rp_pod.get('createdAt'),
+                'runtime': rp_pod.get('runtime'),
+                'is_public': db_pod.get('is_public', False),
+                'allowed_users': db_pod.get('allowed_users', []),
+                'custom_config': db_pod.get('custom_config', {})
+            }
+            pods.append(pod_data)
+            
+        return jsonify({'pods': pods})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods', methods=['POST'])
+@require_auth
+def create_pod():
+    """Create a new pod"""
+    try:
+        data = request.get_json()
+        
+        # Default configuration
+        config = {
+            'name': data.get('name', f'pod-{secrets.token_hex(4)}'),
+            'image_name': data.get('image_name', 'runpod/pytorch:3.10-2.0.0-117'),
+            'gpu_type_id': data.get('gpu_type_id', 'NVIDIA RTX A4000'),
+            'cloud_type': data.get('cloud_type', 'ALL'),
+            'support_public_ip': data.get('support_public_ip', True),
+            'start_jupyter': data.get('start_jupyter', True),
+            'start_ssh': data.get('start_ssh', True),
+            'volume_in_gb': data.get('volume_in_gb', 20),
+            'container_disk_in_gb': data.get('container_disk_in_gb', 20),
+            'min_vcpu_count': data.get('min_vcpu_count', 2),
+            'min_memory_in_gb': data.get('min_memory_in_gb', 8),
+            'docker_args': data.get('docker_args', ''),
+            'ports': data.get('ports', '8888/http,22/tcp'),
+            'volume_mount_path': data.get('volume_mount_path', '/workspace'),
+            'env': data.get('env', {})
+        }
+        
+        # Create pod via RunPod API
+        pod = runpod.create_pod(**config)
+        
+        if pod and 'id' in pod:
+            # Store additional data in MongoDB
+            pod_doc = {
+                'runpod_id': pod['id'],
+                'name': config['name'],
+                'is_public': data.get('is_public', False),
+                'allowed_users': data.get('allowed_users', []),
+                'custom_config': config,
+                'created_by': request.user.get('sub'),
+                'created_at': datetime.utcnow()
+            }
+            
+            pods_collection.insert_one(pod_doc)
+            
+            return jsonify({'success': True, 'pod': pod})
+        else:
+            return jsonify({'error': 'Failed to create pod'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/<pod_id>', methods=['GET'])
+@require_auth
+def get_pod_details(pod_id):
+    """Get detailed information about a specific pod"""
+    try:
+        # Get pod from RunPod
+        pod = runpod.get_pod(pod_id)
+        
+        if not pod:
+            return jsonify({'error': 'Pod not found'}), 404
+            
+        # Get additional data from MongoDB
+        db_pod = pods_collection.find_one({'runpod_id': pod_id})
+        
+        pod_data = {
+            'id': pod['id'],
+            'name': pod.get('name'),
+            'status': pod.get('desiredStatus'),
+            'machine_type': pod.get('machineType'),
+            'created_at': pod.get('createdAt'),
+            'runtime': pod.get('runtime'),
+            'ports': pod.get('ports'),
+            'machine': pod.get('machine'),
+            'is_public': db_pod.get('is_public', False) if db_pod else False,
+            'allowed_users': db_pod.get('allowed_users', []) if db_pod else [],
+            'custom_config': db_pod.get('custom_config', {}) if db_pod else {}
+        }
+        
+        return jsonify({'pod': pod_data})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/<pod_id>', methods=['PUT'])
+@require_auth
+def update_pod(pod_id):
+    """Update pod configuration"""
+    try:
+        data = request.get_json()
+        
+        # Update in MongoDB
+        update_doc = {}
+        if 'is_public' in data:
+            update_doc['is_public'] = data['is_public']
+        if 'allowed_users' in data:
+            update_doc['allowed_users'] = data['allowed_users']
+            
+        if update_doc:
+            pods_collection.update_one(
+                {'runpod_id': pod_id},
+                {'$set': update_doc}
+            )
+            
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/<pod_id>/action', methods=['POST'])
+@require_auth
+def pod_action(pod_id):
+    """Perform actions on a pod (start, stop, restart, terminate)"""
+    try:
+        data = request.get_json()
+        action = data.get('action')
+        
+        if action == 'stop':
+            result = runpod.stop_pod(pod_id)
+        elif action == 'start':
+            result = runpod.resume_pod(pod_id)
+        elif action == 'restart':
+            runpod.stop_pod(pod_id)
+            result = runpod.resume_pod(pod_id)
+        elif action == 'terminate':
+            result = runpod.terminate_pod(pod_id)
+            # Remove from MongoDB
+            pods_collection.delete_one({'runpod_id': pod_id})
+        else:
+            return jsonify({'error': 'Invalid action'}), 400
+            
+        return jsonify({'success': True, 'result': result})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/public', methods=['GET'])
+def get_public_pods():
+    """Get public pods for CLI users"""
+    try:
+        # This endpoint doesn't require full auth, just basic token verification
+        token = request.headers.get('Authorization')
+        if token and token.startswith('Bearer '):
+            token = token[7:]
+            user_data = verify_clerk_token(token)
+            if not user_data:
+                return jsonify({'error': 'Invalid token'}), 401
+        else:
+            return jsonify({'error': 'No token provided'}), 401
+            
+        # Get public pods from MongoDB
+        public_pods = list(pods_collection.find({'is_public': True}))
+        
+        pods = []
+        for pod in public_pods:
+            # Get current status from RunPod
+            try:
+                rp_pod = runpod.get_pod(pod['runpod_id'])
+                if rp_pod and rp_pod.get('desiredStatus') == 'RUNNING':
+                    pods.append({
+                        'id': pod['runpod_id'],
+                        'name': pod['name'],
+                        'status': rp_pod.get('desiredStatus'),
+                        'created_at': pod.get('created_at')
+                    })
+            except:
+                continue
+                
+        return jsonify({'pods': pods})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/<pod_id>/connect', methods=['POST'])
+def connect_to_pod(pod_id):
+    """Connect to a pod via CLI"""
+    try:
+        # Verify token
+        token = request.headers.get('Authorization')
+        if token and token.startswith('Bearer '):
+            token = token[7:]
+            user_data = verify_clerk_token(token)
+            if not user_data:
+                return jsonify({'error': 'Invalid token'}), 401
+        else:
+            return jsonify({'error': 'No token provided'}), 401
+            
+        # Check if pod is public
+        pod_doc = pods_collection.find_one({'runpod_id': pod_id})
+        if not pod_doc or not pod_doc.get('is_public'):
+            return jsonify({'error': 'Pod not accessible'}), 403
+            
+        # Get pod details from RunPod
+        pod = runpod.get_pod(pod_id)
+        if not pod or pod.get('desiredStatus') != 'RUNNING':
+            return jsonify({'error': 'Pod not running'}), 400
+            
+        # Get SSH connection details
+        ssh_info = {
+            'host': pod.get('machine', {}).get('publicIpAddress'),
+            'port': 22,
+            'username': 'root',
+            'user_folder': user_data.get('username', 'user')
+        }
+        
+        return jsonify({'ssh_info': ssh_info})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/<pod_id>/files', methods=['GET'])
+@require_auth
+def list_pod_files(pod_id):
+    """List files in a pod directory"""
+    try:
+        path = request.args.get('path', '/workspace')
+        
+        # Get pod details
+        pod = runpod.get_pod(pod_id)
+        if not pod or pod.get('desiredStatus') != 'RUNNING':
+            return jsonify({'error': 'Pod not running'}), 400
+        
+        # Get SSH connection details (simplified for demo)
+        # In production, you'd retrieve stored SSH keys from database
+        host = pod.get('machine', {}).get('publicIpAddress')
+        if not host:
+            return jsonify({'error': 'Pod host not available'}), 400
+        
+        # Create file manager instance (this would need proper SSH key management)
+        file_manager = PodFileManager(host)
+        
+        # For now, return mock data since we don't have SSH keys set up
+        mock_files = [
+            {'name': 'notebooks', 'type': 'directory', 'size': 0, 'modified': 1640995200},
+            {'name': 'datasets', 'type': 'directory', 'size': 0, 'modified': 1640995200},
+            {'name': 'models', 'type': 'directory', 'size': 0, 'modified': 1640995200},
+            {'name': 'requirements.txt', 'type': 'file', 'size': 1024, 'modified': 1640995200},
+            {'name': 'main.py', 'type': 'file', 'size': 2048, 'modified': 1640995200},
+        ]
+        
+        return jsonify({'files': mock_files, 'path': path})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/<pod_id>/files/upload', methods=['POST'])
+@require_auth
+def upload_file_to_pod(pod_id):
+    """Upload a file to pod"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        remote_path = request.form.get('path', '/workspace')
+        
+        # In production, implement actual file upload
+        return jsonify({'success': True, 'message': 'File upload functionality will be implemented with proper SSH key management'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
