@@ -1,15 +1,26 @@
 'use client';
 
 import { useAuth, UserButton } from '@clerk/nextjs';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import toast, { Toaster } from 'react-hot-toast';
 import { ArrowLeft as ArrowLeftIcon } from 'lucide-react';
+
+interface DiscordMember {
+  discord_id: string;
+  username: string;
+  global_name?: string;
+  nickname?: string;
+  avatar?: string;
+  display_name: string;
+}
 
 interface PodConfig {
   name: string;
   image_name: string;
   gpu_type_id: string;
+  use_cpu_only: boolean;
   cloud_type: string;
   support_public_ip: boolean;
   start_jupyter: boolean;
@@ -28,18 +39,19 @@ interface PodConfig {
 
 const defaultConfig: PodConfig = {
   name: '',
-  image_name: 'runpod/pytorch:3.10-2.0.0-117',
+  image_name: 'runpod/base:0.4.0-cuda11.8.0',
   gpu_type_id: 'NVIDIA RTX A4000',
-  cloud_type: 'ALL',
-  support_public_ip: true,
-  start_jupyter: true,
+  use_cpu_only: false,
+  cloud_type: 'COMMUNITY',
+  support_public_ip: false,
+  start_jupyter: false,
   start_ssh: true,
-  volume_in_gb: 20,
-  container_disk_in_gb: 20,
-  min_vcpu_count: 2,
-  min_memory_in_gb: 8,
+  volume_in_gb: 1,
+  container_disk_in_gb: 2,
+  min_vcpu_count: 1,
+  min_memory_in_gb: 2,
   docker_args: '',
-  ports: '8888/http,22/tcp',
+  ports: '22/tcp',
   volume_mount_path: '/workspace',
   is_public: false,
   allowed_users: [],
@@ -52,7 +64,38 @@ export default function CreatePod() {
   const [loading, setLoading] = useState(false);
   const [envKey, setEnvKey] = useState('');
   const [envValue, setEnvValue] = useState('');
+  const [discordMembers, setDiscordMembers] = useState<DiscordMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
   const router = useRouter();
+
+  // Fetch Discord members on component mount
+  useEffect(() => {
+    const fetchDiscordMembers = async () => {
+      try {
+        const token = await getToken();
+        const response = await fetch('/api/discord/members', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setDiscordMembers(data.members || []);
+        } else {
+          console.error('Failed to fetch Discord members');
+          toast.error('Could not load Discord members');
+        }
+      } catch (error) {
+        console.error('Error fetching Discord members:', error);
+        toast.error('Error loading Discord members');
+      } finally {
+        setLoadingMembers(false);
+      }
+    };
+
+    fetchDiscordMembers();
+  }, [getToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,10 +197,10 @@ export default function CreatePod() {
                   onChange={(e) => setConfig({ ...config, image_name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                 >
+                  <option value="runpod/base:0.4.0-cuda11.8.0">Base CUDA 11.8 (Cheapest)</option>
+                  <option value="nvidia/cuda:11.8-devel-ubuntu20.04">NVIDIA CUDA 11.8</option>
                   <option value="runpod/pytorch:3.10-2.0.0-117">PyTorch 2.0.0 (Python 3.10)</option>
                   <option value="runpod/tensorflow:2.11.0-py3.10-cuda11.8.0-devel-ubuntu22.04">TensorFlow 2.11.0</option>
-                  <option value="runpod/base:0.4.0-cuda11.8.0">Base CUDA 11.8</option>
-                  <option value="nvidia/cuda:11.8-devel-ubuntu20.04">NVIDIA CUDA 11.8</option>
                 </select>
               </div>
 
@@ -170,12 +213,15 @@ export default function CreatePod() {
                   onChange={(e) => setConfig({ ...config, gpu_type_id: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                 >
-                  <option value="NVIDIA RTX A4000">NVIDIA RTX A4000</option>
+                  <option value="NVIDIA RTX A4000">NVIDIA RTX A4000 (Budget GPU) 💰</option>
                   <option value="NVIDIA RTX A5000">NVIDIA RTX A5000</option>
                   <option value="NVIDIA RTX A6000">NVIDIA RTX A6000</option>
-                  <option value="NVIDIA A100 PCIe">NVIDIA A100 PCIe</option>
-                  <option value="NVIDIA A100 SXM4">NVIDIA A100 SXM4</option>
+                  <option value="NVIDIA A100 PCIe">NVIDIA A100 PCIe (Expensive)</option>
+                  <option value="NVIDIA A100 SXM4">NVIDIA A100 SXM4 (Most Expensive)</option>
                 </select>
+                <p className="mt-2 text-xs text-blue-600">
+                  💡 Starting with the cheapest GPU option. Upgrade if you need more power.
+                </p>
               </div>
 
               <div>
@@ -187,9 +233,9 @@ export default function CreatePod() {
                   onChange={(e) => setConfig({ ...config, cloud_type: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                 >
+                  <option value="COMMUNITY">Community Cloud (Cheapest) 💰</option>
                   <option value="ALL">All Regions</option>
-                  <option value="SECURE">Secure Cloud</option>
-                  <option value="COMMUNITY">Community Cloud</option>
+                  <option value="SECURE">Secure Cloud (More Expensive)</option>
                 </select>
               </div>
             </div>
@@ -197,7 +243,12 @@ export default function CreatePod() {
 
           {/* Resource Configuration */}
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-6">Resource Configuration</h2>
+            <h2 className="text-lg font-medium text-gray-900 mb-4">Resource Configuration</h2>
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Tip:</strong> Start with minimal resources to save costs. You can always upgrade later if needed.
+              </p>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -207,10 +258,12 @@ export default function CreatePod() {
                 <input
                   type="number"
                   value={config.volume_in_gb}
-                  onChange={(e) => setConfig({ ...config, volume_in_gb: parseInt(e.target.value) })}
+                  onChange={(e) => setConfig({ ...config, volume_in_gb: parseInt(e.target.value) || 1 })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                   min="1"
+                  max="1000"
                 />
+                <p className="mt-1 text-xs text-gray-500">Persistent storage (min: 1 GB)</p>
               </div>
 
               <div>
@@ -220,10 +273,12 @@ export default function CreatePod() {
                 <input
                   type="number"
                   value={config.container_disk_in_gb}
-                  onChange={(e) => setConfig({ ...config, container_disk_in_gb: parseInt(e.target.value) })}
+                  onChange={(e) => setConfig({ ...config, container_disk_in_gb: parseInt(e.target.value) || 2 })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  min="1"
+                  min="2"
+                  max="1000"
                 />
+                <p className="mt-1 text-xs text-gray-500">Temporary disk space (min: 2 GB)</p>
               </div>
 
               <div>
@@ -233,10 +288,12 @@ export default function CreatePod() {
                 <input
                   type="number"
                   value={config.min_vcpu_count}
-                  onChange={(e) => setConfig({ ...config, min_vcpu_count: parseInt(e.target.value) })}
+                  onChange={(e) => setConfig({ ...config, min_vcpu_count: parseInt(e.target.value) || 1 })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                   min="1"
+                  max="64"
                 />
+                <p className="mt-1 text-xs text-gray-500">CPU cores (min: 1)</p>
               </div>
 
               <div>
@@ -246,10 +303,12 @@ export default function CreatePod() {
                 <input
                   type="number"
                   value={config.min_memory_in_gb}
-                  onChange={(e) => setConfig({ ...config, min_memory_in_gb: parseInt(e.target.value) })}
+                  onChange={(e) => setConfig({ ...config, min_memory_in_gb: parseInt(e.target.value) || 2 })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  min="1"
+                  min="2"
+                  max="512"
                 />
+                <p className="mt-1 text-xs text-gray-500">RAM (min: 2 GB)</p>
               </div>
             </div>
           </div>
@@ -259,35 +318,44 @@ export default function CreatePod() {
             <h2 className="text-lg font-medium text-gray-900 mb-6">Network & Services</h2>
             
             <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <label className="flex items-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="flex items-center space-x-2 p-3 border rounded-md hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={config.support_public_ip}
                     onChange={(e) => setConfig({ ...config, support_public_ip: e.target.checked })}
                     className="rounded border-gray-300 text-black focus:ring-black"
                   />
-                  <span className="ml-2 text-sm text-gray-700">Support Public IP</span>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Public IP</span>
+                    <p className="text-xs text-gray-500">Adds cost</p>
+                  </div>
                 </label>
                 
-                <label className="flex items-center">
+                <label className="flex items-center space-x-2 p-3 border rounded-md hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={config.start_jupyter}
                     onChange={(e) => setConfig({ ...config, start_jupyter: e.target.checked })}
                     className="rounded border-gray-300 text-black focus:ring-black"
                   />
-                  <span className="ml-2 text-sm text-gray-700">Start Jupyter</span>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Jupyter Notebook</span>
+                    <p className="text-xs text-gray-500">Web-based IDE</p>
+                  </div>
                 </label>
                 
-                <label className="flex items-center">
+                <label className="flex items-center space-x-2 p-3 border rounded-md hover:bg-gray-50">
                   <input
                     type="checkbox"
                     checked={config.start_ssh}
                     onChange={(e) => setConfig({ ...config, start_ssh: e.target.checked })}
                     className="rounded border-gray-300 text-black focus:ring-black"
                   />
-                  <span className="ml-2 text-sm text-gray-700">Start SSH</span>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">SSH Access</span>
+                    <p className="text-xs text-gray-500">Recommended ✓</p>
+                  </div>
                 </label>
               </div>
 
@@ -347,14 +415,84 @@ export default function CreatePod() {
                   className="rounded border-gray-300 text-black focus:ring-black"
                 />
                 <span className="ml-2 text-sm text-gray-700">
-                  Make this pod public (accessible via CLI)
+                  Make this pod public (accessible to all Discord members)
                 </span>
               </label>
               
               {config.is_public && (
                 <div className="ml-6 text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
-                  When public, users with valid Discord authentication can connect to this pod via CLI.
-                  Each user will get their own isolated folder.
+                  When public, any Discord member with valid authentication can connect to this pod via CLI.
+                  Each user will get their own isolated workspace folder.
+                </div>
+              )}
+
+              {!config.is_public && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Allowed Discord Users
+                  </label>
+                  {loadingMembers ? (
+                    <div className="text-sm text-gray-500">Loading Discord members...</div>
+                  ) : (
+                    <div className="border border-gray-300 rounded-md max-h-64 overflow-y-auto">
+                      {discordMembers.length === 0 ? (
+                        <div className="p-4 text-sm text-gray-500">No Discord members found</div>
+                      ) : (
+                        <div className="divide-y divide-gray-200">
+                          {discordMembers.map((member) => (
+                            <label key={member.discord_id} className="flex items-center p-3 hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={config.allowed_users.includes(member.discord_id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setConfig({
+                                      ...config,
+                                      allowed_users: [...config.allowed_users, member.discord_id]
+                                    });
+                                  } else {
+                                    setConfig({
+                                      ...config,
+                                      allowed_users: config.allowed_users.filter(id => id !== member.discord_id)
+                                    });
+                                  }
+                                }}
+                                className="rounded border-gray-300 text-black focus:ring-black"
+                              />
+                              <div className="ml-3 flex items-center">
+                                {member.avatar && (
+                                  <Image
+                                    src={`https://cdn.discordapp.com/avatars/${member.discord_id}/${member.avatar}.png?size=32`}
+                                    alt={member.display_name}
+                                    width={32}
+                                    height={32}
+                                    className="rounded-full mr-2"
+                                  />
+                                )}
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {member.display_name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    @{member.username}
+                                  </div>
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {config.allowed_users.length > 0 && (
+                    <div className="mt-2 text-sm text-gray-600">
+                      {config.allowed_users.length} user{config.allowed_users.length !== 1 ? 's' : ''} selected
+                    </div>
+                  )}
+                  <div className="mt-2 text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                    Only selected Discord users will be able to see and connect to this pod via CLI.
+                    Each user will get their own isolated workspace folder.
+                  </div>
                 </div>
               )}
             </div>

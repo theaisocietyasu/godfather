@@ -47,6 +47,57 @@ ssh_keys_collection = db.ssh_keys
 # Initialize RunPod
 runpod.api_key = RUNPOD_API_KEY
 
+def get_or_create_org_ssh_key():
+    """Get or create organization-wide SSH key pair for pod access"""
+    try:
+        # Check if SSH key already exists in database
+        existing_key = ssh_keys_collection.find_one({'key_type': 'organization'})
+        
+        if existing_key:
+            logger.info('Using existing organization SSH key')
+            return {
+                'public_key': existing_key['public_key'],
+                'private_key': existing_key['private_key']
+            }
+        
+        # Generate new SSH key pair
+        logger.info('Generating new organization SSH key pair')
+        import subprocess
+        import tempfile
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            key_path = f'{tmpdir}/godfather_key'
+            
+            # Generate SSH key without passphrase
+            subprocess.run([
+                'ssh-keygen', '-t', 'ed25519', '-f', key_path,
+                '-N', '', '-C', 'godfather-org-key'
+            ], check=True, capture_output=True)
+            
+            # Read keys
+            with open(key_path, 'r') as f:
+                private_key = f.read()
+            with open(f'{key_path}.pub', 'r') as f:
+                public_key = f.read()
+        
+        # Store in database
+        key_doc = {
+            'key_type': 'organization',
+            'public_key': public_key.strip(),
+            'private_key': private_key.strip(),
+            'created_at': datetime.utcnow()
+        }
+        ssh_keys_collection.insert_one(key_doc)
+        logger.info('✓ Organization SSH key generated and stored')
+        
+        return {
+            'public_key': public_key.strip(),
+            'private_key': private_key.strip()
+        }
+    except Exception as e:
+        logger.error(f'Failed to generate SSH key: {e}', exc_info=True)
+        return None
+
 def get_discord_id_from_clerk(clerk_user_id):
     """Fetch Discord ID from Clerk API"""
     try:
@@ -371,6 +422,55 @@ def verify_auth():
     logger.info(f'User {discord_user_id} successfully authenticated')
     return jsonify({'success': True, 'user': user_data})
 
+@app.route('/api/discord/members', methods=['GET'])
+@require_auth
+def get_discord_members():
+    """Fetch all Discord guild members (admin only)"""
+    logger.info('=== Fetching Discord Guild Members ===')
+    
+    try:
+        headers = {
+            'Authorization': f'Bot {DISCORD_BOT_TOKEN}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Fetch all guild members
+        url = f'https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/members?limit=1000'
+        logger.info(f'Fetching members from: {url}')
+        
+        response = requests.get(url, headers=headers)
+        logger.info(f'Discord API response status: {response.status_code}')
+        
+        if response.status_code != 200:
+            logger.error(f'Failed to fetch Discord members')
+            logger.error(f'Status: {response.status_code}')
+            logger.error(f'Response: {response.text}')
+            return jsonify({'error': 'Failed to fetch Discord members'}), 500
+        
+        members = response.json()
+        logger.info(f'Fetched {len(members)} guild members')
+        
+        # Format member data
+        formatted_members = []
+        for member in members:
+            user = member.get('user', {})
+            if not user.get('bot', False):  # Exclude bots
+                formatted_members.append({
+                    'discord_id': user.get('id'),
+                    'username': user.get('username'),
+                    'global_name': user.get('global_name'),
+                    'nickname': member.get('nick'),
+                    'avatar': user.get('avatar'),
+                    'display_name': member.get('nick') or user.get('global_name') or user.get('username')
+                })
+        
+        logger.info(f'Returning {len(formatted_members)} non-bot members')
+        return jsonify({'members': formatted_members})
+        
+    except Exception as e:
+        logger.error(f'Exception in get_discord_members: {e}', exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500
+
 @app.route('/api/pods', methods=['GET'])
 @require_auth
 def get_pods():
@@ -434,23 +534,49 @@ def create_pod():
         logger.info(f'Image: {data.get("image_name")}')
         logger.info(f'GPU: {data.get("gpu_type_id")}')
         logger.info(f'Public: {data.get("is_public", False)}')
+        logger.info(f'Allowed users: {data.get("allowed_users", [])}')
+        
+        # Get or create organization SSH key
+        logger.info('Setting up SSH key for pod access...')
+        ssh_key = get_or_create_org_ssh_key()
+        if not ssh_key:
+            logger.error('Failed to get SSH key')
+            return jsonify({'error': 'Failed to setup SSH access'}), 500
+        
+        logger.info('✓ SSH key ready')
         
         # Configuration for RunPod API
         # Note: RunPod SDK expects specific parameters
         config = {
             'name': data.get('name', f'pod-{secrets.token_hex(4)}'),
-            'image_name': data.get('image_name', 'runpod/pytorch:3.10-2.0.0-117'),
+            'image_name': data.get('image_name', 'runpod/base:0.4.0-cuda11.8.0'),
             'gpu_type_id': data.get('gpu_type_id', 'NVIDIA RTX A4000'),
-            'cloud_type': data.get('cloud_type', 'ALL'),
-            'volume_in_gb': data.get('volume_in_gb', 20),
-            'container_disk_in_gb': data.get('container_disk_in_gb', 20),
-            'ports': data.get('ports', '8888/http,22/tcp'),
+            'cloud_type': data.get('cloud_type', 'COMMUNITY'),
+            'volume_in_gb': data.get('volume_in_gb', 1),
+            'container_disk_in_gb': data.get('container_disk_in_gb', 2),
+            'ports': data.get('ports', '22/tcp'),
             'volume_mount_path': data.get('volume_mount_path', '/workspace'),
         }
         
-        # Add optional parameters if provided
-        if data.get('docker_args'):
-            config['docker_args'] = data.get('docker_args')
+        logger.info(f'Using GPU: {config["gpu_type_id"]}')
+        
+        # Prepare docker args to setup SSH key
+        base_docker_args = data.get('docker_args', '')
+        
+        # Create init script to setup SSH key and user workspaces
+        init_script = f'''
+mkdir -p /root/.ssh && \
+echo "{ssh_key["public_key"]}" >> /root/.ssh/authorized_keys && \
+chmod 700 /root/.ssh && \
+chmod 600 /root/.ssh/authorized_keys && \
+mkdir -p /workspace/users
+        '''.strip()
+        
+        # Combine with user's docker args
+        if base_docker_args:
+            config['docker_args'] = f'{base_docker_args} && {init_script}'
+        else:
+            config['docker_args'] = f'bash -c "{init_script}"'
         
         if data.get('env'):
             config['env'] = data.get('env')
@@ -643,7 +769,9 @@ def pod_action(pod_id):
 
 @app.route('/api/pods/public', methods=['GET'])
 def get_public_pods():
-    """Get public pods for CLI users"""
+    """Get pods accessible to CLI users (public or explicitly allowed)"""
+    logger.info('=== Fetching Accessible Pods for CLI User ===')
+    
     try:
         # This endpoint doesn't require full auth, just basic token verification
         token = request.headers.get('Authorization')
@@ -651,66 +779,220 @@ def get_public_pods():
             token = token[7:]
             user_data = verify_clerk_token(token)
             if not user_data:
+                logger.warning('Invalid token provided')
                 return jsonify({'error': 'Invalid token'}), 401
         else:
+            logger.warning('No token provided')
             return jsonify({'error': 'No token provided'}), 401
-            
-        # Get public pods from MongoDB
-        public_pods = list(pods_collection.find({'is_public': True}))
+        
+        # Get Clerk user ID and fetch Discord ID
+        clerk_user_id = user_data.get('sub')
+        if not clerk_user_id:
+            logger.error('No Clerk user ID in token')
+            return jsonify({'error': 'Invalid token'}), 401
+        
+        logger.info(f'Fetching Discord ID for Clerk user: {clerk_user_id}')
+        discord_user_id = get_discord_id_from_clerk(clerk_user_id)
+        
+        if not discord_user_id:
+            logger.warning('Discord account not linked')
+            return jsonify({'error': 'Discord account not linked'}), 401
+        
+        logger.info(f'Discord user ID: {discord_user_id}')
+        
+        # Get pods that are either public OR user is in allowed_users
+        query = {
+            '$or': [
+                {'is_public': True},
+                {'allowed_users': discord_user_id}
+            ]
+        }
+        
+        logger.info(f'Querying MongoDB with: {query}')
+        accessible_pods = list(pods_collection.find(query))
+        logger.info(f'Found {len(accessible_pods)} accessible pods in database')
         
         pods = []
-        for pod in public_pods:
+        for pod in accessible_pods:
             # Get current status from RunPod
             try:
+                logger.info(f'Checking RunPod status for: {pod["runpod_id"]}')
                 rp_pod = runpod.get_pod(pod['runpod_id'])
                 if rp_pod and rp_pod.get('desiredStatus') == 'RUNNING':
-                    pods.append({
+                    pod_info = {
                         'id': pod['runpod_id'],
                         'name': pod['name'],
                         'status': rp_pod.get('desiredStatus'),
-                        'created_at': pod.get('created_at')
-                    })
-            except:
+                        'created_at': pod.get('created_at'),
+                        'is_public': pod.get('is_public', False)
+                    }
+                    pods.append(pod_info)
+                    logger.info(f'✓ Pod {pod["name"]} is running and accessible')
+            except Exception as e:
+                logger.error(f'Error checking pod {pod.get("runpod_id")}: {e}')
                 continue
-                
+        
+        logger.info(f'Returning {len(pods)} running and accessible pods')
         return jsonify({'pods': pods})
+        
     except Exception as e:
+        logger.error(f'Exception in get_public_pods: {e}', exc_info=True)
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/pods/<pod_id>/connect', methods=['POST'])
-def connect_to_pod(pod_id):
-    """Connect to a pod via CLI"""
+@app.route('/api/ssh-key', methods=['GET'])
+def get_ssh_key():
+    """Get organization SSH private key for CLI users"""
     try:
+        logger.info('=== SSH Key Request ===')
+        
         # Verify token
         token = request.headers.get('Authorization')
         if token and token.startswith('Bearer '):
             token = token[7:]
             user_data = verify_clerk_token(token)
             if not user_data:
+                logger.warning('Invalid token')
                 return jsonify({'error': 'Invalid token'}), 401
         else:
+            logger.warning('No token provided')
             return jsonify({'error': 'No token provided'}), 401
+        
+        logger.info(f'User: {user_data.get("sub")}')
+        
+        # Get SSH key from database
+        ssh_key_doc = ssh_keys_collection.find_one({'key_type': 'organization'})
+        
+        if not ssh_key_doc:
+            logger.error('No SSH key found in database')
+            return jsonify({'error': 'SSH key not configured'}), 500
+        
+        logger.info('✓ Returning SSH private key')
+        
+        return jsonify({
+            'private_key': ssh_key_doc['private_key']
+        })
+        
+    except Exception as e:
+        logger.error(f'ERROR in get_ssh_key: {e}', exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/<pod_id>/connect', methods=['POST'])
+def connect_to_pod(pod_id):
+    """Connect to a pod via CLI"""
+    try:
+        logger.info('='*50)
+        logger.info('POD CONNECT REQUEST')
+        logger.info(f'Pod ID: {pod_id}')
+        
+        # Verify token
+        token = request.headers.get('Authorization')
+        if token and token.startswith('Bearer '):
+            token = token[7:]
+            user_data = verify_clerk_token(token)
+            if not user_data:
+                logger.warning('Invalid token')
+                return jsonify({'error': 'Invalid token'}), 401
+        else:
+            logger.warning('No token provided')
+            return jsonify({'error': 'No token provided'}), 401
+        
+        logger.info(f'User: {user_data.get("sub")}')
+        
+        # Get Clerk user ID and fetch Discord ID
+        clerk_user_id = user_data.get('sub')
+        if not clerk_user_id:
+            logger.error('No Clerk user ID in token')
+            return jsonify({'error': 'Invalid token'}), 401
+        
+        logger.info(f'Fetching Discord ID for Clerk user: {clerk_user_id}')
+        discord_user_id = get_discord_id_from_clerk(clerk_user_id)
+        
+        if not discord_user_id:
+            logger.warning('Discord account not linked')
+            return jsonify({'error': 'Discord account not linked'}), 401
+        
+        logger.info(f'Discord user ID: {discord_user_id}')
             
-        # Check if pod is public
+        # Check if user has access to pod (either public or in allowed_users)
         pod_doc = pods_collection.find_one({'runpod_id': pod_id})
-        if not pod_doc or not pod_doc.get('is_public'):
+        if not pod_doc:
+            logger.warning(f'Pod {pod_id} not found in database')
+            return jsonify({'error': 'Pod not found'}), 404
+        
+        is_public = pod_doc.get('is_public', False)
+        allowed_users = pod_doc.get('allowed_users', [])
+        
+        logger.info(f'Pod is_public: {is_public}')
+        logger.info(f'Pod allowed_users: {allowed_users}')
+        
+        # Check access
+        has_access = is_public or (discord_user_id in allowed_users)
+        
+        if not has_access:
+            logger.warning(f'User {discord_user_id} does not have access to pod {pod_id}')
             return jsonify({'error': 'Pod not accessible'}), 403
+        
+        logger.info(f'✓ User has access to pod')
             
         # Get pod details from RunPod
+        logger.info('Fetching pod details from RunPod...')
         pod = runpod.get_pod(pod_id)
-        if not pod or pod.get('desiredStatus') != 'RUNNING':
-            return jsonify({'error': 'Pod not running'}), 400
+        
+        if not pod:
+            logger.error(f'Pod {pod_id} not found in RunPod')
+            return jsonify({'error': 'Pod not found'}), 404
             
+        logger.info(f'Pod status: {pod.get("desiredStatus")}')
+        logger.info(f'Pod runtime: {pod.get("runtime")}')
+        
+        if pod.get('desiredStatus') != 'RUNNING':
+            logger.warning(f'Pod is not running (status: {pod.get("desiredStatus")})')
+            return jsonify({'error': 'Pod not running'}), 400
+        
+        # Get SSH connection details from runtime
+        runtime = pod.get('runtime', {})
+        logger.info(f'Runtime keys: {list(runtime.keys())}')
+        
+        # Try different possible locations for SSH info
+        host = None
+        port = 22
+        
+        # Check runtime.ports for SSH port mapping
+        if runtime.get('ports'):
+            logger.info(f'Runtime ports: {runtime.get("ports")}')
+            for port_info in runtime.get('ports', []):
+                if port_info.get('privatePort') == 22:
+                    host = port_info.get('ip')
+                    port = port_info.get('publicPort', 22)
+                    logger.info(f'Found SSH port mapping: {host}:{port}')
+                    break
+        
+        # Fallback to machine public IP if available
+        if not host and pod.get('machine'):
+            host = pod.get('machine', {}).get('podHostId')
+            logger.info(f'Using machine podHostId: {host}')
+        
+        if not host:
+            logger.error('No host information available')
+            logger.error(f'Full pod data: {pod}')
+            return jsonify({'error': 'No host information available'}), 400
+        
         # Get SSH connection details
         ssh_info = {
-            'host': pod.get('machine', {}).get('publicIpAddress'),
-            'port': 22,
+            'host': host,
+            'port': port,
             'username': 'root',
             'user_folder': user_data.get('username', 'user')
         }
         
+        logger.info(f'✓ SSH info: {ssh_info}')
+        logger.info('='*50)
+        
         return jsonify({'ssh_info': ssh_info})
     except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in connect_to_pod: {e}', exc_info=True)
+        logger.error('='*50)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/pods/<pod_id>/files', methods=['GET'])

@@ -50,7 +50,8 @@ class GodfatherCLI:
         """Authenticate user via Discord/Clerk"""
         print("🔐 Authentication required...")
         print("Please visit the admin portal to get your authentication token:")
-        print(f"   {self.api_base.replace(':5000', ':3000')}")
+        portal_url = self.api_base.replace(':5000', ':3000')
+        print(f"   {portal_url}/cli-auth")
         print()
         
         token = getpass.getpass("Enter your authentication token: ").strip()
@@ -184,6 +185,42 @@ class GodfatherCLI:
             print("❌ No host information available")
             return
         
+        # Fetch SSH private key from API
+        print("🔑 Fetching SSH key...")
+        try:
+            headers = {'Authorization': f'Bearer {self.config["token"]}'}
+            response = requests.get(f'{self.api_base}/api/ssh-key', 
+                                   headers=headers, 
+                                   timeout=10)
+            
+            if response.status_code != 200:
+                print(f"❌ Failed to fetch SSH key: {response.json().get('error', 'Unknown error')}")
+                return
+            
+            private_key = response.json().get('private_key')
+            if not private_key:
+                print("❌ No SSH key returned from API")
+                return
+            
+            # Save SSH key to temporary file
+            ssh_key_dir = self.config_dir / 'ssh'
+            ssh_key_dir.mkdir(exist_ok=True)
+            ssh_key_file = ssh_key_dir / 'godfather_key'
+            
+            with open(ssh_key_file, 'w') as f:
+                f.write(private_key)
+            
+            # Set correct permissions (SSH requires 600)
+            os.chmod(ssh_key_file, 0o600)
+            print("✅ SSH key ready")
+            
+        except requests.RequestException as e:
+            print(f"❌ Failed to fetch SSH key: {e}")
+            return
+        except IOError as e:
+            print(f"❌ Failed to save SSH key: {e}")
+            return
+        
         print(f"🔗 Connecting to {host}:{port}")
         print(f"👤 User workspace: /workspace/{user_folder}")
         print("\n📁 Setting up your personal workspace...")
@@ -198,6 +235,9 @@ class GodfatherCLI:
         ssh_command = [
             'ssh',
             '-t',
+            '-i', str(ssh_key_file),  # Use fetched SSH key
+            '-o', 'StrictHostKeyChecking=no',  # Auto-accept host key
+            '-o', 'UserKnownHostsFile=/dev/null',  # Don't save host key
             '-p', str(port),
             f'{username}@{host}',
             ' && '.join(setup_commands) + ' && bash'
@@ -210,8 +250,13 @@ class GodfatherCLI:
             print("📝 Type 'exit' to disconnect\n")
             
             # Execute SSH connection
-            subprocess.run(ssh_command)
-            print("\n👋 Disconnected from pod")
+            result = subprocess.run(ssh_command)
+            
+            if result.returncode != 0:
+                print("\n❌ SSH connection failed!")
+                print("\n💡 Please contact an admin if the issue persists")
+            else:
+                print("\n👋 Disconnected from pod")
             
         except KeyboardInterrupt:
             print("\n👋 Connection cancelled")
