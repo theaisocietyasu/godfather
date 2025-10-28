@@ -12,7 +12,8 @@ import {
   RotateCw as RestartIcon,
   Trash2 as TrashIcon,
   Eye as EyeIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Terminal as TerminalIcon
 } from 'lucide-react';
 import moment from 'moment';
 
@@ -152,6 +153,13 @@ export default function Dashboard() {
               <span className="text-sm text-gray-500">RunPod Management</span>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => router.push('/cli-auth')}
+                className="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+              >
+                <TerminalIcon className="w-4 h-4" />
+                <span>CLI Token</span>
+              </button>
               <button
                 onClick={() => router.push('/dashboard/create-pod')}
                 className="bg-black text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center space-x-2"
