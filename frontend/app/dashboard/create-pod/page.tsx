@@ -3,7 +3,6 @@
 import { useAuth, UserButton } from '@clerk/nextjs';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
 import { ArrowLeftIcon } from 'lucide-react';
 
@@ -65,12 +64,23 @@ export default function CreatePod() {
     setLoading(true);
     try {
       const token = await getToken();
-      await axios.post('/api/pods', config, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await fetch('/api/pods', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(config),
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create pod');
+      }
+      
       toast.success('Pod created successfully!');
       router.push('/dashboard');
     } catch (error: unknown) {
+      console.error('Error creating pod:', error);
       toast.error('Failed to create pod');
     } finally {
       setLoading(false);

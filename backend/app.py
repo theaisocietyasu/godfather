@@ -1,4 +1,5 @@
 import os
+import logging
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -11,8 +12,22 @@ import secrets
 import hashlib
 from file_manager import PodFileManager
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 CORS(app)
+
+# Log all requests
+@app.before_request
+def log_request_info():
+    logger.info(f'{request.method} {request.path} - {request.remote_addr}')
+    if request.get_json(silent=True):
+        logger.debug(f'Request body: {request.get_json()}')
 
 # Configuration
 MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/godfather')
@@ -34,6 +49,7 @@ runpod.api_key = RUNPOD_API_KEY
 def verify_discord_admin(discord_user_id):
     """Verify if user has Admin role in Discord server"""
     try:
+        logger.info(f'Verifying Discord admin for user: {discord_user_id}')
         headers = {
             'Authorization': f'Bot {DISCORD_BOT_TOKEN}',
             'Content-Type': 'application/json'
@@ -41,41 +57,53 @@ def verify_discord_admin(discord_user_id):
         
         # Get guild member
         url = f'https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/members/{discord_user_id}'
+        logger.info(f'Fetching Discord member info from: {url}')
         response = requests.get(url, headers=headers)
         
+        logger.info(f'Discord API response status: {response.status_code}')
+        
         if response.status_code != 200:
+            logger.error(f'Failed to fetch Discord member: {response.text}')
             return False
             
         member_data = response.json()
+        logger.info(f'Member roles: {member_data.get("roles", [])}')
         
         # Get guild roles to find Admin role ID
         roles_url = f'https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/roles'
         roles_response = requests.get(roles_url, headers=headers)
         
         if roles_response.status_code != 200:
+            logger.error(f'Failed to fetch guild roles: {roles_response.text}')
             return False
             
         roles = roles_response.json()
         admin_role_id = None
         
+        logger.info(f'Guild has {len(roles)} roles')
         for role in roles:
             if role['name'].lower() == 'admin':
                 admin_role_id = role['id']
+                logger.info(f'Found admin role: {admin_role_id}')
                 break
                 
         if not admin_role_id:
+            logger.warning('Admin role not found in guild')
             return False
             
         # Check if user has admin role
-        return admin_role_id in member_data.get('roles', [])
+        has_admin = admin_role_id in member_data.get('roles', [])
+        logger.info(f'User has admin role: {has_admin}')
+        return has_admin
         
     except Exception as e:
-        print(f"Error verifying Discord admin: {e}")
+        logger.error(f"Error verifying Discord admin: {e}", exc_info=True)
         return False
 
 def verify_clerk_token(token):
     """Verify Clerk JWT token and extract user info"""
     try:
+        logger.info('Verifying Clerk token')
         # In production, fetch the public key from Clerk's JWKS endpoint
         # For now, we'll decode without verification for development
         # You should implement proper JWT verification with Clerk's public key
@@ -85,6 +113,7 @@ def verify_clerk_token(token):
         # Split the JWT token
         parts = token.split('.')
         if len(parts) != 3:
+            logger.warning(f'Invalid JWT format: expected 3 parts, got {len(parts)}')
             return None
             
         # Decode the payload (second part)
@@ -95,9 +124,12 @@ def verify_clerk_token(token):
         decoded_payload = base64.urlsafe_b64decode(payload)
         user_data = json.loads(decoded_payload)
         
+        logger.info(f'Successfully decoded token for user: {user_data.get("sub", "unknown")}')
+        logger.debug(f'Token payload keys: {list(user_data.keys())}')
+        
         return user_data
     except Exception as e:
-        print(f"Error verifying Clerk token: {e}")
+        logger.error(f"Error verifying Clerk token: {e}", exc_info=True)
         return None
 
 def require_auth(f):
@@ -131,25 +163,49 @@ def require_auth(f):
 @app.route('/api/auth/verify', methods=['POST'])
 def verify_auth():
     """Verify user authentication and Discord admin status"""
+    logger.info('=== Auth Verification Request ===')
+    
     data = request.get_json()
     token = data.get('token')
     
     if not token:
+        logger.warning('No token provided in request')
         return jsonify({'error': 'No token provided'}), 400
-        
+    
+    logger.info(f'Verifying token (length: {len(token)})')
     user_data = verify_clerk_token(token)
+    
     if not user_data:
+        logger.warning('Invalid token provided')
         return jsonify({'error': 'Invalid token'}), 401
-        
+    
+    logger.info(f'Token verified. User data: {user_data.get("sub", "unknown")}')
+    logger.info(f'External accounts: {user_data.get("external_accounts", [])}')
+    
     # Get Discord user ID
-    discord_user_id = user_data.get('external_accounts', [{}])[0].get('external_id')
+    external_accounts = user_data.get('external_accounts', [])
+    discord_user_id = None
+    
+    if external_accounts:
+        discord_account = next((acc for acc in external_accounts if acc.get('provider') == 'discord'), None)
+        if discord_account:
+            discord_user_id = discord_account.get('external_id')
+    
+    logger.info(f'Discord user ID: {discord_user_id}')
+    
     if not discord_user_id:
+        logger.warning('Discord account not linked to Clerk account')
         return jsonify({'error': 'Discord account not linked'}), 401
-        
+    
     # Verify admin role
-    if not verify_discord_admin(discord_user_id):
+    logger.info(f'Checking admin role for Discord user: {discord_user_id}')
+    is_admin = verify_discord_admin(discord_user_id)
+    logger.info(f'Admin check result: {is_admin}')
+    
+    if not is_admin:
+        logger.warning(f'User {discord_user_id} does not have admin role')
         return jsonify({'error': 'Admin access required'}), 403
-        
+    
     # Store/update user in database
     user_doc = {
         'clerk_id': user_data.get('sub'),
@@ -164,6 +220,7 @@ def verify_auth():
         upsert=True
     )
     
+    logger.info(f'User {discord_user_id} successfully authenticated')
     return jsonify({'success': True, 'user': user_data})
 
 @app.route('/api/pods', methods=['GET'])

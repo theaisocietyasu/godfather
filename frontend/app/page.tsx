@@ -3,7 +3,6 @@
 import { useAuth, SignInButton, UserButton } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function Home() {
@@ -21,18 +20,38 @@ export default function Home() {
   const verifyDiscordAdmin = async () => {
     setIsVerifying(true);
     try {
+      console.log('Starting Discord admin verification...');
       const token = await getToken();
-      const response = await axios.post('/api/auth/verify', {
-        token: token
+      console.log('Got Clerk token, length:', token?.length);
+      
+      const response = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
       });
 
-      if (response.data.success) {
+      const data = await response.json();
+      console.log('Verification response:', data);
+      
+      if (response.ok && data.success) {
         setIsAuthorized(true);
         toast.success('Welcome to AI Society Admin Portal!');
         router.push('/dashboard');
+      } else {
+        throw new Error(data.error || 'Verification failed');
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Access denied. Admin role required.');
+      console.error('Verification error:', error);
+      
+      const errorMessage = error.message || 'Access denied. Admin role required.';
+      toast.error(errorMessage);
+      
+      if (errorMessage === 'Discord account not linked') {
+        toast.error('Please link your Discord account in Clerk settings');
+      }
+      
       setIsAuthorized(false);
     }
     setIsVerifying(false);

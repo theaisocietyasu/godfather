@@ -3,7 +3,6 @@
 import { useAuth, UserButton } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
   ServerIcon, 
@@ -48,11 +47,18 @@ export default function Dashboard() {
   const fetchPods = async () => {
     try {
       const token = await getToken();
-      const response = await axios.get('/api/pods', {
+      const response = await fetch('/api/pods', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setPods(response.data.pods);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch pods');
+      }
+      
+      const data = await response.json();
+      setPods(data.pods);
     } catch (error: any) {
+      console.error('Error fetching pods:', error);
       toast.error('Failed to fetch pods');
     } finally {
       setLoading(false);
@@ -63,13 +69,23 @@ export default function Dashboard() {
     setActionLoading(podId);
     try {
       const token = await getToken();
-      await axios.post(`/api/pods/${podId}/action`, 
-        { action }, 
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await fetch(`/api/pods/${podId}/action`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to ${action} pod`);
+      }
+      
       toast.success(`Pod ${action} successful`);
       fetchPods(); // Refresh the list
     } catch (error: any) {
+      console.error(`Error ${action} pod:`, error);
       toast.error(`Failed to ${action} pod`);
     } finally {
       setActionLoading(null);

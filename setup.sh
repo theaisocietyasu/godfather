@@ -1,8 +1,6 @@
 #!/bin/bash
 
-# AI Society Godfather Setup Script
-# This script sets up the entire Godfather admin portal system
-
+# AI Society Godfather Setup Script (uses "docker compose" plugin, not the legacy docker-compose)
 set -e
 
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -18,14 +16,15 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ Docker Compose is not installed. Please install Docker Compose first."
-    echo "   Visit: https://docs.docker.com/compose/install/"
+# Check if Docker Compose plugin is available (uses `docker compose`, not legacy `docker-compose`)
+if ! docker compose version > /dev/null 2>&1; then
+    echo "❌ Docker Compose plugin is not available. Please enable/install the Docker Compose plugin."
+    echo "   On many systems you can install it via your package manager or upgrade Docker Desktop."
+    echo "   Docs: https://docs.docker.com/compose/install/"
     exit 1
 fi
 
-echo "✅ Docker and Docker Compose are installed"
+echo "✅ Docker and Docker Compose plugin are available"
 echo
 
 # Create .env file if it doesn't exist
@@ -65,11 +64,11 @@ fi
 echo "✅ SSL certificates ready"
 echo
 
-# Build and start services
-echo "🏗️  Building and starting services..."
-docker-compose down --remove-orphans 2>/dev/null || true
-docker-compose build --no-cache
-docker-compose up -d
+# Build and start services using docker compose plugin
+echo "🏗️  Building and starting services (docker compose)..."
+docker compose down --remove-orphans 2>/dev/null || true
+docker compose build --no-cache
+docker compose up -d
 
 echo "⏳ Waiting for services to start..."
 sleep 10
@@ -78,7 +77,7 @@ sleep 10
 echo "🔍 Checking service health..."
 
 # Check MongoDB
-if docker-compose exec -T mongodb mongosh --eval "db.adminCommand('ping')" > /dev/null 2>&1; then
+if docker compose exec -T mongodb mongosh --eval "db.adminCommand('ping')" > /dev/null 2>&1; then
     echo "✅ MongoDB is running"
 else
     echo "⚠️  MongoDB may not be ready yet"
@@ -119,10 +118,10 @@ echo "   Local: http://localhost"
 echo "   Production: https://admin.ais-asu.com (after DNS setup)"
 echo
 echo "🔧 Useful commands:"
-echo "   View logs: docker-compose logs -f"
-echo "   Stop services: docker-compose down"
-echo "   Restart: docker-compose restart"
-echo "   Update: git pull && docker-compose build && docker-compose up -d"
+echo "   View logs: docker compose logs -f"
+echo "   Stop services: docker compose down"
+echo "   Restart: docker compose restart"
+echo "   Update: git pull && docker compose build && docker compose up -d"
 echo
 echo "📚 For more information, check the README.md file"
 echo

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongodb:
     image: mongo:latest
@@ -34,6 +32,15 @@ services:
       - ./backend:/app
     networks:
       - godfather_network
+    develop:
+      watch:
+        - action: sync
+          path: ./backend
+          target: /app
+          ignore:
+            - __pycache__/
+        - action: rebuild
+          path: ./backend/requirements.txt
 
   frontend:
     build:
@@ -53,6 +60,16 @@ services:
       - /app/node_modules
     networks:
       - godfather_network
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend
+          target: /app
+          ignore:
+            - node_modules/
+            - .next/
+        - action: rebuild
+          path: ./frontend/package.json
 
   nginx:
     image: nginx:alpine

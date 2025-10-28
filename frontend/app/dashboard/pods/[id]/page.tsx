@@ -3,7 +3,6 @@
 import { useAuth, UserButton } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import axios from 'axios';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
   ArrowLeftIcon,
@@ -63,11 +62,18 @@ export default function PodDetail() {
   const fetchPodDetails = async () => {
     try {
       const token = await getToken();
-      const response = await axios.get(`/api/pods/${podId}`, {
+      const response = await fetch(`/api/pods/${podId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setPod(response.data.pod);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch pod details');
+      }
+      
+      const data = await response.json();
+      setPod(data.pod);
     } catch (error: unknown) {
+      console.error('Error fetching pod details:', error);
       toast.error('Failed to fetch pod details');
     } finally {
       setLoading(false);
@@ -78,13 +84,23 @@ export default function PodDetail() {
     setActionLoading(true);
     try {
       const token = await getToken();
-      await axios.post(`/api/pods/${podId}/action`, 
-        { action }, 
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await fetch(`/api/pods/${podId}/action`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to ${action} pod`);
+      }
+      
       toast.success(`Pod ${action} successful`);
       fetchPodDetails(); // Refresh details
     } catch (error: unknown) {
+      console.error(`Error ${action} pod:`, error);
       toast.error(`Failed to ${action} pod`);
     } finally {
       setActionLoading(false);
@@ -96,13 +112,23 @@ export default function PodDetail() {
     
     try {
       const token = await getToken();
-      await axios.put(`/api/pods/${podId}`, 
-        { is_public: !pod.is_public }, 
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await fetch(`/api/pods/${podId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_public: !pod.is_public }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update pod access');
+      }
+      
       setPod({ ...pod, is_public: !pod.is_public });
       toast.success(`Pod is now ${!pod.is_public ? 'public' : 'private'}`);
     } catch (error: unknown) {
+      console.error('Error updating pod access:', error);
       toast.error('Failed to update pod access');
     }
   };
