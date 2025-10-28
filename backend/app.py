@@ -253,27 +253,53 @@ def require_auth(f):
     """Decorator to require authentication"""
     @wraps(f)
     def decorated(*args, **kwargs):
+        logger.info('='*50)
+        logger.info('REQUIRE_AUTH DECORATOR')
+        
         token = request.headers.get('Authorization')
         if not token:
+            logger.warning('No token provided in Authorization header')
             return jsonify({'error': 'No token provided'}), 401
             
         if token.startswith('Bearer '):
             token = token[7:]
             
+        logger.info('Verifying Clerk token...')
         user_data = verify_clerk_token(token)
         if not user_data:
+            logger.warning('Invalid token')
             return jsonify({'error': 'Invalid token'}), 401
+        
+        clerk_user_id = user_data.get('sub')
+        logger.info(f'Token verified for Clerk user: {clerk_user_id}')
             
-        # Get Discord user ID from Clerk
-        discord_user_id = user_data.get('external_accounts', [{}])[0].get('external_id')
+        # Look up Discord user ID from database (stored by /api/auth/verify)
+        logger.info('Looking up user in database...')
+        user_doc = users_collection.find_one({'clerk_id': clerk_user_id})
+        
+        if not user_doc:
+            logger.warning(f'User {clerk_user_id} not found in database')
+            logger.warning('User must call /api/auth/verify first to authenticate')
+            return jsonify({'error': 'User not authenticated. Please refresh the page.'}), 401
+        
+        discord_user_id = user_doc.get('discord_id')
         if not discord_user_id:
+            logger.error(f'User {clerk_user_id} has no Discord ID in database')
             return jsonify({'error': 'Discord account not linked'}), 401
+        
+        logger.info(f'✓ Found Discord ID in database: {discord_user_id}')
             
         # Verify admin role
+        logger.info('Verifying admin role...')
         if not verify_discord_admin(discord_user_id):
+            logger.warning(f'User {discord_user_id} does not have admin role')
             return jsonify({'error': 'Admin access required'}), 403
-            
+        
+        logger.info('✓ Authorization successful')
+        logger.info('='*50)
+        
         request.user = user_data
+        request.discord_user_id = discord_user_id
         return f(*args, **kwargs)
     return decorated
 
@@ -350,16 +376,25 @@ def verify_auth():
 def get_pods():
     """Get all pods"""
     try:
+        logger.info('='*50)
+        logger.info('GET ALL PODS')
+        logger.info(f'User: {request.user.get("sub")}')
+        
         # Get pods from RunPod
+        logger.info('Fetching pods from RunPod API...')
         runpod_pods = runpod.get_pods()
+        logger.info(f'✓ Fetched {len(runpod_pods) if runpod_pods else 0} pods from RunPod')
         
         # Get additional data from MongoDB
+        logger.info('Fetching pod metadata from MongoDB...')
         db_pods = list(pods_collection.find())
+        logger.info(f'✓ Found {len(db_pods)} pod records in MongoDB')
         
         # Merge data
         pods = []
-        for rp_pod in runpod_pods:
+        for idx, rp_pod in enumerate(runpod_pods):
             pod_id = rp_pod['id']
+            logger.info(f'Processing pod {idx + 1}/{len(runpod_pods)}: {pod_id}')
             db_pod = next((p for p in db_pods if p['runpod_id'] == pod_id), {})
             
             pod_data = {
@@ -374,9 +409,15 @@ def get_pods():
                 'custom_config': db_pod.get('custom_config', {})
             }
             pods.append(pod_data)
-            
+            logger.info(f'  Name: {pod_data["name"]}, Status: {pod_data["status"]}, Public: {pod_data["is_public"]}')
+        
+        logger.info(f'✓ Successfully prepared {len(pods)} pods')
+        logger.info('='*50)
         return jsonify({'pods': pods})
     except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in get_pods: {e}', exc_info=True)
+        logger.error('='*50)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/pods', methods=['POST'])
@@ -384,7 +425,15 @@ def get_pods():
 def create_pod():
     """Create a new pod"""
     try:
+        logger.info('='*50)
+        logger.info('CREATE POD')
+        logger.info(f'User: {request.user.get("sub")}')
+        
         data = request.get_json()
+        logger.info(f'Pod name: {data.get("name")}')
+        logger.info(f'Image: {data.get("image_name")}')
+        logger.info(f'GPU: {data.get("gpu_type_id")}')
+        logger.info(f'Public: {data.get("is_public", False)}')
         
         # Default configuration
         config = {
@@ -405,10 +454,16 @@ def create_pod():
             'env': data.get('env', {})
         }
         
+        logger.info('Creating pod via RunPod API...')
+        logger.info(f'Config: {config}')
+        
         # Create pod via RunPod API
         pod = runpod.create_pod(**config)
         
         if pod and 'id' in pod:
+            logger.info(f'✓ Pod created successfully: {pod["id"]}')
+            logger.info(f'Pod details: {pod}')
+            
             # Store additional data in MongoDB
             pod_doc = {
                 'runpod_id': pod['id'],
@@ -420,13 +475,22 @@ def create_pod():
                 'created_at': datetime.utcnow()
             }
             
+            logger.info('Storing pod metadata in MongoDB...')
             pods_collection.insert_one(pod_doc)
+            logger.info('✓ Pod metadata stored successfully')
+            logger.info('='*50)
             
             return jsonify({'success': True, 'pod': pod})
         else:
+            logger.error('✗ Failed to create pod - no ID returned')
+            logger.error(f'RunPod response: {pod}')
+            logger.info('='*50)
             return jsonify({'error': 'Failed to create pod'}), 500
             
     except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in create_pod: {e}', exc_info=True)
+        logger.error('='*50)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/pods/<pod_id>', methods=['GET'])
@@ -434,14 +498,32 @@ def create_pod():
 def get_pod_details(pod_id):
     """Get detailed information about a specific pod"""
     try:
+        logger.info('='*50)
+        logger.info('GET POD DETAILS')
+        logger.info(f'Pod ID: {pod_id}')
+        logger.info(f'User: {request.user.get("sub")}')
+        
         # Get pod from RunPod
+        logger.info('Fetching pod from RunPod API...')
         pod = runpod.get_pod(pod_id)
         
         if not pod:
+            logger.warning(f'✗ Pod {pod_id} not found in RunPod')
+            logger.info('='*50)
             return jsonify({'error': 'Pod not found'}), 404
+        
+        logger.info(f'✓ Pod found: {pod.get("name")}')
+        logger.info(f'Status: {pod.get("desiredStatus")}')
+        logger.info(f'Machine type: {pod.get("machineType")}')
             
         # Get additional data from MongoDB
+        logger.info('Fetching pod metadata from MongoDB...')
         db_pod = pods_collection.find_one({'runpod_id': pod_id})
+        
+        if db_pod:
+            logger.info(f'✓ Found metadata - Public: {db_pod.get("is_public")}, Allowed users: {len(db_pod.get("allowed_users", []))}')
+        else:
+            logger.info('No metadata found in MongoDB')
         
         pod_data = {
             'id': pod['id'],
@@ -457,8 +539,13 @@ def get_pod_details(pod_id):
             'custom_config': db_pod.get('custom_config', {}) if db_pod else {}
         }
         
+        logger.info('✓ Successfully prepared pod details')
+        logger.info('='*50)
         return jsonify({'pod': pod_data})
     except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in get_pod_details: {e}', exc_info=True)
+        logger.error('='*50)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/pods/<pod_id>', methods=['PUT'])
@@ -466,23 +553,39 @@ def get_pod_details(pod_id):
 def update_pod(pod_id):
     """Update pod configuration"""
     try:
+        logger.info('='*50)
+        logger.info('UPDATE POD')
+        logger.info(f'Pod ID: {pod_id}')
+        logger.info(f'User: {request.user.get("sub")}')
+        
         data = request.get_json()
+        logger.info(f'Update data: {data}')
         
         # Update in MongoDB
         update_doc = {}
         if 'is_public' in data:
             update_doc['is_public'] = data['is_public']
+            logger.info(f'Setting public: {data["is_public"]}')
         if 'allowed_users' in data:
             update_doc['allowed_users'] = data['allowed_users']
+            logger.info(f'Setting allowed users: {data["allowed_users"]}')
             
         if update_doc:
-            pods_collection.update_one(
+            logger.info('Updating MongoDB...')
+            result = pods_collection.update_one(
                 {'runpod_id': pod_id},
                 {'$set': update_doc}
             )
-            
+            logger.info(f'✓ Matched: {result.matched_count}, Modified: {result.modified_count}')
+        else:
+            logger.info('No updates to apply')
+        
+        logger.info('='*50)
         return jsonify({'success': True})
     except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in update_pod: {e}', exc_info=True)
+        logger.error('='*50)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/pods/<pod_id>/action', methods=['POST'])
@@ -490,25 +593,51 @@ def update_pod(pod_id):
 def pod_action(pod_id):
     """Perform actions on a pod (start, stop, restart, terminate)"""
     try:
+        logger.info('='*50)
+        logger.info('POD ACTION')
+        logger.info(f'Pod ID: {pod_id}')
+        logger.info(f'User: {request.user.get("sub")}')
+        
         data = request.get_json()
         action = data.get('action')
+        logger.info(f'Action: {action}')
         
         if action == 'stop':
+            logger.info('Stopping pod via RunPod API...')
             result = runpod.stop_pod(pod_id)
+            logger.info(f'✓ Stop result: {result}')
         elif action == 'start':
+            logger.info('Starting/resuming pod via RunPod API...')
             result = runpod.resume_pod(pod_id)
+            logger.info(f'✓ Start result: {result}')
         elif action == 'restart':
+            logger.info('Restarting pod (stop then start)...')
+            logger.info('  1. Stopping...')
             runpod.stop_pod(pod_id)
+            logger.info('  2. Starting...')
             result = runpod.resume_pod(pod_id)
+            logger.info(f'✓ Restart result: {result}')
         elif action == 'terminate':
+            logger.info('Terminating pod via RunPod API...')
             result = runpod.terminate_pod(pod_id)
-            # Remove from MongoDB
-            pods_collection.delete_one({'runpod_id': pod_id})
-        else:
-            return jsonify({'error': 'Invalid action'}), 400
+            logger.info(f'✓ Terminate result: {result}')
             
+            # Remove from MongoDB
+            logger.info('Removing pod metadata from MongoDB...')
+            delete_result = pods_collection.delete_one({'runpod_id': pod_id})
+            logger.info(f'✓ Deleted {delete_result.deleted_count} document(s)')
+        else:
+            logger.warning(f'✗ Invalid action: {action}')
+            logger.info('='*50)
+            return jsonify({'error': 'Invalid action'}), 400
+        
+        logger.info('✓ Action completed successfully')
+        logger.info('='*50)
         return jsonify({'success': True, 'result': result})
     except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in pod_action: {e}', exc_info=True)
+        logger.error('='*50)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/pods/public', methods=['GET'])

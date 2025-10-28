@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth, UserButton } from '@clerk/nextjs';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
@@ -35,16 +35,7 @@ export default function Dashboard() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    if (!isSignedIn) {
-      router.push('/');
-      return;
-    }
-    
-    fetchPods();
-  }, [isSignedIn]);
-
-  const fetchPods = async () => {
+  const fetchPods = useCallback(async () => {
     try {
       const token = await getToken();
       const response = await fetch('/api/pods', {
@@ -57,13 +48,50 @@ export default function Dashboard() {
       
       const data = await response.json();
       setPods(data.pods);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching pods:', error);
       toast.error('Failed to fetch pods');
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken]);
+
+  const verifyAndFetchPods = useCallback(async () => {
+    try {
+      const token = await getToken();
+      
+      // First verify authentication
+      const verifyResponse = await fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!verifyResponse.ok) {
+        throw new Error('Authentication failed');
+      }
+
+      // Then fetch pods
+      await fetchPods();
+    } catch (error: unknown) {
+      console.error('Error during verification:', error);
+      toast.error('Authentication failed. Redirecting to home...');
+      router.push('/');
+    }
+  }, [getToken, fetchPods, router]);
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      router.push('/');
+      return;
+    }
+    
+    // Verify auth first, then fetch pods
+    verifyAndFetchPods();
+  }, [isSignedIn, router, verifyAndFetchPods]);
 
   const handlePodAction = async (podId: string, action: string) => {
     setActionLoading(podId);
