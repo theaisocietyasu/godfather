@@ -35,6 +35,7 @@ RUNPOD_API_KEY = os.getenv('RUNPOD_API_KEY')
 CLERK_SECRET_KEY = os.getenv('CLERK_SECRET_KEY')
 DISCORD_BOT_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 DISCORD_GUILD_ID = os.getenv('DISCORD_GUILD_ID')
+ADMIN_ROLE_ID = os.getenv('ADMIN_ROLE_ID')
 
 # Initialize MongoDB
 client = MongoClient(MONGODB_URI)
@@ -46,10 +47,89 @@ ssh_keys_collection = db.ssh_keys
 # Initialize RunPod
 runpod.api_key = RUNPOD_API_KEY
 
+def get_discord_id_from_clerk(clerk_user_id):
+    """Fetch Discord ID from Clerk API"""
+    try:
+        logger.info('='*50)
+        logger.info('FETCHING DISCORD ID FROM CLERK')
+        logger.info(f'Clerk User ID: {clerk_user_id}')
+        
+        # Use Clerk API to get user's external accounts
+        headers = {
+            'Authorization': f'Bearer {CLERK_SECRET_KEY}',
+            'Content-Type': 'application/json'
+        }
+        
+        url = f'https://api.clerk.com/v1/users/{clerk_user_id}'
+        logger.info(f'API URL: {url}')
+        logger.info(f'Authorization header present: {bool(CLERK_SECRET_KEY)}')
+        logger.info(f'Secret key length: {len(CLERK_SECRET_KEY) if CLERK_SECRET_KEY else 0}')
+        
+        logger.info('Making request to Clerk API...')
+        response = requests.get(url, headers=headers)
+        logger.info(f'Response status code: {response.status_code}')
+        logger.info(f'Response headers: {dict(response.headers)}')
+        
+        if response.status_code != 200:
+            logger.error(f'Failed to fetch user from Clerk')
+            logger.error(f'Status: {response.status_code}')
+            logger.error(f'Response body: {response.text[:500]}')  # First 500 chars
+            return None
+        
+        user_data = response.json()
+        logger.info(f'Successfully fetched user data')
+        logger.info(f'User data keys: {list(user_data.keys())}')
+        logger.info(f'User ID: {user_data.get("id")}')
+        logger.info(f'Username: {user_data.get("username")}')
+        logger.info(f'Email addresses: {[e.get("email_address") for e in user_data.get("email_addresses", [])]}')
+        
+        # Check external accounts
+        external_accounts = user_data.get('external_accounts', [])
+        logger.info(f'External accounts count: {len(external_accounts)}')
+        
+        if not external_accounts:
+            logger.warning('No external accounts found!')
+            logger.info('User needs to connect Discord in Clerk settings')
+            return None
+        
+        for idx, account in enumerate(external_accounts):
+            logger.info(f'--- External Account #{idx + 1} ---')
+            logger.info(f'  Provider: {account.get("provider")}')
+            logger.info(f'  ID: {account.get("id")}')
+            logger.info(f'  Approved scopes: {account.get("approved_scopes")}')
+            logger.info(f'  Email: {account.get("email_address")}')
+            logger.info(f'  Username: {account.get("username")}')
+            logger.info(f'  Provider user ID: {account.get("provider_user_id")}')
+            logger.info(f'  Verification: {account.get("verification")}')
+            logger.info(f'  All keys: {list(account.keys())}')
+            
+            if account.get('provider') == 'oauth_discord':
+                discord_id = account.get('provider_user_id') or account.get('username')
+                logger.info(f'✓ Found Discord account!')
+                logger.info(f'✓ Discord ID: {discord_id}')
+                logger.info('='*50)
+                return discord_id
+        
+        logger.warning('✗ No Discord (oauth_discord) provider found in external accounts')
+        logger.info('Available providers: ' + ', '.join([a.get('provider', 'unknown') for a in external_accounts]))
+        logger.info('='*50)
+        return None
+        
+    except Exception as e:
+        logger.error('='*50)
+        logger.error(f'EXCEPTION in get_discord_id_from_clerk: {e}', exc_info=True)
+        logger.error('='*50)
+        return None
+
 def verify_discord_admin(discord_user_id):
     """Verify if user has Admin role in Discord server"""
     try:
-        logger.info(f'Verifying Discord admin for user: {discord_user_id}')
+        logger.info('='*50)
+        logger.info('VERIFYING DISCORD ADMIN')
+        logger.info(f'Discord User ID: {discord_user_id}')
+        logger.info(f'Discord Guild ID: {DISCORD_GUILD_ID}')
+        logger.info(f'Bot token present: {bool(DISCORD_BOT_TOKEN)}')
+        
         headers = {
             'Authorization': f'Bot {DISCORD_BOT_TOKEN}',
             'Content-Type': 'application/json'
@@ -57,47 +137,84 @@ def verify_discord_admin(discord_user_id):
         
         # Get guild member
         url = f'https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/members/{discord_user_id}'
-        logger.info(f'Fetching Discord member info from: {url}')
-        response = requests.get(url, headers=headers)
+        logger.info(f'Fetching member from: {url}')
+        logger.info('Making request to Discord API...')
         
+        response = requests.get(url, headers=headers)
         logger.info(f'Discord API response status: {response.status_code}')
         
         if response.status_code != 200:
-            logger.error(f'Failed to fetch Discord member: {response.text}')
+            logger.error(f'Failed to fetch Discord member')
+            logger.error(f'Status: {response.status_code}')
+            logger.error(f'Response: {response.text}')
+            
+            if response.status_code == 404:
+                logger.error('Member not found in guild - user may not be in the Discord server')
+            elif response.status_code == 401:
+                logger.error('Invalid bot token or insufficient permissions')
+            elif response.status_code == 403:
+                logger.error('Bot lacks permission to access guild members')
+                
             return False
             
         member_data = response.json()
-        logger.info(f'Member roles: {member_data.get("roles", [])}')
+        logger.info(f'✓ Member found in guild')
+        logger.info(f'Member username: {member_data.get("user", {}).get("username")}')
+        logger.info(f'Member nickname: {member_data.get("nick")}')
+        logger.info(f'Member roles (IDs): {member_data.get("roles", [])}')
+        logger.info(f'Member roles count: {len(member_data.get("roles", []))}')
         
         # Get guild roles to find Admin role ID
         roles_url = f'https://discord.com/api/v10/guilds/{DISCORD_GUILD_ID}/roles'
+        logger.info(f'Fetching guild roles from: {roles_url}')
+        
         roles_response = requests.get(roles_url, headers=headers)
+        logger.info(f'Roles API response status: {roles_response.status_code}')
         
         if roles_response.status_code != 200:
-            logger.error(f'Failed to fetch guild roles: {roles_response.text}')
+            logger.error(f'Failed to fetch guild roles')
+            logger.error(f'Status: {roles_response.status_code}')
+            logger.error(f'Response: {roles_response.text}')
             return False
             
         roles = roles_response.json()
+        logger.info(f'Guild has {len(roles)} total roles')
+        
+        # Log all roles for debugging
+        logger.info('--- All Guild Roles ---')
+        for role in roles:
+            logger.info(f'  Role: "{role.get("name")}" (ID: {role.get("id")})')
+        
         admin_role_id = None
         
-        logger.info(f'Guild has {len(roles)} roles')
+        # Look for Admin role (case-insensitive)
         for role in roles:
-            if role['name'].lower() == 'admin':
+            role_name = role.get('name', '').lower()
+            if role_name == 'admin':
                 admin_role_id = role['id']
-                logger.info(f'Found admin role: {admin_role_id}')
+                logger.info(f'✓ Found "Admin" role with ID: {admin_role_id}')
                 break
                 
         if not admin_role_id:
-            logger.warning('Admin role not found in guild')
+            logger.warning('✗ Admin role not found in guild!')
+            logger.warning('Looking for role named "admin" (case-insensitive)')
+            logger.info('Available role names: ' + ', '.join([r.get('name', 'unknown') for r in roles]))
             return False
-            
+        
         # Check if user has admin role
-        has_admin = admin_role_id in member_data.get('roles', [])
-        logger.info(f'User has admin role: {has_admin}')
+        member_role_ids = member_data.get('roles', [])
+        has_admin = admin_role_id in member_role_ids
+        
+        logger.info(f'Checking if {admin_role_id} in {member_role_ids}')
+        logger.info(f'{"✓" if has_admin else "✗"} User {"HAS" if has_admin else "DOES NOT HAVE"} admin role')
+        logger.info('='*50)
+        
         return has_admin
         
     except Exception as e:
-        logger.error(f"Error verifying Discord admin: {e}", exc_info=True)
+        logger.error('='*50)
+        logger.error(f'EXCEPTION in verify_discord_admin: {e}', exc_info=True)
+        logger.error('='*50)
         return False
 
 def verify_clerk_token(token):
@@ -180,22 +297,27 @@ def verify_auth():
         return jsonify({'error': 'Invalid token'}), 401
     
     logger.info(f'Token verified. User data: {user_data.get("sub", "unknown")}')
-    logger.info(f'External accounts: {user_data.get("external_accounts", [])}')
+    logger.info(f'Full user data keys: {list(user_data.keys())}')
     
-    # Get Discord user ID
-    external_accounts = user_data.get('external_accounts', [])
-    discord_user_id = None
+    # Get Clerk user ID
+    clerk_user_id = user_data.get('sub')
+    if not clerk_user_id:
+        logger.error('No Clerk user ID in token')
+        return jsonify({'error': 'Invalid token'}), 401
     
-    if external_accounts:
-        discord_account = next((acc for acc in external_accounts if acc.get('provider') == 'discord'), None)
-        if discord_account:
-            discord_user_id = discord_account.get('external_id')
+    # Fetch Discord ID from Clerk API
+    logger.info(f'Fetching Discord ID for Clerk user: {clerk_user_id}')
+    discord_user_id = get_discord_id_from_clerk(clerk_user_id)
     
-    logger.info(f'Discord user ID: {discord_user_id}')
+    logger.info(f'Final Discord user ID: {discord_user_id}')
     
     if not discord_user_id:
         logger.warning('Discord account not linked to Clerk account')
-        return jsonify({'error': 'Discord account not linked'}), 401
+        logger.info('Please ensure Discord is connected as an OAuth provider in Clerk')
+        return jsonify({
+            'error': 'Discord account not linked',
+            'hint': 'Go to your Clerk account settings and ensure Discord is connected'
+        }), 401
     
     # Verify admin role
     logger.info(f'Checking admin role for Discord user: {discord_user_id}')

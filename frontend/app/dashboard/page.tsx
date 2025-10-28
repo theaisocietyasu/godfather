@@ -5,14 +5,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
-  ServerIcon, 
-  PlusIcon, 
-  PlayIcon, 
-  StopIcon, 
-  RestartIcon,
-  TrashIcon,
-  EyeIcon,
-  SettingsIcon
+  Server as ServerIcon, 
+  Plus as PlusIcon, 
+  Play as PlayIcon, 
+  Square as StopIcon, 
+  RotateCw as RestartIcon,
+  Trash2 as TrashIcon,
+  Eye as EyeIcon,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import moment from 'moment';
 

@@ -4,7 +4,7 @@ import { useAuth, UserButton } from '@clerk/nextjs';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
-import { ArrowLeftIcon } from 'lucide-react';
+import { ArrowLeft as ArrowLeftIcon } from 'lucide-react';
 
 interface PodConfig {
   name: string;

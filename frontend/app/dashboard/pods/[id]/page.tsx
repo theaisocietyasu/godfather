@@ -5,18 +5,18 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
-  ArrowLeftIcon,
-  ServerIcon,
-  PlayIcon,
-  StopIcon,
-  RestartIcon,
-  TrashIcon,
-  SettingsIcon,
-  FolderIcon,
-  FileIcon,
-  DownloadIcon,
-  UploadIcon,
-  PlusIcon
+  ArrowLeft as ArrowLeftIcon,
+  Server as ServerIcon,
+  Play as PlayIcon,
+  Square as StopIcon,
+  RotateCw as RestartIcon,
+  Trash2 as TrashIcon,
+  Settings as SettingsIcon,
+  Folder as FolderIcon,
+  File as FileIcon,
+  Download as DownloadIcon,
+  Upload as UploadIcon,
+  Plus as PlusIcon
 } from 'lucide-react';
 import moment from 'moment';
 
