@@ -254,7 +254,17 @@ class GodfatherCLI:
             
             if result.returncode != 0:
                 print("\n❌ SSH connection failed!")
-                print("\n💡 Please contact an admin if the issue persists")
+                print("\n⚠️  SSH Key Setup Required")
+                print("=" * 60)
+                print("The pod needs to have the SSH key configured first.")
+                print("\nTo set up SSH access, run this command in the RunPod web terminal:")
+                print("\n  mkdir -p /root/.ssh && \\")
+                print(f'  echo "$GODFATHER_SSH_PUBLIC_KEY" >> /root/.ssh/authorized_keys && \\')
+                print("  chmod 700 /root/.ssh && \\")
+                print("  chmod 600 /root/.ssh/authorized_keys")
+                print("\n💡 The GODFATHER_SSH_PUBLIC_KEY environment variable is already set in your pod.")
+                print("💡 After running this once, you can connect anytime without a password!")
+                print("=" * 60)
             else:
                 print("\n👋 Disconnected from pod")
             

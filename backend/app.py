@@ -560,29 +560,20 @@ def create_pod():
         
         logger.info(f'Using GPU: {config["gpu_type_id"]}')
         
-        # Prepare docker args to setup SSH key
-        base_docker_args = data.get('docker_args', '')
+        # Add SSH public key as environment variable for the pod to use
+        env = data.get('env', {})
+        env['GODFATHER_SSH_PUBLIC_KEY'] = ssh_key['public_key']
+        env['GODFATHER_SETUP'] = 'true'
+        config['env'] = env
         
-        # Create init script to setup SSH key and user workspaces
-        init_script = f'''
-mkdir -p /root/.ssh && \
-echo "{ssh_key["public_key"]}" >> /root/.ssh/authorized_keys && \
-chmod 700 /root/.ssh && \
-chmod 600 /root/.ssh/authorized_keys && \
-mkdir -p /workspace/users
-        '''.strip()
-        
-        # Combine with user's docker args
-        if base_docker_args:
-            config['docker_args'] = f'{base_docker_args} && {init_script}'
-        else:
-            config['docker_args'] = f'bash -c "{init_script}"'
-        
-        if data.get('env'):
-            config['env'] = data.get('env')
+        # Add user's docker args if provided
+        if data.get('docker_args'):
+            # Note: docker_args may not be supported by RunPod API
+            # Keeping this for compatibility but it might be ignored
+            logger.info(f'User provided docker_args: {data.get("docker_args")}')
         
         logger.info('Creating pod via RunPod API...')
-        logger.info(f'Config: {config}')
+        logger.info(f'Config keys: {list(config.keys())}')
         
         # Create pod via RunPod API
         pod = runpod.create_pod(**config)
@@ -591,13 +582,14 @@ mkdir -p /workspace/users
             logger.info(f'✓ Pod created successfully: {pod["id"]}')
             logger.info(f'Pod details: {pod}')
             
-            # Store additional data in MongoDB
+            # Store additional data in MongoDB including SSH setup info
             pod_doc = {
                 'runpod_id': pod['id'],
                 'name': config['name'],
                 'is_public': data.get('is_public', False),
                 'allowed_users': data.get('allowed_users', []),
                 'custom_config': config,
+                'ssh_public_key': ssh_key['public_key'],
                 'created_by': request.user.get('sub'),
                 'created_at': datetime.utcnow()
             }
@@ -950,7 +942,13 @@ def connect_to_pod(pod_id):
             return jsonify({'error': 'Pod not running'}), 400
         
         # Get SSH connection details from runtime
-        runtime = pod.get('runtime', {})
+        runtime = pod.get('runtime')
+        
+        # Check if runtime is available
+        if not runtime:
+            logger.warning('Pod runtime not yet available - pod may still be initializing')
+            return jsonify({'error': 'Pod is still initializing. Please try again in a moment.'}), 503
+        
         logger.info(f'Runtime keys: {list(runtime.keys())}')
         
         # Try different possible locations for SSH info
@@ -975,7 +973,7 @@ def connect_to_pod(pod_id):
         if not host:
             logger.error('No host information available')
             logger.error(f'Full pod data: {pod}')
-            return jsonify({'error': 'No host information available'}), 400
+            return jsonify({'error': 'Pod network information not yet available. Please try again in a moment.'}), 503
         
         # Get SSH connection details
         ssh_info = {
