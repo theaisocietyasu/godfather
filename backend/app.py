@@ -435,24 +435,25 @@ def create_pod():
         logger.info(f'GPU: {data.get("gpu_type_id")}')
         logger.info(f'Public: {data.get("is_public", False)}')
         
-        # Default configuration
+        # Configuration for RunPod API
+        # Note: RunPod SDK expects specific parameters
         config = {
             'name': data.get('name', f'pod-{secrets.token_hex(4)}'),
             'image_name': data.get('image_name', 'runpod/pytorch:3.10-2.0.0-117'),
             'gpu_type_id': data.get('gpu_type_id', 'NVIDIA RTX A4000'),
             'cloud_type': data.get('cloud_type', 'ALL'),
-            'support_public_ip': data.get('support_public_ip', True),
-            'start_jupyter': data.get('start_jupyter', True),
-            'start_ssh': data.get('start_ssh', True),
             'volume_in_gb': data.get('volume_in_gb', 20),
             'container_disk_in_gb': data.get('container_disk_in_gb', 20),
-            'min_vcpu_count': data.get('min_vcpu_count', 2),
-            'min_memory_in_gb': data.get('min_memory_in_gb', 8),
-            'docker_args': data.get('docker_args', ''),
             'ports': data.get('ports', '8888/http,22/tcp'),
             'volume_mount_path': data.get('volume_mount_path', '/workspace'),
-            'env': data.get('env', {})
         }
+        
+        # Add optional parameters if provided
+        if data.get('docker_args'):
+            config['docker_args'] = data.get('docker_args')
+        
+        if data.get('env'):
+            config['env'] = data.get('env')
         
         logger.info('Creating pod via RunPod API...')
         logger.info(f'Config: {config}')
