@@ -11,17 +11,12 @@ import {
   Square as StopIcon,
   RotateCw as RestartIcon,
   Trash2 as TrashIcon,
-  Settings as SettingsIcon,
   Folder as FolderIcon,
-  File as FileIcon,
-  Download as DownloadIcon,
-  Upload as UploadIcon,
-  Plus as PlusIcon
 } from 'lucide-react';
 import moment from 'moment';
+import FileManager from '@/components/FileManager';
 
 interface Pod {
-
   id: string;
   name: string;
   status: string;
@@ -35,13 +30,6 @@ interface Pod {
   custom_config: Record<string, unknown>;
 }
 
-interface FileItem {
-  name: string;
-  type: 'file' | 'directory';
-  size?: number;
-  modified?: string;
-}
-
 export default function PodDetail() {
   const { getToken } = useAuth();
   const router = useRouter();
@@ -51,13 +39,7 @@ export default function PodDetail() {
   const [pod, setPod] = useState<Pod | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [files, setFiles] = useState<FileItem[]>([]);
-  const [currentPath, setCurrentPath] = useState('/workspace');
   const [showFileManager, setShowFileManager] = useState(false);
-
-  useEffect(() => {
-    fetchPodDetails();
-  }, [podId]);
 
   const fetchPodDetails = async () => {
     try {
@@ -79,6 +61,11 @@ export default function PodDetail() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPodDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [podId]);
 
   const handlePodAction = async (action: string) => {
     setActionLoading(true);
@@ -142,15 +129,6 @@ export default function PodDetail() {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
-  // Simulated file manager (in real implementation, this would connect to pod's filesystem)
-  const mockFiles: FileItem[] = [
-    { name: 'notebooks', type: 'directory', modified: '2024-01-01' },
-    { name: 'datasets', type: 'directory', modified: '2024-01-01' },
-    { name: 'models', type: 'directory', modified: '2024-01-01' },
-    { name: 'requirements.txt', type: 'file', size: 1024, modified: '2024-01-01' },
-    { name: 'main.py', type: 'file', size: 2048, modified: '2024-01-01' },
-  ];
 
   if (loading) {
     return (
@@ -266,59 +244,20 @@ export default function PodDetail() {
             <div className="bg-white shadow rounded-lg p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-medium text-gray-900">File Manager</h2>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => setShowFileManager(!showFileManager)}
-                    className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-200"
-                  >
-                    {showFileManager ? 'Hide' : 'Show'} Files
-                  </button>
-                  {pod.status?.toLowerCase() === 'running' && (
-                    <button className="bg-blue-100 text-blue-700 px-3 py-1 rounded-md text-sm hover:bg-blue-200">
-                      <UploadIcon className="w-4 h-4 inline mr-1" />
-                      Upload
-                    </button>
-                  )}
-                </div>
+                <button
+                  onClick={() => setShowFileManager(!showFileManager)}
+                  className="bg-gray-100 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-200"
+                >
+                  {showFileManager ? 'Hide' : 'Show'} Files
+                </button>
               </div>
 
-              {showFileManager && (
-                <div className="border rounded-lg">
-                  <div className="bg-gray-50 px-4 py-2 border-b">
-                    <p className="text-sm text-gray-600">Path: {currentPath}</p>
-                  </div>
-                  <div className="divide-y">
-                    {mockFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 hover:bg-gray-50">
-                        <div className="flex items-center space-x-3">
-                          {file.type === 'directory' ? (
-                            <FolderIcon className="w-5 h-5 text-blue-500" />
-                          ) : (
-                            <FileIcon className="w-5 h-5 text-gray-400" />
-                          )}
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                            {file.size && (
-                              <p className="text-xs text-gray-500">{file.size} bytes</p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs text-gray-500">{file.modified}</span>
-                          {file.type === 'file' && (
-                            <button className="text-gray-400 hover:text-gray-600">
-                              <DownloadIcon className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {showFileManager && pod.status?.toLowerCase() === 'running' && (
+                <FileManager podId={podId} />
               )}
 
-              {pod.status?.toLowerCase() !== 'running' && (
-                <div className="text-center py-8 text-gray-500">
+              {showFileManager && pod.status?.toLowerCase() !== 'running' && (
+                <div className="text-center py-8 text-gray-500 border rounded-lg">
                   <FolderIcon className="mx-auto h-12 w-12 text-gray-300 mb-2" />
                   <p>File manager is only available when the pod is running</p>
                 </div>

@@ -21,17 +21,37 @@ class PodFileManager:
             self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             
             if self.ssh_key_path and os.path.exists(self.ssh_key_path):
-                # Use SSH key authentication
-                private_key = paramiko.RSAKey.from_private_key_file(self.ssh_key_path)
+                # Try different key types
+                private_key = None
+                try:
+                    # Try Ed25519 key first
+                    private_key = paramiko.Ed25519Key.from_private_key_file(self.ssh_key_path)
+                except paramiko.ssh_exception.SSHException:
+                    try:
+                        # Try RSA key
+                        private_key = paramiko.RSAKey.from_private_key_file(self.ssh_key_path)
+                    except paramiko.ssh_exception.SSHException:
+                        try:
+                            # Try ECDSA key
+                            private_key = paramiko.ECDSAKey.from_private_key_file(self.ssh_key_path)
+                        except paramiko.ssh_exception.SSHException:
+                            # Try DSA key as last resort
+                            private_key = paramiko.DSSKey.from_private_key_file(self.ssh_key_path)
+                
+                if not private_key:
+                    return False
+                
                 self.client.connect(
                     hostname=self.host,
                     port=self.port,
                     username=self.username,
                     pkey=private_key,
-                    timeout=10
+                    timeout=10,
+                    look_for_keys=False,
+                    allow_agent=False
                 )
             else:
-                # For development - you should implement proper SSH key management
+                # No SSH key provided
                 return False
             
             self.sftp = self.client.open_sftp()

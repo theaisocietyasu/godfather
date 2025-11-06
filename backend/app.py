@@ -998,33 +998,98 @@ def connect_to_pod(pod_id):
 def list_pod_files(pod_id):
     """List files in a pod directory"""
     try:
+        logger.info('='*50)
+        logger.info('LIST POD FILES')
+        logger.info(f'Pod ID: {pod_id}')
+        
         path = request.args.get('path', '/workspace')
+        logger.info(f'Path: {path}')
         
         # Get pod details
         pod = runpod.get_pod(pod_id)
-        if not pod or pod.get('desiredStatus') != 'RUNNING':
+        if not pod:
+            logger.warning(f'Pod {pod_id} not found')
+            return jsonify({'error': 'Pod not found'}), 404
+            
+        if pod.get('desiredStatus') != 'RUNNING':
+            logger.warning(f'Pod {pod_id} not running (status: {pod.get("desiredStatus")})')
             return jsonify({'error': 'Pod not running'}), 400
         
-        # Get SSH connection details (simplified for demo)
-        # In production, you'd retrieve stored SSH keys from database
-        host = pod.get('machine', {}).get('publicIpAddress')
+        # Get SSH connection details from runtime
+        runtime = pod.get('runtime')
+        if not runtime:
+            logger.warning('Pod runtime not available')
+            return jsonify({'error': 'Pod runtime not available'}), 503
+        
+        # Get host and port from runtime
+        host = None
+        port = 22
+        
+        if runtime.get('ports'):
+            for port_info in runtime.get('ports', []):
+                if port_info.get('privatePort') == 22:
+                    host = port_info.get('ip')
+                    port = port_info.get('publicPort', 22)
+                    break
+        
+        if not host and pod.get('machine'):
+            host = pod.get('machine', {}).get('podHostId')
+        
         if not host:
-            return jsonify({'error': 'Pod host not available'}), 400
+            logger.error('No host information available')
+            return jsonify({'error': 'Pod network information not available'}), 503
         
-        # Create file manager instance (this would need proper SSH key management)
-        file_manager = PodFileManager(host)
+        logger.info(f'Connecting to {host}:{port}')
         
-        # For now, return mock data since we don't have SSH keys set up
-        mock_files = [
-            {'name': 'notebooks', 'type': 'directory', 'size': 0, 'modified': 1640995200},
-            {'name': 'datasets', 'type': 'directory', 'size': 0, 'modified': 1640995200},
-            {'name': 'models', 'type': 'directory', 'size': 0, 'modified': 1640995200},
-            {'name': 'requirements.txt', 'type': 'file', 'size': 1024, 'modified': 1640995200},
-            {'name': 'main.py', 'type': 'file', 'size': 2048, 'modified': 1640995200},
-        ]
+        # Get SSH key from database
+        ssh_key_doc = ssh_keys_collection.find_one({'key_type': 'organization'})
+        if not ssh_key_doc:
+            logger.error('No SSH key found in database')
+            return jsonify({'error': 'SSH key not configured'}), 500
         
-        return jsonify({'files': mock_files, 'path': path})
+        # Save SSH key to temporary file
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.pem') as key_file:
+            key_file.write(ssh_key_doc['private_key'])
+            key_path = key_file.name
+        
+        try:
+            # Set correct permissions
+            os.chmod(key_path, 0o600)
+            
+            # Create file manager instance
+            file_manager = PodFileManager(host=host, port=port, username='root', ssh_key_path=key_path)
+            
+            # Connect to pod
+            if not file_manager.connect():
+                logger.error('Failed to establish SSH connection')
+                return jsonify({'error': 'Failed to connect to pod'}), 500
+            
+            logger.info('✓ SSH connection established')
+            
+            # List directory
+            files = file_manager.list_directory(path)
+            logger.info(f'✓ Listed {len(files)} items in {path}')
+            
+            # Disconnect
+            file_manager.disconnect()
+            
+            # Clean up temporary key file
+            os.unlink(key_path)
+            
+            logger.info('='*50)
+            return jsonify({'files': files, 'path': path})
+            
+        except Exception as e:
+            # Clean up temporary key file on error
+            if os.path.exists(key_path):
+                os.unlink(key_path)
+            raise e
+            
     except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in list_pod_files: {e}', exc_info=True)
+        logger.error('='*50)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
@@ -1041,18 +1106,428 @@ def health_check():
 def upload_file_to_pod(pod_id):
     """Upload a file to pod"""
     try:
+        logger.info('='*50)
+        logger.info('UPLOAD FILE TO POD')
+        logger.info(f'Pod ID: {pod_id}')
+        
         if 'file' not in request.files:
+            logger.warning('No file in request')
             return jsonify({'error': 'No file provided'}), 400
         
         file = request.files['file']
         if file.filename == '':
+            logger.warning('Empty filename')
             return jsonify({'error': 'No file selected'}), 400
         
         remote_path = request.form.get('path', '/workspace')
+        logger.info(f'Uploading {file.filename} to {remote_path}')
         
-        # In production, implement actual file upload
-        return jsonify({'success': True, 'message': 'File upload functionality will be implemented with proper SSH key management'})
+        # Get pod details
+        pod = runpod.get_pod(pod_id)
+        if not pod:
+            logger.warning(f'Pod {pod_id} not found')
+            return jsonify({'error': 'Pod not found'}), 404
+            
+        if pod.get('desiredStatus') != 'RUNNING':
+            logger.warning(f'Pod {pod_id} not running')
+            return jsonify({'error': 'Pod not running'}), 400
+        
+        # Get SSH connection details
+        runtime = pod.get('runtime')
+        if not runtime:
+            logger.warning('Pod runtime not available')
+            return jsonify({'error': 'Pod runtime not available'}), 503
+        
+        # Get host and port
+        host = None
+        port = 22
+        
+        if runtime.get('ports'):
+            for port_info in runtime.get('ports', []):
+                if port_info.get('privatePort') == 22:
+                    host = port_info.get('ip')
+                    port = port_info.get('publicPort', 22)
+                    break
+        
+        if not host and pod.get('machine'):
+            host = pod.get('machine', {}).get('podHostId')
+        
+        if not host:
+            logger.error('No host information available')
+            return jsonify({'error': 'Pod network information not available'}), 503
+        
+        logger.info(f'Connecting to {host}:{port}')
+        
+        # Get SSH key
+        ssh_key_doc = ssh_keys_collection.find_one({'key_type': 'organization'})
+        if not ssh_key_doc:
+            logger.error('No SSH key found')
+            return jsonify({'error': 'SSH key not configured'}), 500
+        
+        # Save file temporarily
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            file.save(temp_file.name)
+            local_path = temp_file.name
+        
+        # Save SSH key temporarily
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.pem') as key_file:
+            key_file.write(ssh_key_doc['private_key'])
+            key_path = key_file.name
+        
+        try:
+            # Set correct permissions on key
+            os.chmod(key_path, 0o600)
+            
+            # Create file manager
+            file_manager = PodFileManager(host=host, port=port, username='root', ssh_key_path=key_path)
+            
+            # Connect
+            if not file_manager.connect():
+                logger.error('Failed to establish SSH connection')
+                return jsonify({'error': 'Failed to connect to pod'}), 500
+            
+            logger.info('✓ SSH connection established')
+            
+            # Construct full remote path
+            full_remote_path = f"{remote_path.rstrip('/')}/{file.filename}"
+            logger.info(f'Uploading to: {full_remote_path}')
+            
+            # Upload file
+            if not file_manager.upload_file(local_path, full_remote_path):
+                logger.error('Upload failed')
+                return jsonify({'error': 'Failed to upload file'}), 500
+            
+            logger.info(f'✓ File uploaded successfully')
+            
+            # Disconnect
+            file_manager.disconnect()
+            
+            # Clean up
+            os.unlink(local_path)
+            os.unlink(key_path)
+            
+            logger.info('='*50)
+            return jsonify({'success': True, 'message': f'File {file.filename} uploaded successfully', 'path': full_remote_path})
+            
+        except Exception as e:
+            # Clean up on error
+            if os.path.exists(local_path):
+                os.unlink(local_path)
+            if os.path.exists(key_path):
+                os.unlink(key_path)
+            raise e
+            
     except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in upload_file_to_pod: {e}', exc_info=True)
+        logger.error('='*50)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/<pod_id>/files/download', methods=['POST'])
+@require_auth
+def download_file_from_pod(pod_id):
+    """Download a file from pod"""
+    try:
+        logger.info('='*50)
+        logger.info('DOWNLOAD FILE FROM POD')
+        logger.info(f'Pod ID: {pod_id}')
+        
+        data = request.get_json()
+        remote_path = data.get('path')
+        
+        if not remote_path:
+            logger.warning('No path provided')
+            return jsonify({'error': 'No file path provided'}), 400
+        
+        logger.info(f'Downloading: {remote_path}')
+        
+        # Get pod details
+        pod = runpod.get_pod(pod_id)
+        if not pod:
+            logger.warning(f'Pod {pod_id} not found')
+            return jsonify({'error': 'Pod not found'}), 404
+            
+        if pod.get('desiredStatus') != 'RUNNING':
+            logger.warning(f'Pod {pod_id} not running')
+            return jsonify({'error': 'Pod not running'}), 400
+        
+        # Get SSH connection details
+        runtime = pod.get('runtime')
+        if not runtime:
+            logger.warning('Pod runtime not available')
+            return jsonify({'error': 'Pod runtime not available'}), 503
+        
+        host = None
+        port = 22
+        
+        if runtime.get('ports'):
+            for port_info in runtime.get('ports', []):
+                if port_info.get('privatePort') == 22:
+                    host = port_info.get('ip')
+                    port = port_info.get('publicPort', 22)
+                    break
+        
+        if not host and pod.get('machine'):
+            host = pod.get('machine', {}).get('podHostId')
+        
+        if not host:
+            logger.error('No host information available')
+            return jsonify({'error': 'Pod network information not available'}), 503
+        
+        # Get SSH key
+        ssh_key_doc = ssh_keys_collection.find_one({'key_type': 'organization'})
+        if not ssh_key_doc:
+            logger.error('No SSH key found')
+            return jsonify({'error': 'SSH key not configured'}), 500
+        
+        # Create temporary files
+        import tempfile
+        from flask import send_file
+        
+        temp_download = tempfile.NamedTemporaryFile(delete=False)
+        temp_download.close()
+        local_path = temp_download.name
+        
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.pem') as key_file:
+            key_file.write(ssh_key_doc['private_key'])
+            key_path = key_file.name
+        
+        try:
+            os.chmod(key_path, 0o600)
+            
+            # Create file manager
+            file_manager = PodFileManager(host=host, port=port, username='root', ssh_key_path=key_path)
+            
+            if not file_manager.connect():
+                logger.error('Failed to establish SSH connection')
+                return jsonify({'error': 'Failed to connect to pod'}), 500
+            
+            logger.info('✓ SSH connection established')
+            
+            # Download file
+            if not file_manager.download_file(remote_path, local_path):
+                logger.error('Download failed')
+                return jsonify({'error': 'Failed to download file'}), 500
+            
+            logger.info('✓ File downloaded successfully')
+            
+            file_manager.disconnect()
+            os.unlink(key_path)
+            
+            # Get filename from remote path
+            filename = os.path.basename(remote_path)
+            
+            logger.info('='*50)
+            
+            # Send file and schedule cleanup
+            return send_file(
+                local_path,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/octet-stream'
+            )
+            
+        except Exception as e:
+            # Clean up on error
+            if os.path.exists(local_path):
+                os.unlink(local_path)
+            if os.path.exists(key_path):
+                os.unlink(key_path)
+            raise e
+            
+    except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in download_file_from_pod: {e}', exc_info=True)
+        logger.error('='*50)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/<pod_id>/files/delete', methods=['DELETE'])
+@require_auth
+def delete_file_from_pod(pod_id):
+    """Delete a file or directory from pod"""
+    try:
+        logger.info('='*50)
+        logger.info('DELETE FILE FROM POD')
+        logger.info(f'Pod ID: {pod_id}')
+        
+        data = request.get_json()
+        file_path = data.get('path')
+        file_type = data.get('type', 'file')
+        
+        if not file_path:
+            logger.warning('No path provided')
+            return jsonify({'error': 'No file path provided'}), 400
+        
+        logger.info(f'Deleting {file_type}: {file_path}')
+        
+        # Get pod details
+        pod = runpod.get_pod(pod_id)
+        if not pod:
+            return jsonify({'error': 'Pod not found'}), 404
+            
+        if pod.get('desiredStatus') != 'RUNNING':
+            return jsonify({'error': 'Pod not running'}), 400
+        
+        # Get SSH connection details
+        runtime = pod.get('runtime')
+        if not runtime:
+            return jsonify({'error': 'Pod runtime not available'}), 503
+        
+        host = None
+        port = 22
+        
+        if runtime.get('ports'):
+            for port_info in runtime.get('ports', []):
+                if port_info.get('privatePort') == 22:
+                    host = port_info.get('ip')
+                    port = port_info.get('publicPort', 22)
+                    break
+        
+        if not host and pod.get('machine'):
+            host = pod.get('machine', {}).get('podHostId')
+        
+        if not host:
+            return jsonify({'error': 'Pod network information not available'}), 503
+        
+        # Get SSH key
+        ssh_key_doc = ssh_keys_collection.find_one({'key_type': 'organization'})
+        if not ssh_key_doc:
+            return jsonify({'error': 'SSH key not configured'}), 500
+        
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.pem') as key_file:
+            key_file.write(ssh_key_doc['private_key'])
+            key_path = key_file.name
+        
+        try:
+            os.chmod(key_path, 0o600)
+            
+            file_manager = PodFileManager(host=host, port=port, username='root', ssh_key_path=key_path)
+            
+            if not file_manager.connect():
+                return jsonify({'error': 'Failed to connect to pod'}), 500
+            
+            logger.info('✓ SSH connection established')
+            
+            # Delete file or directory
+            if file_type == 'directory':
+                success = file_manager.delete_directory(file_path)
+            else:
+                success = file_manager.delete_file(file_path)
+            
+            if not success:
+                logger.error('Delete failed')
+                return jsonify({'error': 'Failed to delete item'}), 500
+            
+            logger.info('✓ Item deleted successfully')
+            
+            file_manager.disconnect()
+            os.unlink(key_path)
+            
+            logger.info('='*50)
+            return jsonify({'success': True, 'message': 'Item deleted successfully'})
+            
+        except Exception as e:
+            if os.path.exists(key_path):
+                os.unlink(key_path)
+            raise e
+            
+    except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in delete_file_from_pod: {e}', exc_info=True)
+        logger.error('='*50)
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pods/<pod_id>/files/mkdir', methods=['POST'])
+@require_auth
+def create_directory_in_pod(pod_id):
+    """Create a directory in pod"""
+    try:
+        logger.info('='*50)
+        logger.info('CREATE DIRECTORY IN POD')
+        logger.info(f'Pod ID: {pod_id}')
+        
+        data = request.get_json()
+        dir_path = data.get('path')
+        
+        if not dir_path:
+            logger.warning('No path provided')
+            return jsonify({'error': 'No directory path provided'}), 400
+        
+        logger.info(f'Creating directory: {dir_path}')
+        
+        # Get pod details
+        pod = runpod.get_pod(pod_id)
+        if not pod:
+            return jsonify({'error': 'Pod not found'}), 404
+            
+        if pod.get('desiredStatus') != 'RUNNING':
+            return jsonify({'error': 'Pod not running'}), 400
+        
+        # Get SSH connection details
+        runtime = pod.get('runtime')
+        if not runtime:
+            return jsonify({'error': 'Pod runtime not available'}), 503
+        
+        host = None
+        port = 22
+        
+        if runtime.get('ports'):
+            for port_info in runtime.get('ports', []):
+                if port_info.get('privatePort') == 22:
+                    host = port_info.get('ip')
+                    port = port_info.get('publicPort', 22)
+                    break
+        
+        if not host and pod.get('machine'):
+            host = pod.get('machine', {}).get('podHostId')
+        
+        if not host:
+            return jsonify({'error': 'Pod network information not available'}), 503
+        
+        # Get SSH key
+        ssh_key_doc = ssh_keys_collection.find_one({'key_type': 'organization'})
+        if not ssh_key_doc:
+            return jsonify({'error': 'SSH key not configured'}), 500
+        
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.pem') as key_file:
+            key_file.write(ssh_key_doc['private_key'])
+            key_path = key_file.name
+        
+        try:
+            os.chmod(key_path, 0o600)
+            
+            file_manager = PodFileManager(host=host, port=port, username='root', ssh_key_path=key_path)
+            
+            if not file_manager.connect():
+                return jsonify({'error': 'Failed to connect to pod'}), 500
+            
+            logger.info('✓ SSH connection established')
+            
+            # Create directory
+            if not file_manager.create_directory(dir_path):
+                logger.error('Failed to create directory')
+                return jsonify({'error': 'Failed to create directory'}), 500
+            
+            logger.info('✓ Directory created successfully')
+            
+            file_manager.disconnect()
+            os.unlink(key_path)
+            
+            logger.info('='*50)
+            return jsonify({'success': True, 'message': 'Directory created successfully'})
+            
+        except Exception as e:
+            if os.path.exists(key_path):
+                os.unlink(key_path)
+            raise e
+            
+    except Exception as e:
+        logger.error('='*50)
+        logger.error(f'ERROR in create_directory_in_pod: {e}', exc_info=True)
+        logger.error('='*50)
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
