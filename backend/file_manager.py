@@ -189,3 +189,115 @@ class PodFileManager:
         stdout, stderr, exit_code = self.execute_command(command)
         
         return exit_code == 0
+    
+    def read_file(self, remote_path: str) -> Optional[str]:
+        """Read file content from pod"""
+        if not self.sftp:
+            return None
+        
+        try:
+            with self.sftp.open(remote_path, 'r') as f:
+                return f.read().decode('utf-8', errors='ignore')
+        except Exception as e:
+            print(f"Failed to read file {remote_path}: {e}")
+            return None
+    
+    def write_file(self, remote_path: str, content: str) -> bool:
+        """Write content to a file on pod"""
+        if not self.sftp:
+            return False
+        
+        try:
+            with self.sftp.open(remote_path, 'w') as f:
+                f.write(content.encode('utf-8'))
+            return True
+        except Exception as e:
+            print(f"Failed to write file {remote_path}: {e}")
+            return False
+    
+    def rename(self, old_path: str, new_path: str) -> bool:
+        """Rename a file or directory"""
+        if not self.sftp:
+            return False
+        
+        try:
+            self.sftp.rename(old_path, new_path)
+            return True
+        except Exception as e:
+            print(f"Failed to rename {old_path} to {new_path}: {e}")
+            return False
+    
+    def copy(self, source_path: str, dest_path: str) -> bool:
+        """Copy a file or directory"""
+        if not self.client:
+            return False
+        
+        try:
+            # Use shell command for copying (handles both files and directories)
+            command = f'cp -r "{source_path}" "{dest_path}"'
+            stdout, stderr, exit_code = self.execute_command(command)
+            return exit_code == 0
+        except Exception as e:
+            print(f"Failed to copy {source_path} to {dest_path}: {e}")
+            return False
+    
+    def search_files(self, base_path: str, query: str) -> List[Dict]:
+        """Search for files matching a pattern"""
+        if not self.client:
+            return []
+        
+        try:
+            # Use find command to search for files
+            command = f'find "{base_path}" -name "*{query}*" -type f -o -name "*{query}*" -type d'
+            stdout, stderr, exit_code = self.execute_command(command)
+            
+            if exit_code != 0:
+                return []
+            
+            results = []
+            for line in stdout.strip().split('\n'):
+                if line:
+                    # Get file info
+                    try:
+                        stat_info = self.sftp.stat(line)
+                        import stat as stat_module
+                        is_dir = stat_module.S_ISDIR(stat_info.st_mode)
+                        
+                        results.append({
+                            'path': line,
+                            'name': line.split('/')[-1],
+                            'type': 'directory' if is_dir else 'file',
+                            'size': stat_info.st_size if not is_dir else 0,
+                            'modified': stat_info.st_mtime
+                        })
+                    except:
+                        pass
+            
+            return results
+        except Exception as e:
+            print(f"Failed to search files: {e}")
+            return []
+    
+    def bulk_delete(self, paths: List[str]) -> tuple:
+        """Delete multiple files/directories. Returns (success_count, failed_count)"""
+        if not self.client:
+            return (0, len(paths))
+        
+        success_count = 0
+        failed_count = 0
+        
+        for path in paths:
+            try:
+                # Use rm -rf for robust deletion
+                command = f'rm -rf "{path}"'
+                stdout, stderr, exit_code = self.execute_command(command)
+                
+                if exit_code == 0:
+                    success_count += 1
+                else:
+                    failed_count += 1
+            except Exception as e:
+                print(f"Failed to delete {path}: {e}")
+                failed_count += 1
+        
+        return (success_count, failed_count)
