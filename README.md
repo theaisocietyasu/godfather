@@ -74,7 +74,7 @@ chmod +x setup.sh
 Edit `.env` file with your credentials:
 ```bash
 RUNPOD_API_KEY=your_runpod_api_key
-CLERK_SECRET_KEY=your_clerk_secret_key
+CLERK_SECRET_KEY=your_CLERK_SECRET_KEY
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 DISCORD_BOT_TOKEN=your_discord_bot_token
 DISCORD_GUILD_ID=your_discord_guild_id
@@ -83,7 +83,7 @@ DISCORD_GUILD_ID=your_discord_guild_id
 Edit `frontend/.env.local`:
 ```bash
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
+CLERK_SECRET_KEY=your_CLERK_SECRET_KEY
 NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
@@ -430,7 +430,7 @@ Edit `.env` with your API keys:
 RUNPOD_API_KEY=your_runpod_api_key_here
 
 # Clerk Authentication
-CLERK_SECRET_KEY=sk_live_your_clerk_secret_key
+CLERK_SECRET_KEY=sk_live_your_CLERK_SECRET_KEY
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_your_clerk_public_key
 
 # Discord Bot Configuration
@@ -442,7 +442,7 @@ Edit `frontend/.env.local`:
 
 ```bash
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_your_clerk_public_key
-CLERK_SECRET_KEY=sk_live_your_clerk_secret_key
+CLERK_SECRET_KEY=sk_live_your_CLERK_SECRET_KEY
 NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
