@@ -197,11 +197,15 @@ export default function CreatePod() {
                   onChange={(e) => setConfig({ ...config, image_name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                 >
+                  <option value="theaisocietyasu/godfather-base:latest">Godfather Base (Recommended) ⭐</option>
                   <option value="runpod/base:0.4.0-cuda11.8.0">Base CUDA 11.8 (Cheapest)</option>
                   <option value="nvidia/cuda:11.8-devel-ubuntu20.04">NVIDIA CUDA 11.8</option>
                   <option value="runpod/pytorch:3.10-2.0.0-117">PyTorch 2.0.0 (Python 3.10)</option>
                   <option value="runpod/tensorflow:2.11.0-py3.10-cuda11.8.0-devel-ubuntu22.04">TensorFlow 2.11.0</option>
                 </select>
+                <p className="mt-1 text-sm text-gray-500">
+                  ⚠️ Use &quot;Godfather Base&quot; for automatic SSH setup and user isolation
+                </p>
               </div>
 
               <div>
