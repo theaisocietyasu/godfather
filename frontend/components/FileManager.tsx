@@ -36,6 +36,16 @@ interface FileManagerProps {
   initialPath?: string;
 }
 
+// Helper function to extract error message from response
+async function getErrorMessage(response: Response, defaultMessage: string): Promise<string> {
+  try {
+    const errorData = await response.json();
+    return errorData.error || defaultMessage;
+  } catch {
+    return defaultMessage;
+  }
+}
+
 export default function FileManager({ podId, initialPath = '/workspace' }: FileManagerProps) {
   const { getToken } = useAuth();
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -70,7 +80,8 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch files');
+        const errorMessage = await getErrorMessage(response, 'Failed to fetch files');
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -78,7 +89,8 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
       setSelectedFiles(new Set());
     } catch (error: unknown) {
       console.error('Error fetching files:', error);
-      toast.error('Failed to fetch files');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch files';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -128,14 +140,16 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload file');
+        const errorMessage = await getErrorMessage(response, 'Failed to upload file');
+        throw new Error(errorMessage);
       }
 
       toast.success(`File ${file.name} uploaded successfully`);
       fetchFiles();
     } catch (error: unknown) {
       console.error('Error uploading file:', error);
-      toast.error('Failed to upload file');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload file';
+      toast.error(errorMessage);
     } finally {
       setUploadingFile(false);
     }

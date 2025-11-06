@@ -39,7 +39,7 @@ interface PodConfig {
 
 const defaultConfig: PodConfig = {
   name: '',
-  image_name: 'runpod/base:0.4.0-cuda11.8.0',
+  image_name: 'theaisocietyasu/godfather-base:latest',  // Default to Godfather custom image
   gpu_type_id: 'NVIDIA RTX A4000',
   use_cpu_only: false,
   cloud_type: 'COMMUNITY',

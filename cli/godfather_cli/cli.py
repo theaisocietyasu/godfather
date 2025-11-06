@@ -180,6 +180,7 @@ class GodfatherCLI:
         port = ssh_info.get('port', 22)
         username = ssh_info.get('username', 'root')
         user_folder = ssh_info.get('user_folder', 'user')
+        is_admin = ssh_info.get('is_admin', False)
         
         if not host:
             print("❌ No host information available")
@@ -202,6 +203,16 @@ class GodfatherCLI:
                 print("❌ No SSH key returned from API")
                 return
             
+            # Ensure private key has proper formatting (newlines may be lost in JSON)
+            # OpenSSH private keys need the base64 content wrapped at 70 chars per line
+            if '\\n' in private_key:
+                # If it has escaped newlines, convert them to actual newlines
+                private_key = private_key.replace('\\n', '\n')
+            
+            # Ensure the key ends with a newline
+            if not private_key.endswith('\n'):
+                private_key += '\n'
+            
             # Save SSH key to temporary file
             ssh_key_dir = self.config_dir / 'ssh'
             ssh_key_dir.mkdir(exist_ok=True)
@@ -222,31 +233,41 @@ class GodfatherCLI:
             return
         
         print(f"🔗 Connecting to {host}:{port}")
-        print(f"👤 User workspace: /workspace/{user_folder}")
+        print(f"👤 User workspace: /workspace/users/{user_folder}")
+        if is_admin:
+            print("👑 Admin mode: Full system access")
+        else:
+            print("🔒 Restricted mode: Limited to your workspace")
         print("\n📁 Setting up your personal workspace...")
         
-        # Create SSH connection with workspace setup
-        setup_commands = [
-            f"mkdir -p /workspace/{user_folder}",
-            f"chown -R {username}:{username} /workspace/{user_folder}",
-            f"cd /workspace/{user_folder}"
-        ]
+        # Setup user workspace and get profile path
+        # This calls the godfather-user-setup.sh script in the pod
+        admin_flag = "true" if is_admin else "false"
+        setup_command = f"/usr/local/bin/godfather-user-setup.sh {user_folder} {admin_flag}"
         
+        # Build SSH connection command
+        # 1. Run setup script to create workspace and get profile path
+        # 2. Source the appropriate profile (admin or restricted)
+        # 3. Start interactive bash
         ssh_command = [
             'ssh',
             '-t',
-            '-i', str(ssh_key_file),  # Use fetched SSH key
-            '-o', 'StrictHostKeyChecking=no',  # Auto-accept host key
-            '-o', 'UserKnownHostsFile=/dev/null',  # Don't save host key
+            '-i', str(ssh_key_file),
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'UserKnownHostsFile=/dev/null',
             '-p', str(port),
             f'{username}@{host}',
-            ' && '.join(setup_commands) + ' && bash'
+            f'PROFILE=$({setup_command}) && source $PROFILE && exec bash'
         ]
         
         try:
             print("🚪 Opening SSH session...")
-            print("💡 You'll be in your personal workspace folder")
-            print("🔒 You only have access to your own folder")
+            if is_admin:
+                print("� You have full admin access (sudo available)")
+            else:
+                print("💡 You're in your personal workspace")
+                print("🤝 You can also access /workspace/shared for collaboration")
+                print("⚠️  Restricted mode: No sudo access")
             print("📝 Type 'exit' to disconnect\n")
             
             # Execute SSH connection
@@ -257,13 +278,15 @@ class GodfatherCLI:
                 print("\n⚠️  SSH Key Setup Required")
                 print("=" * 60)
                 print("The pod needs to have the SSH key configured first.")
-                print("\nTo set up SSH access, run this command in the RunPod web terminal:")
+                print("\nOption 1: Use the godfather-base Docker image (recommended)")
+                print("  - The image automatically sets up SSH on startup")
+                print("  - Image: theaisocietyasu/godfather-base:latest")
+                print("\nOption 2: Manual setup in RunPod web terminal:")
                 print("\n  mkdir -p /root/.ssh && \\")
                 print(f'  echo "$GODFATHER_SSH_PUBLIC_KEY" >> /root/.ssh/authorized_keys && \\')
                 print("  chmod 700 /root/.ssh && \\")
                 print("  chmod 600 /root/.ssh/authorized_keys")
                 print("\n💡 The GODFATHER_SSH_PUBLIC_KEY environment variable is already set in your pod.")
-                print("💡 After running this once, you can connect anytime without a password!")
                 print("=" * 60)
             else:
                 print("\n👋 Disconnected from pod")

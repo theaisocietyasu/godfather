@@ -549,7 +549,7 @@ def create_pod():
         # Note: RunPod SDK expects specific parameters
         config = {
             'name': data.get('name', f'pod-{secrets.token_hex(4)}'),
-            'image_name': data.get('image_name', 'runpod/base:0.4.0-cuda11.8.0'),
+            'image_name': data.get('image_name', 'theaisocietyasu/godfather-base:latest'),  # Use custom image with auto SSH setup
             'gpu_type_id': data.get('gpu_type_id', 'NVIDIA RTX A4000'),
             'cloud_type': data.get('cloud_type', 'COMMUNITY'),
             'volume_in_gb': data.get('volume_in_gb', 1),
@@ -975,12 +975,17 @@ def connect_to_pod(pod_id):
             logger.error(f'Full pod data: {pod}')
             return jsonify({'error': 'Pod network information not yet available. Please try again in a moment.'}), 503
         
+        # Check if user is admin
+        is_admin = verify_discord_admin(discord_user_id)
+        logger.info(f'User is admin: {is_admin}')
+        
         # Get SSH connection details
         ssh_info = {
             'host': host,
             'port': port,
             'username': 'root',
-            'user_folder': user_data.get('username', 'user')
+            'user_folder': user_data.get('username', 'user'),
+            'is_admin': is_admin  # Pass admin status to CLI
         }
         
         logger.info(f'✓ SSH info: {ssh_info}')
@@ -1010,33 +1015,52 @@ def list_pod_files(pod_id):
         if not pod:
             logger.warning(f'Pod {pod_id} not found')
             return jsonify({'error': 'Pod not found'}), 404
+        
+        # Log pod status for debugging
+        logger.info(f'Pod status: {pod.get("desiredStatus")}')
+        logger.info(f'Pod runtime available: {pod.get("runtime") is not None}')
+        logger.info(f'Pod keys: {list(pod.keys())}')
             
         if pod.get('desiredStatus') != 'RUNNING':
             logger.warning(f'Pod {pod_id} not running (status: {pod.get("desiredStatus")})')
-            return jsonify({'error': 'Pod not running'}), 400
+            return jsonify({'error': 'Pod not running', 'status': pod.get('desiredStatus')}), 400
         
         # Get SSH connection details from runtime
         runtime = pod.get('runtime')
         if not runtime:
-            logger.warning('Pod runtime not available')
-            return jsonify({'error': 'Pod runtime not available'}), 503
+            logger.warning('Pod runtime not available - pod may still be starting up')
+            logger.info(f'Full pod object: {pod}')
+            return jsonify({'error': 'Pod is still starting up. Please wait a moment and try again.'}), 503
         
         # Get host and port from runtime
         host = None
         port = 22
+        
+        # Try multiple methods to get connection info
+        logger.info(f'Runtime data: {runtime}')
         
         if runtime.get('ports'):
             for port_info in runtime.get('ports', []):
                 if port_info.get('privatePort') == 22:
                     host = port_info.get('ip')
                     port = port_info.get('publicPort', 22)
+                    logger.info(f'Found SSH via ports: {host}:{port}')
                     break
         
-        if not host and pod.get('machine'):
-            host = pod.get('machine', {}).get('podHostId')
+        # Fallback to other methods
+        if not host:
+            if runtime.get('sshIp'):
+                host = runtime.get('sshIp')
+                port = runtime.get('sshPort', 22)
+                logger.info(f'Found SSH via sshIp: {host}:{port}')
+            elif pod.get('machine', {}).get('podHostId'):
+                host = pod.get('machine', {}).get('podHostId')
+                logger.info(f'Found SSH via podHostId: {host}:{port}')
         
         if not host:
-            logger.error('No host information available')
+            logger.error('No host information available in runtime')
+            logger.error(f'Runtime keys: {list(runtime.keys()) if runtime else "None"}')
+            logger.error(f'Machine info: {pod.get("machine")}')
             return jsonify({'error': 'Pod network information not available'}), 503
         
         logger.info(f'Connecting to {host}:{port}')
@@ -1135,25 +1159,39 @@ def upload_file_to_pod(pod_id):
         # Get SSH connection details
         runtime = pod.get('runtime')
         if not runtime:
-            logger.warning('Pod runtime not available')
-            return jsonify({'error': 'Pod runtime not available'}), 503
+            logger.warning('Pod runtime not available - pod may still be starting up')
+            logger.info(f'Full pod object: {pod}')
+            return jsonify({'error': 'Pod is still starting up. Please wait a moment and try again.'}), 503
         
         # Get host and port
         host = None
         port = 22
+        
+        # Try multiple methods to get connection info
+        logger.info(f'Runtime data: {runtime}')
         
         if runtime.get('ports'):
             for port_info in runtime.get('ports', []):
                 if port_info.get('privatePort') == 22:
                     host = port_info.get('ip')
                     port = port_info.get('publicPort', 22)
+                    logger.info(f'Found SSH via ports: {host}:{port}')
                     break
         
-        if not host and pod.get('machine'):
-            host = pod.get('machine', {}).get('podHostId')
+        # Fallback to other methods
+        if not host:
+            if runtime.get('sshIp'):
+                host = runtime.get('sshIp')
+                port = runtime.get('sshPort', 22)
+                logger.info(f'Found SSH via sshIp: {host}:{port}')
+            elif pod.get('machine', {}).get('podHostId'):
+                host = pod.get('machine', {}).get('podHostId')
+                logger.info(f'Found SSH via podHostId: {host}:{port}')
         
         if not host:
-            logger.error('No host information available')
+            logger.error('No host information available in runtime')
+            logger.error(f'Runtime keys: {list(runtime.keys()) if runtime else "None"}')
+            logger.error(f'Machine info: {pod.get("machine")}')
             return jsonify({'error': 'Pod network information not available'}), 503
         
         logger.info(f'Connecting to {host}:{port}')
@@ -1255,24 +1293,38 @@ def download_file_from_pod(pod_id):
         # Get SSH connection details
         runtime = pod.get('runtime')
         if not runtime:
-            logger.warning('Pod runtime not available')
-            return jsonify({'error': 'Pod runtime not available'}), 503
+            logger.warning('Pod runtime not available - pod may still be starting up')
+            logger.info(f'Full pod object: {pod}')
+            return jsonify({'error': 'Pod is still starting up. Please wait a moment and try again.'}), 503
         
         host = None
         port = 22
+        
+        # Try multiple methods to get connection info
+        logger.info(f'Runtime data: {runtime}')
         
         if runtime.get('ports'):
             for port_info in runtime.get('ports', []):
                 if port_info.get('privatePort') == 22:
                     host = port_info.get('ip')
                     port = port_info.get('publicPort', 22)
+                    logger.info(f'Found SSH via ports: {host}:{port}')
                     break
         
-        if not host and pod.get('machine'):
-            host = pod.get('machine', {}).get('podHostId')
+        # Fallback to other methods
+        if not host:
+            if runtime.get('sshIp'):
+                host = runtime.get('sshIp')
+                port = runtime.get('sshPort', 22)
+                logger.info(f'Found SSH via sshIp: {host}:{port}')
+            elif pod.get('machine', {}).get('podHostId'):
+                host = pod.get('machine', {}).get('podHostId')
+                logger.info(f'Found SSH via podHostId: {host}:{port}')
         
         if not host:
-            logger.error('No host information available')
+            logger.error('No host information available in runtime')
+            logger.error(f'Runtime keys: {list(runtime.keys()) if runtime else "None"}')
+            logger.error(f'Machine info: {pod.get("machine")}')
             return jsonify({'error': 'Pod network information not available'}), 503
         
         # Get SSH key
