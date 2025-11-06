@@ -47,7 +47,7 @@ USERNAME=$1
 IS_ADMIN=$2
 
 if [ -z "$USERNAME" ]; then
-    echo "Error: Username not provided"
+    echo "Error: Username not provided" >&2
     exit 1
 fi
 
@@ -57,12 +57,11 @@ mkdir -p "$USER_WORKSPACE"
 chown root:root "$USER_WORKSPACE"
 chmod 700 "$USER_WORKSPACE"
 
-echo "✅ Workspace created: $USER_WORKSPACE"
+# Log to stderr so it doesn't interfere with the profile path output
+echo "Workspace ready: $USER_WORKSPACE" >&2
 
 # If not admin, create restricted environment
 if [ "$IS_ADMIN" != "true" ]; then
-    echo "👤 Setting up restricted user environment..."
-    
     # Create a restricted bash profile for non-admins
     cat > /tmp/restricted_profile_$USERNAME << 'PROFILE'
 # Godfather Restricted User Environment
@@ -112,8 +111,6 @@ PROFILE
     # Return path to restricted profile
     echo "/tmp/restricted_profile_$USERNAME"
 else
-    echo "👑 Setting up admin environment..."
-    
     # Create admin profile
     cat > /tmp/admin_profile_$USERNAME << 'PROFILE'
 # Godfather Admin Environment

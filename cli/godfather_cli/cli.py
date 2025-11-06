@@ -263,7 +263,7 @@ class GodfatherCLI:
         try:
             print("🚪 Opening SSH session...")
             if is_admin:
-                print("� You have full admin access (sudo available)")
+                print("✅ You have full admin access (sudo available)")
             else:
                 print("💡 You're in your personal workspace")
                 print("🤝 You can also access /workspace/shared for collaboration")
