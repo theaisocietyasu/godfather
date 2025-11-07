@@ -96,25 +96,25 @@ fi
 echo ""
 echo "⚙️  Configuration..."
 echo ""
-echo "Enter your Godfather backend URL"
-echo "Examples:"
-echo "  - https://godfather.ais-asu.com"
-echo "  - https://your-pod.runpod.io"
-echo "  - http://localhost:5000 (for development)"
-echo ""
-read -p "Backend URL [https://godfather.ais-asu.com]: " API_URL
-API_URL=${API_URL:-https://godfather.ais-asu.com}
 
-# Add to profiles
+# Auto-set to production URL - users don't need to configure anything
+API_URL="https://8bzhwve1ri5cw2-80.proxy.runpod.net"
+
+# Add to profiles (optional - CLI will auto-detect anyway)
 if [ -f "$HOME/.bashrc" ]; then
+    # Remove old entry if exists
+    sed -i '/GODFATHER_API_URL/d' ~/.bashrc 2>/dev/null || true
     echo "export GODFATHER_API_URL=\"$API_URL\"" >> ~/.bashrc
 fi
 
 if [ -f "$HOME/.zshrc" ]; then
+    sed -i '/GODFATHER_API_URL/d' ~/.zshrc 2>/dev/null || true
     echo "export GODFATHER_API_URL=\"$API_URL\"" >> ~/.zshrc
 fi
 
 if [ -d "$HOME/.config/fish" ]; then
+    mkdir -p "$HOME/.config/fish/conf.d"
+    echo "# Godfather CLI" > "$HOME/.config/fish/conf.d/godfather.fish"
     echo "set -gx GODFATHER_API_URL \"$API_URL\"" >> "$HOME/.config/fish/conf.d/godfather.fish"
 fi
 
@@ -125,10 +125,7 @@ echo "╔═══════════════════════�
 echo "║           Installation Complete! ✅          ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
-echo "📋 Configuration saved:"
-echo "   Backend URL: $API_URL"
-echo ""
-echo "🚀 Next steps:"
+echo " Next steps:"
 echo ""
 echo "  1. Reload your shell:"
 if [[ "$SHELL" == *"fish"* ]]; then
@@ -140,7 +137,7 @@ else
 fi
 echo "     (or just restart your terminal)"
 echo ""
-echo "  2. Authenticate with Clerk:"
+echo "  2. Authenticate:"
 echo "     godfather auth"
 echo ""
 echo "  3. List available pods:"
