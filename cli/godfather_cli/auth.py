@@ -36,8 +36,7 @@ class CLIAuthenticator:
         """Authenticate user via Clerk token"""
         print("🔐 Authentication required...")
         print("Please visit the admin portal to get your authentication token:")
-        portal_url = self.api_base.replace(':5000', ':3000')
-        print(f"   {portal_url}/cli-auth")
+        print(f"   {self.api_base}/cli-auth")
         print()
         
         token = getpass.getpass("Enter your authentication token: ").strip()
