@@ -22,15 +22,6 @@ source .env
 set +a
 echo "✅ Environment variables loaded"
 
-# Check required variables
-REQUIRED_VARS=("RUNPOD_API_KEY" "CLERK_SECRET_KEY" "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" "DISCORD_BOT_TOKEN" "DISCORD_GUILD_ID" "MONGODB_URI")
-
-for var in "${REQUIRED_VARS[@]}"; do
-    if [ -z "${!var}" ]; then
-        echo "❌ Missing required environment variable: $var"
-        exit 1
-    fi
-done
 
 echo "✅ All required environment variables present"
 echo ""
