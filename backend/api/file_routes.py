@@ -14,21 +14,24 @@ files_bp = Blueprint('files', __name__, url_prefix='/api/pods')
 
 
 def get_file_manager_for_pod(pod_id: str):
-    """Helper to create file manager instance for a pod"""
+    """Helper to create file manager instance for a pod
+    Returns tuple of (file_manager, key_path) on success
+    Returns tuple of (None, error_response) on failure
+    """
     # Get SSH info
     ssh_info = PodService.get_pod_ssh_info(pod_id)
     if not ssh_info:
-        return None, jsonify({'error': 'Pod network information not available'}), 503
+        return None, (jsonify({'error': 'Pod network information not available'}), 503)
     
     # Get SSH key
     private_key = SSHService.get_private_key()
     if not private_key:
-        return None, jsonify({'error': 'SSH key not configured'}), 500
+        return None, (jsonify({'error': 'SSH key not configured'}), 500)
     
     # Save key to temp file
     key_path = SSHService.save_key_to_temp_file(private_key)
     if not key_path:
-        return None, jsonify({'error': 'Failed to setup SSH key'}), 500
+        return None, (jsonify({'error': 'Failed to setup SSH key'}), 500)
     
     # Create file manager
     file_manager = PodFileManager(
@@ -40,7 +43,7 @@ def get_file_manager_for_pod(pod_id: str):
     
     if not file_manager.connect():
         SSHService.cleanup_temp_key(key_path)
-        return None, jsonify({'error': 'Failed to connect to pod'}), 500
+        return None, (jsonify({'error': 'Failed to connect to pod'}), 500)
     
     return file_manager, key_path
 
@@ -53,11 +56,11 @@ def list_pod_files(pod_id):
         path = request.args.get('path', '/workspace')
         logger.info(f'List files in {path} on pod {pod_id}')
         
-        file_manager, error_or_key_path = get_file_manager_for_pod(pod_id)
+        file_manager, result = get_file_manager_for_pod(pod_id)
         if not file_manager:
-            return error_or_key_path
+            return result  # Returns error tuple (jsonify, status_code)
         
-        key_path = error_or_key_path
+        key_path = result
         
         # List directory
         files = file_manager.list_directory(path)
@@ -88,11 +91,11 @@ def upload_file_to_pod(pod_id):
         remote_path = request.form.get('path', '/workspace')
         logger.info(f'Upload {file.filename} to {remote_path} on pod {pod_id}')
         
-        file_manager, error_or_key_path = get_file_manager_for_pod(pod_id)
+        file_manager, result = get_file_manager_for_pod(pod_id)
         if not file_manager:
-            return error_or_key_path
+            return result  # Returns error tuple (jsonify, status_code)
         
-        key_path = error_or_key_path
+        key_path = result
         
         # Save file temporarily
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -138,11 +141,11 @@ def download_file_from_pod(pod_id):
         
         logger.info(f'Download {remote_path} from pod {pod_id}')
         
-        file_manager, error_or_key_path = get_file_manager_for_pod(pod_id)
+        file_manager, result = get_file_manager_for_pod(pod_id)
         if not file_manager:
-            return error_or_key_path
+            return result  # Returns error tuple (jsonify, status_code)
         
-        key_path = error_or_key_path
+        key_path = result
         
         # Create temp file for download
         temp_download = tempfile.NamedTemporaryFile(delete=False)
@@ -185,11 +188,11 @@ def delete_file_from_pod(pod_id):
         
         logger.info(f'Delete {file_type} {file_path} from pod {pod_id}')
         
-        file_manager, error_or_key_path = get_file_manager_for_pod(pod_id)
+        file_manager, result = get_file_manager_for_pod(pod_id)
         if not file_manager:
-            return error_or_key_path
+            return result  # Returns error tuple (jsonify, status_code)
         
-        key_path = error_or_key_path
+        key_path = result
         
         try:
             # Delete file or directory
@@ -224,11 +227,11 @@ def create_directory_in_pod(pod_id):
         
         logger.info(f'Create directory {dir_path} on pod {pod_id}')
         
-        file_manager, error_or_key_path = get_file_manager_for_pod(pod_id)
+        file_manager, result = get_file_manager_for_pod(pod_id)
         if not file_manager:
-            return error_or_key_path
+            return result  # Returns error tuple (jsonify, status_code)
         
-        key_path = error_or_key_path
+        key_path = result
         
         try:
             if not file_manager.create_directory(dir_path):
@@ -257,11 +260,11 @@ def read_file_from_pod(pod_id):
         
         logger.info(f'Read file {file_path} from pod {pod_id}')
         
-        file_manager, error_or_key_path = get_file_manager_for_pod(pod_id)
+        file_manager, result = get_file_manager_for_pod(pod_id)
         if not file_manager:
-            return error_or_key_path
+            return result  # Returns error tuple (jsonify, status_code)
         
-        key_path = error_or_key_path
+        key_path = result
         
         try:
             content = file_manager.read_file(file_path)
@@ -292,11 +295,11 @@ def write_file_to_pod(pod_id):
         
         logger.info(f'Write file {file_path} on pod {pod_id}')
         
-        file_manager, error_or_key_path = get_file_manager_for_pod(pod_id)
+        file_manager, result = get_file_manager_for_pod(pod_id)
         if not file_manager:
-            return error_or_key_path
+            return result  # Returns error tuple (jsonify, status_code)
         
-        key_path = error_or_key_path
+        key_path = result
         
         try:
             if not file_manager.write_file(file_path, content):
@@ -326,11 +329,11 @@ def rename_file_in_pod(pod_id):
         
         logger.info(f'Rename {old_path} to {new_path} on pod {pod_id}')
         
-        file_manager, error_or_key_path = get_file_manager_for_pod(pod_id)
+        file_manager, result = get_file_manager_for_pod(pod_id)
         if not file_manager:
-            return error_or_key_path
+            return result  # Returns error tuple (jsonify, status_code)
         
-        key_path = error_or_key_path
+        key_path = result
         
         try:
             if not file_manager.rename(old_path, new_path):
@@ -360,11 +363,11 @@ def copy_file_in_pod(pod_id):
         
         logger.info(f'Copy {source_path} to {dest_path} on pod {pod_id}')
         
-        file_manager, error_or_key_path = get_file_manager_for_pod(pod_id)
+        file_manager, result = get_file_manager_for_pod(pod_id)
         if not file_manager:
-            return error_or_key_path
+            return result  # Returns error tuple (jsonify, status_code)
         
-        key_path = error_or_key_path
+        key_path = result
         
         try:
             if not file_manager.copy(source_path, dest_path):
@@ -393,11 +396,11 @@ def search_files_in_pod(pod_id):
         
         logger.info(f'Search for "{query}" in {path} on pod {pod_id}')
         
-        file_manager, error_or_key_path = get_file_manager_for_pod(pod_id)
+        file_manager, result = get_file_manager_for_pod(pod_id)
         if not file_manager:
-            return error_or_key_path
+            return result  # Returns error tuple (jsonify, status_code)
         
-        key_path = error_or_key_path
+        key_path = result
         
         try:
             results = file_manager.search_files(path, query)
