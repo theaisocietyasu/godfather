@@ -1,23 +1,17 @@
 'use client';
 
 import { useAuth, SignInButton, UserButton } from '@clerk/nextjs';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function Home() {
-  const { isSignedIn, getToken, userId } = useAuth();
+  const { isSignedIn, getToken } = useAuth();
   const [isVerifying, setIsVerifying] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    if (isSignedIn && !isAuthorized) {
-      verifyDiscordAdmin();
-    }
-  }, [isSignedIn]);
-
-  const verifyDiscordAdmin = async () => {
+  const verifyDiscordAdmin = useCallback(async () => {
     setIsVerifying(true);
     try {
       console.log('Starting Discord admin verification...');
@@ -42,10 +36,10 @@ export default function Home() {
       } else {
         throw new Error(data.error || 'Verification failed');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Verification error:', error);
       
-      const errorMessage = error.message || 'Access denied. Admin role required.';
+      const errorMessage = error instanceof Error ? error.message : 'Access denied. Admin role required.';
       toast.error(errorMessage);
       
       if (errorMessage === 'Discord account not linked') {
@@ -55,7 +49,13 @@ export default function Home() {
       setIsAuthorized(false);
     }
     setIsVerifying(false);
-  };
+  }, [getToken, router]);
+
+  useEffect(() => {
+    if (isSignedIn && !isAuthorized) {
+      verifyDiscordAdmin();
+    }
+  }, [isSignedIn, isAuthorized, verifyDiscordAdmin]);
 
   if (isSignedIn && isVerifying) {
     return (

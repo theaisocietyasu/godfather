@@ -16,8 +16,10 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# Load environment variables
-export $(cat .env | grep -v '^#' | xargs)
+# Load environment variables and export them
+set -a
+source .env
+set +a
 echo "✅ Environment variables loaded"
 
 # Check required variables
@@ -63,6 +65,18 @@ echo "✅ Backend dependencies installed"
 echo ""
 echo "🔨 Building Frontend..."
 cd /godfather/frontend
+
+# Create .env.local file for Next.js from root .env
+echo "📝 Creating frontend environment file..."
+cat > .env.local << EOF
+# Auto-generated from root .env file
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+NEXT_PUBLIC_FRONTEND_URL=${PUBLIC_URL}
+EOF
+echo "✅ Frontend environment file created"
+
 npm install --quiet
 echo "Building Next.js application (this may take a few minutes)..."
 npm run build
@@ -71,7 +85,7 @@ echo "✅ Frontend built successfully"
 echo ""
 echo "🚀 Starting services..."
 
-# Start backend
+# Start backend with environment variables
 cd /godfather/backend
 nohup python3 app.py > /var/log/godfather-backend.log 2>&1 &
 BACKEND_PID=$!
@@ -91,7 +105,7 @@ else
     exit 1
 fi
 
-# Start frontend
+# Start frontend with environment variables
 cd /godfather/frontend
 nohup npm start > /var/log/godfather-frontend.log 2>&1 &
 FRONTEND_PID=$!

@@ -12,7 +12,6 @@ import {
   RotateCw as RestartIcon,
   Trash2 as TrashIcon,
   Eye as EyeIcon,
-  Settings as SettingsIcon,
   Terminal as TerminalIcon
 } from 'lucide-react';
 import moment from 'moment';
@@ -23,10 +22,17 @@ interface Pod {
   status: string;
   machine_type: string;
   created_at: string;
-  runtime?: any;
+  runtime?: {
+    uptimeInSeconds?: number;
+    ports?: string;
+    gpus?: string;
+  };
   is_public: boolean;
   allowed_users: string[];
-  custom_config: any;
+  custom_config: {
+    storageAmount?: number;
+    containerDiskSize?: number;
+  };
 }
 
 export default function Dashboard() {
@@ -113,7 +119,7 @@ export default function Dashboard() {
       
       toast.success(`Pod ${action} successful`);
       fetchPods(); // Refresh the list
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error ${action} pod:`, error);
       toast.error(`Failed to ${action} pod`);
     } finally {
