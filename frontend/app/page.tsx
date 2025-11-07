@@ -6,13 +6,18 @@ import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function Home() {
-  const { isSignedIn, getToken } = useAuth();
+  const { isSignedIn, isLoaded, getToken } = useAuth();
   const [isVerifying, setIsVerifying] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [hasAttemptedVerification, setHasAttemptedVerification] = useState(false);
   const router = useRouter();
 
   const verifyDiscordAdmin = useCallback(async () => {
+    if (!isSignedIn || hasAttemptedVerification) return;
+    
     setIsVerifying(true);
+    setHasAttemptedVerification(true);
+    
     try {
       console.log('Starting Discord admin verification...');
       const token = await getToken();
@@ -49,13 +54,26 @@ export default function Home() {
       setIsAuthorized(false);
     }
     setIsVerifying(false);
-  }, [getToken, router]);
+  }, [isSignedIn, hasAttemptedVerification, getToken, router]);
 
   useEffect(() => {
-    if (isSignedIn && !isAuthorized) {
+    // Only verify if user is signed in, Clerk is loaded, and we haven't attempted yet
+    if (isLoaded && isSignedIn && !isAuthorized && !hasAttemptedVerification) {
       verifyDiscordAdmin();
     }
-  }, [isSignedIn, isAuthorized, verifyDiscordAdmin]);
+  }, [isLoaded, isSignedIn, isAuthorized, hasAttemptedVerification, verifyDiscordAdmin]);
+
+  // Show loading state only while Clerk is initializing
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isSignedIn && isVerifying) {
     return (
@@ -68,7 +86,7 @@ export default function Home() {
     );
   }
 
-  if (isSignedIn && !isAuthorized) {
+  if (isSignedIn && hasAttemptedVerification && !isAuthorized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-white">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
