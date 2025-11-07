@@ -1,4 +1,29 @@
-require('dotenv').config({ path: '/godfather/.env' });
+const fs = require('fs');
+const path = require('path');
+
+// Read .env file if it exists
+const envPath = '/godfather/.env';
+const envVars = {};
+
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  envContent.split('\n').forEach(line => {
+    line = line.trim();
+    if (line && !line.startsWith('#')) {
+      const match = line.match(/^([^=]+)=(.*)$/);
+      if (match) {
+        const key = match[1].trim();
+        let value = match[2].trim();
+        // Remove surrounding quotes if present
+        if ((value.startsWith('"') && value.endsWith('"')) || 
+            (value.startsWith("'") && value.endsWith("'"))) {
+          value = value.slice(1, -1);
+        }
+        envVars[key] = value;
+      }
+    }
+  });
+}
 
 module.exports = {
   apps: [
@@ -15,14 +40,14 @@ module.exports = {
       max_restarts: 10,
       min_uptime: '10s',
       env: {
-        RUNPOD_API_KEY: process.env.RUNPOD_API_KEY,
-        CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
-        DISCORD_BOT_TOKEN: process.env.DISCORD_BOT_TOKEN,
-        DISCORD_GUILD_ID: process.env.DISCORD_GUILD_ID,
-        ADMIN_ROLE_ID: process.env.ADMIN_ROLE_ID,
-        MONGODB_URI: process.env.MONGODB_URI,
-        JWT_SECRET: process.env.JWT_SECRET,
-        LOG_LEVEL: process.env.LOG_LEVEL || 'INFO',
+        RUNPOD_API_KEY: envVars.RUNPOD_API_KEY,
+        CLERK_SECRET_KEY: envVars.CLERK_SECRET_KEY,
+        DISCORD_BOT_TOKEN: envVars.DISCORD_BOT_TOKEN,
+        DISCORD_GUILD_ID: envVars.DISCORD_GUILD_ID,
+        ADMIN_ROLE_ID: envVars.ADMIN_ROLE_ID,
+        MONGODB_URI: envVars.MONGODB_URI || 'mongodb://localhost:27017/godfather',
+        JWT_SECRET: envVars.JWT_SECRET || 'your-secret-key',
+        LOG_LEVEL: envVars.LOG_LEVEL || 'INFO',
       },
     },
     {
