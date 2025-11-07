@@ -59,8 +59,14 @@ fi
 echo ""
 echo "🔨 Building Backend..."
 cd /godfather/backend
-pip3 install -r requirements.txt --quiet
-echo "✅ Backend dependencies installed"
+echo "Installing Python dependencies..."
+pip3 install -r requirements.txt
+if [ $? -eq 0 ]; then
+    echo "✅ Backend dependencies installed"
+else
+    echo "❌ Failed to install backend dependencies"
+    exit 1
+fi
 
 echo ""
 echo "🔨 Building Frontend..."
@@ -77,10 +83,23 @@ NEXT_PUBLIC_FRONTEND_URL=${PUBLIC_URL}
 EOF
 echo "✅ Frontend environment file created"
 
-npm install --quiet
+echo "Installing Node.js dependencies..."
+npm install
+if [ $? -eq 0 ]; then
+    echo "✅ Node.js dependencies installed"
+else
+    echo "❌ Failed to install Node.js dependencies"
+    exit 1
+fi
+
 echo "Building Next.js application (this may take a few minutes)..."
 npm run build
-echo "✅ Frontend built successfully"
+if [ $? -eq 0 ]; then
+    echo "✅ Frontend built successfully"
+else
+    echo "❌ Frontend build failed"
+    exit 1
+fi
 
 echo ""
 echo "🚀 Starting services..."

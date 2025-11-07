@@ -1,127 +1,110 @@
 # Godfather - AI Society Admin Portal
 
-The mastermind backend that's powered by GPU, will be the main platform for all our tools.
-
-A comprehensive admin dashboard for managing RunPod services/environments, built for AI Society ASU. This system provides secure authentication, pod management, file operations, and CLI access.
-
-## 🏗️ Architecture
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Admin Portal  │    │      CLI        │    │   Discord       │
-│   (Next.js)     │    │   (Python)      │    │     OAuth       │
-└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
-          │                      │                      │
-          └──────────────────────┼──────────────────────┘
-                                 │
-                    ┌─────────────▼─────────────┐
-                    │     Backend API           │
-                    │     (Flask)               │
-                    └─────────────┬─────────────┘
-                                  │
-              ┌───────────────────┼───────────────────┐
-              │                   │                   │
-    ┌─────────▼─────────┐ ┌───────▼───────┐ ┌─────────▼─────────┐
-    │    MongoDB        │ │   RunPod API  │ │   Discord API     │
-    │   (Database)      │ │    (Pods)     │ │   (Auth Check)    │
-    └───────────────────┘ └───────────────┘ └───────────────────┘
-```
+Admin dashboard for managing RunPod GPU environments. Discord OAuth authentication, pod management, file operations, and CLI access.
 
 ## 🚀 Features
 
-### Admin Portal
-- **🔐 Secure Authentication**: Discord OAuth with Admin role verification
-- **🖥️ Pod Management**: Create, monitor, start, stop, and terminate pods
-- **📁 File Management**: Web-based file browser with upload/download
-- **👥 Access Control**: Public/private pod settings for CLI access
-- **📊 Monitoring**: Real-time pod status and resource monitoring
-- **🎨 Modern UI**: Clean, responsive design with dark/light themes
+- **Discord OAuth**: Admin role verification via Clerk
+- **Pod Management**: Create, monitor, control RunPod instances
+- **File Manager**: Web-based file browser with upload/download
+- **CLI Tool**: Secure terminal access to pods
+- **User Isolation**: Separate workspaces per user
+- **Access Control**: Public/private pod settings
 
-### CLI Tool
-- **🔑 Secure Access**: Token-based authentication
-- **🔍 Pod Discovery**: List and connect to available public pods
-- **🚪 SSH Integration**: Direct terminal access to pod environments
-- **👤 User Isolation**: Each user gets their own workspace folder
-- **🌐 Cross-Platform**: Works on Windows, macOS, and Linux
+## �️ Setup
 
-### Security
-- **🛡️ Role-Based Access**: Discord Admin role required
-- **🔒 JWT Authentication**: Secure token-based API access
-- **🔐 SSL/TLS**: HTTPS encryption for production
-- **🚫 Rate Limiting**: API protection against abuse
-- **🏠 User Isolation**: Secure workspace separation
-
-## 📋 Prerequisites
-
-- Docker and Docker Compose
-- Python 3.7+ (for CLI)
-- OpenSSH client (for pod connections)
-- Discord account with Admin role in AI Society server
+### Prerequisites
+- Docker & Docker Compose
 - RunPod API key
-- Clerk account for authentication
+- Clerk account
+- Discord bot token
 
-## 🛠️ Quick Setup
+### Installation
 
-### 1. Clone and Setup
+1. **Clone and configure:**
 ```bash
 git clone https://github.com/theaisocietyasu/godfather.git
 cd godfather
-chmod +x setup.sh
-./setup.sh
+cp .env.example .env
+# Edit .env with your API keys
 ```
 
-### 2. Configure Environment
-Edit `.env` file with your credentials:
+2. **Deploy (choose one):**
+
+**Local Development:**
 ```bash
-RUNPOD_API_KEY=your_runpod_api_key
-CLERK_SECRET_KEY=your_CLERK_SECRET_KEY
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-DISCORD_BOT_TOKEN=your_discord_bot_token
-DISCORD_GUILD_ID=your_discord_guild_id
+docker-compose up -d
 ```
 
-Edit `frontend/.env.local`:
+**RunPod Production:**
 ```bash
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_CLERK_SECRET_KEY
-NEXT_PUBLIC_API_URL=http://localhost:5000
+# On RunPod instance
+git clone https://github.com/theaisocietyasu/godfather.git
+cd godfather
+./setup-runpod-env.sh  # Creates .env file
+./deploy-direct.sh     # Deploys without Docker
 ```
 
-### 3. Start Services
-```bash
-./dev.sh start
-```
-
-### 4. Install CLI
+3. **Install CLI:**
 ```bash
 cd cli
 pip install -e .
-# Add to PATH if needed
-export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Environment Variables
+
+Required in `.env`:
+```bash
+RUNPOD_API_KEY=your_key
+CLERK_SECRET_KEY=your_key
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_key
+DISCORD_BOT_TOKEN=your_token
+DISCORD_GUILD_ID=your_guild_id
+ADMIN_ROLE_ID=your_role_id
+MONGODB_URI=mongodb+srv://...
+PUBLIC_URL=https://admin.ais-asu.com
+RUNPOD_PROXY_URL=https://your-pod.proxy.runpod.net
 ```
 
 ## 🎯 Usage
 
-### Admin Portal
-1. Visit `http://localhost` (or `https://admin.ais-asu.com` in production)
-2. Sign in with Discord (Admin role required)
-3. Create and manage RunPod environments
-4. Configure public access for CLI users
+**Admin Portal:** Visit `http://localhost` or `https://admin.ais-asu.com`
 
-### CLI Tool
+**CLI:**
 ```bash
-# Interactive mode
-godfather
-
-# List available pods
-godfather list
-
-# Connect to a pod
-godfather connect
-
-# Check status
-godfather status
+godfather              # Interactive mode
+godfather list         # List pods
+godfather connect      # Connect to pod
 ```
+
+## 📁 Project Structure
+
+```
+godfather/
+├── backend/           # Flask API
+├── frontend/          # Next.js portal
+├── cli/               # Python CLI tool
+├── nginx/             # Reverse proxy
+├── docker-images/     # Custom Docker images
+├── deploy-direct.sh   # RunPod deployment
+└── setup-runpod-env.sh # Environment setup
+```
+
+## 🔐 Security
+
+- Discord Admin role required
+- JWT authentication
+- SSL/TLS in production
+- User workspace isolation
+- No sudo access for regular users
+
+## 📄 License
+
+MIT License
+
+---
+
+Built by AI Society ASU | [Documentation](https://www.notion.so/theaisociety/Grandfather-2668867868b480cab87ecfdb4e4a1dbe)
 
 ## 🔧 Development
 
