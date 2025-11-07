@@ -1,5 +1,15 @@
 # 🎯 Quick Domain Setup - Copy & Paste Guide
 
+## 🌐 Dual URL System
+
+Your application will work with **TWO URLs**:
+1. **Custom Domain**: `https://admin.ais-asu.com` (professional, requires DNS)
+2. **RunPod Fallback**: `https://xxxxx-80.proxy.runpod.net` (automatic, instant)
+
+Both URLs work simultaneously! Set up the custom domain for users, keep the RunPod URL as backup.
+
+---
+
 ## Step 1: Configure DNS in GoDaddy (Do this FIRST!)
 
 1. **Go to GoDaddy:** https://dcc.godaddy.com/domains/
@@ -42,9 +52,14 @@ nano .env
 PUBLIC_URL=https://admin.ais-asu.com
 NEXT_PUBLIC_API_URL=https://admin.ais-asu.com/api
 DOMAIN=admin.ais-asu.com
+
+# Also add your RunPod fallback URL (find in RunPod dashboard)
+RUNPOD_PROXY_URL=https://xxxxx-80.proxy.runpod.net
 ```
 
 **Save:** `Ctrl+X` → `Y` → `Enter`
+
+**Note:** Both URLs will work! Custom domain = primary, RunPod URL = fallback.
 
 ---
 
@@ -107,9 +122,11 @@ docker compose -f docker-compose.prod.yml -f docker-compose.ssl.yml logs -f
 
 Visit in browser: **https://admin.ais-asu.com**
 
+Or use the RunPod fallback: **https://your-runpod-id-80.proxy.runpod.net**
+
 ---
 
-## 🚨 Troubleshooting
+## 🎉 You're Done!
 
 ### DNS not working?
 ```bash
@@ -157,17 +174,23 @@ docker compose -f docker-compose.prod.yml -f docker-compose.ssl.yml restart
 ## 🎉 You're Done!
 
 Your Godfather admin panel is now live at:
-### **https://admin.ais-asu.com**
+### **Primary: https://admin.ais-asu.com**
+### **Fallback: https://xxxxx-80.proxy.runpod.net**
 
-Users can connect via CLI:
+Users can connect via CLI using either URL:
 ```bash
+# Primary (recommended)
 export GODFATHER_API_URL=https://admin.ais-asu.com/api
+godfather connect
+
+# Fallback
+export GODFATHER_API_URL=https://your-runpod-url.proxy.runpod.net/api
 godfather connect
 ```
 
 ---
 
-## 📞 Need Help?
+## � Troubleshooting
 
 **DNS Issues:** https://www.whatsmydns.net/ (check propagation)
 **SSL Issues:** Run `sudo certbot certificates` to check status
