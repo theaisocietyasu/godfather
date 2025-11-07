@@ -19,8 +19,8 @@ fi
 # Check processes (manual fallback)
 echo "📊 Running Processes (manual check):"
 echo "----------------------------------------"
-BACKEND_PID=$(pgrep -f "python app.py" | head -n 1)
-FRONTEND_PID=$(pgrep -f "node.*next\|npm.*start" | head -n 1)
+BACKEND_PID=$(pgrep -f "python.*app.py" | head -n 1)
+FRONTEND_PID=$(pgrep -f "next.*start" | head -n 1)
 NGINX_PID=$(pgrep -f "nginx: master" | head -n 1)
 
 if [ -n "$BACKEND_PID" ]; then

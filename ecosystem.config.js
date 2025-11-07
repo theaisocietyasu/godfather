@@ -27,6 +27,8 @@ module.exports = {
       min_uptime: '10s',
       env: {
         NODE_ENV: 'production',
+        HOSTNAME: '0.0.0.0',
+        PORT: '3000',
       },
     },
   ],
