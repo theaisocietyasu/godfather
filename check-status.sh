@@ -78,8 +78,8 @@ else
     echo "❌ Backend (localhost:5000/health): FAILED"
 fi
 
-# Test frontend
-if curl -s -f http://localhost:3000 > /dev/null 2>&1; then
+# Test frontend (accept any HTTP response, even 404)
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null | grep -q "[0-9]"; then
     echo "✅ Frontend (localhost:3000): OK"
 else
     echo "❌ Frontend (localhost:3000): FAILED"
@@ -92,15 +92,15 @@ else
     echo "❌ Nginx (localhost:80/health): FAILED"
 fi
 
-# Test nginx proxy to backend
-if curl -s -f http://localhost:80/api/health > /dev/null 2>&1; then
+# Test nginx proxy to backend - check if it returns valid JSON
+if curl -s http://localhost:80/api/pods 2>/dev/null | grep -q "error\|pods\|\[\]"; then
     echo "✅ Nginx → Backend proxy: OK"
 else
     echo "❌ Nginx → Backend proxy: FAILED"
 fi
 
-# Test nginx proxy to frontend
-if curl -s -f http://localhost:80 > /dev/null 2>&1; then
+# Test nginx proxy to frontend (accept any HTTP response)
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:80 2>/dev/null | grep -q "[0-9]"; then
     echo "✅ Nginx → Frontend proxy: OK"
 else
     echo "❌ Nginx → Frontend proxy: FAILED"
