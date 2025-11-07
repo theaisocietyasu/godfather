@@ -1,0 +1,172 @@
+#!/bin/bash
+# Direct deployment script for RunPod (no Docker needed)
+# This runs the applications directly in the container
+
+set -e
+
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║         Godfather Direct Deployment (No Docker)             ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+# Check if .env exists
+if [ ! -f .env ]; then
+    echo "❌ .env file not found!"
+    echo "Please create it from .env.example with your configuration."
+    exit 1
+fi
+
+# Load environment variables
+export $(cat .env | grep -v '^#' | xargs)
+echo "✅ Environment variables loaded"
+
+# Check required variables
+REQUIRED_VARS=("RUNPOD_API_KEY" "CLERK_SECRET_KEY" "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" "DISCORD_BOT_TOKEN" "DISCORD_GUILD_ID" "MONGODB_URI")
+
+for var in "${REQUIRED_VARS[@]}"; do
+    if [ -z "${!var}" ]; then
+        echo "❌ Missing required environment variable: $var"
+        exit 1
+    fi
+done
+
+echo "✅ All required environment variables present"
+echo ""
+
+# Kill any existing processes
+echo "🛑 Stopping any existing processes..."
+pkill -f "python3 app.py" || true
+pkill -f "node.*next" || true
+pkill -f "nginx" || true
+sleep 2
+
+# Install system dependencies
+echo "📦 Installing system dependencies..."
+apt-get update -qq
+apt-get install -y nginx python3-pip curl > /dev/null 2>&1
+echo "✅ System dependencies installed"
+
+# Install Node.js if not present
+if ! command -v node &> /dev/null; then
+    echo "📦 Installing Node.js..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
+    apt-get install -y nodejs > /dev/null 2>&1
+    echo "✅ Node.js installed"
+fi
+
+echo ""
+echo "🔨 Building Backend..."
+cd /godfather/backend
+pip3 install -r requirements.txt --quiet
+echo "✅ Backend dependencies installed"
+
+echo ""
+echo "🔨 Building Frontend..."
+cd /godfather/frontend
+npm install --quiet
+echo "Building Next.js application (this may take a few minutes)..."
+npm run build
+echo "✅ Frontend built successfully"
+
+echo ""
+echo "🚀 Starting services..."
+
+# Start backend
+cd /godfather/backend
+nohup python3 app.py > /var/log/godfather-backend.log 2>&1 &
+BACKEND_PID=$!
+echo "✅ Backend started (PID: $BACKEND_PID)"
+
+# Wait for backend to be ready
+echo "⏳ Waiting for backend to be ready..."
+sleep 5
+
+# Check if backend is running
+if ps -p $BACKEND_PID > /dev/null; then
+    echo "✅ Backend is running"
+else
+    echo "❌ Backend failed to start"
+    echo "Logs:"
+    tail -20 /var/log/godfather-backend.log
+    exit 1
+fi
+
+# Start frontend
+cd /godfather/frontend
+nohup npm start > /var/log/godfather-frontend.log 2>&1 &
+FRONTEND_PID=$!
+echo "✅ Frontend started (PID: $FRONTEND_PID)"
+
+# Wait for frontend to be ready
+echo "⏳ Waiting for frontend to be ready..."
+sleep 10
+
+# Configure nginx
+echo "⚙️  Configuring nginx..."
+cp /godfather/nginx/nginx.prod.conf /etc/nginx/nginx.conf
+
+# Test nginx config
+nginx -t
+
+# Start nginx
+nginx
+echo "✅ Nginx started"
+
+echo ""
+echo "⏳ Waiting for all services to initialize..."
+sleep 5
+
+# Health checks
+echo ""
+echo "🔍 Running health checks..."
+
+# Check backend
+if curl -s http://localhost:5000/health > /dev/null 2>&1; then
+    echo "✅ Backend health check passed"
+else
+    echo "⚠️  Backend health check failed (may still be starting)"
+fi
+
+# Check frontend
+if curl -s http://localhost:3000 > /dev/null 2>&1; then
+    echo "✅ Frontend health check passed"
+else
+    echo "⚠️  Frontend health check failed (may still be starting)"
+fi
+
+# Check nginx
+if curl -s http://localhost/health > /dev/null 2>&1; then
+    echo "✅ Nginx health check passed"
+else
+    echo "⚠️  Nginx health check failed"
+fi
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║                   Deployment Complete! ✅                    ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+echo "📊 Service Status:"
+echo "   Backend:  http://localhost:5000 (PID: $BACKEND_PID)"
+echo "   Frontend: http://localhost:3000 (PID: $FRONTEND_PID)"
+echo "   Nginx:    http://localhost:80"
+echo ""
+
+echo "🌐 Your application is accessible at:"
+if [ -n "$RUNPOD_PROXY_URL" ]; then
+    echo "   $RUNPOD_PROXY_URL"
+fi
+if [ -n "$PUBLIC_URL" ]; then
+    echo "   $PUBLIC_URL"
+fi
+echo ""
+
+echo "📝 Useful Commands:"
+echo "   View backend logs:  tail -f /var/log/godfather-backend.log"
+echo "   View frontend logs: tail -f /var/log/godfather-frontend.log"
+echo "   Check processes:    ps aux | grep -E 'python3|node|nginx'"
+echo "   Stop all:           pkill -f 'python3 app.py'; pkill -f 'node.*next'; nginx -s stop"
+echo ""
+
+echo "🎉 Deployment successful!"
