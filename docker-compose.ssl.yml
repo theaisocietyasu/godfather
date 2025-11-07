@@ -1,0 +1,11 @@
+# Docker Compose override for HTTPS/SSL
+# Use this with: docker-compose -f docker-compose.prod.yml -f docker-compose.ssl.yml up -d
+
+services:
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.ssl.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
