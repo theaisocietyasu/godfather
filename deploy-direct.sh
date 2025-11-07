@@ -140,12 +140,16 @@ fi
 # Start frontend with environment variables
 cd /godfather/frontend
 
-# Make sure port 3000 is free
-if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-    echo "⚠️  Port 3000 is in use, killing process..."
-    fuser -k 3000/tcp 2>/dev/null || true
-    sleep 2
-fi
+# Make sure port 3000 is free (with multiple checks)
+for i in 1 2 3; do
+    if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo "⚠️  Port 3000 is in use (attempt $i/3), killing process..."
+        fuser -k 3000/tcp 2>/dev/null || true
+        sleep 3
+    else
+        break
+    fi
+done
 
 nohup npm start > /var/log/godfather-frontend.log 2>&1 &
 FRONTEND_PID=$!
@@ -160,7 +164,9 @@ if ! ps -p $FRONTEND_PID > /dev/null; then
     echo "⚠️  Frontend process died, checking logs..."
     tail -20 /var/log/godfather-frontend.log
     echo ""
-    echo "Retrying frontend startup..."
+    echo "Retrying frontend startup (clearing port again)..."
+    fuser -k 3000/tcp 2>/dev/null || true
+    sleep 3
     nohup npm start > /var/log/godfather-frontend.log 2>&1 &
     FRONTEND_PID=$!
     sleep 10
