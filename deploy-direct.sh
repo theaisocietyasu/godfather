@@ -142,7 +142,7 @@ sleep 10
 
 # Configure nginx
 echo "⚙️  Configuring nginx..."
-cp /godfather/nginx/nginx.prod.conf /etc/nginx/nginx.conf
+cp /godfather/nginx/nginx.direct.conf /etc/nginx/nginx.conf
 
 # Test nginx config
 nginx -t
