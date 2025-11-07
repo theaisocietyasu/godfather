@@ -48,9 +48,16 @@ services:
       dockerfile: Dockerfile
     container_name: godfather_frontend
     environment:
+      # Local development uses localhost
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost
+      - NEXT_PUBLIC_APP_URL=http://localhost
+      - NEXT_PUBLIC_API_URL=http://localhost/api
       - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
       - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+      - NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+      - NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+      - NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
     ports:
       - "3000:3000"
     depends_on:
@@ -58,6 +65,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - /app/.next
     networks:
       - godfather_network
     develop:

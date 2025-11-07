@@ -1,6 +1,6 @@
 #!/bin/bash
 # Direct deployment script for RunPod (no Docker needed)
-# This runs the applications directly in the container
+# Automatically syncs BACKEND_URL to all configs
 
 set -e
 
@@ -12,19 +12,33 @@ echo ""
 # Check if .env exists
 if [ ! -f .env ]; then
     echo "❌ .env file not found!"
-    echo "Please create it from .env.example with your configuration."
+    echo "Please create it with BACKEND_URL set."
     exit 1
 fi
 
-# Load environment variables and export them
+# Load environment variables
 set -a
 source .env
 set +a
 echo "✅ Environment variables loaded"
 
-
-echo "✅ All required environment variables present"
-echo ""
+# Sync BACKEND_URL to all configs
+if [ -n "$BACKEND_URL" ]; then
+    echo "🔄 Syncing BACKEND_URL ($BACKEND_URL) to all configs..."
+    python3 scripts/sync-env.py
+    
+    # Reload .env files after sync
+    set -a
+    source .env
+    if [ -f frontend/.env.local ]; then
+        source frontend/.env.local
+    fi
+    set +a
+    echo ""
+else
+    echo "⚠️  BACKEND_URL not found in .env, using defaults"
+    echo ""
+fi
 
 # Stop any existing PM2 processes
 echo "🛑 Stopping any existing processes..."
@@ -88,16 +102,26 @@ echo ""
 echo "🔨 Building Frontend..."
 cd /godfather/frontend
 
-# Create .env.local file for Next.js from root .env
-echo "📝 Creating frontend environment file..."
+# Auto-generate .env.local from root .env BACKEND_URL
+echo "📝 Auto-generating frontend/.env.local from BACKEND_URL..."
+BACKEND_URL=${BACKEND_URL:-https://8bzhwve1ri5cw2-80.proxy.runpod.net}
 cat > .env.local << EOF
-# Auto-generated from root .env file
+# Auto-generated from BACKEND_URL in root .env
+# DO NOT EDIT MANUALLY - This file is regenerated on each deployment
+
+NEXT_PUBLIC_BACKEND_URL=${BACKEND_URL}
+NEXT_PUBLIC_APP_URL=${BACKEND_URL}
+NEXT_PUBLIC_API_URL=${BACKEND_URL}/api
+
+# Clerk Configuration
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
 CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
-NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5000}
-NEXT_PUBLIC_FRONTEND_URL=${PUBLIC_URL}
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
 EOF
-echo "✅ Frontend environment file created"
+echo "✅ Frontend .env.local created with BACKEND_URL: ${BACKEND_URL}"
 
 echo "Installing Node.js dependencies..."
 npm install
@@ -188,13 +212,9 @@ echo "   Frontend: http://localhost:3000"
 echo "   Nginx:    http://localhost:80"
 echo ""
 
+echo ""
 echo "🌐 Your application is accessible at:"
-if [ -n "$RUNPOD_PROXY_URL" ]; then
-    echo "   $RUNPOD_PROXY_URL"
-fi
-if [ -n "$PUBLIC_URL" ]; then
-    echo "   $PUBLIC_URL"
-fi
+echo "   $BACKEND_URL"
 echo ""
 
 echo "📝 Useful PM2 Commands:"

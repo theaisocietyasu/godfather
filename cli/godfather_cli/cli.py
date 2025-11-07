@@ -19,7 +19,16 @@ class GodfatherCLI:
     
     def __init__(self):
         self.config_dir = Path.home() / '.godfather'
-        self.api_base = os.getenv('GODFATHER_API_URL', 'http://localhost:5000')
+        
+        # Auto-detect API URL from multiple possible environment variables
+        # Priority: GODFATHER_API_URL > BACKEND_URL > NEXT_PUBLIC_BACKEND_URL > NEXT_PUBLIC_API_URL
+        self.api_base = (
+            os.getenv('GODFATHER_API_URL') or 
+            os.getenv('BACKEND_URL') or 
+            os.getenv('NEXT_PUBLIC_BACKEND_URL') or 
+            (os.getenv('NEXT_PUBLIC_API_URL', '').replace('/api', '')) or
+            'https://8bzhwve1ri5cw2-80.proxy.runpod.net'  # Fallback to RunPod proxy
+        )
         
         # Initialize components
         self.authenticator = CLIAuthenticator(self.api_base, self.config_dir)
