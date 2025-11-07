@@ -151,31 +151,33 @@ for i in 1 2 3; do
     fi
 done
 
-# Start frontend and capture its PID properly
-nohup npm start > /var/log/godfather-frontend.log 2>&1 &
+# Start frontend using node directly (not npm) to keep process alive
+echo "🚀 Starting frontend with Node.js..."
+nohup node_modules/.bin/next start > /var/log/godfather-frontend.log 2>&1 &
 FRONTEND_PID=$!
-echo "✅ Frontend starting (initial PID: $FRONTEND_PID)"
+echo "✅ Frontend process started (PID: $FRONTEND_PID)"
 
-# Wait for frontend to be ready and get actual Node.js PID
+# Wait for frontend to be ready
 echo "⏳ Waiting for frontend to be ready..."
 sleep 5
 
-# Find the actual Node.js process (npm spawns a child process)
-ACTUAL_FRONTEND_PID=$(pgrep -f "node.*next.*start" | head -n 1)
-if [ -n "$ACTUAL_FRONTEND_PID" ]; then
-    echo "✅ Frontend started (Node PID: $ACTUAL_FRONTEND_PID)"
+# Check if frontend is still running
+if ps -p $FRONTEND_PID > /dev/null; then
+    echo "✅ Frontend is running (PID: $FRONTEND_PID)"
+    ACTUAL_FRONTEND_PID=$FRONTEND_PID
 else
-    echo "⚠️  Frontend process not found, checking logs..."
+    echo "⚠️  Frontend process died, checking logs..."
     tail -20 /var/log/godfather-frontend.log
     echo ""
-    echo "Retrying frontend startup (clearing port again)..."
+    echo "Retrying frontend startup..."
     fuser -k 3000/tcp 2>/dev/null || true
     sleep 3
-    nohup npm start > /var/log/godfather-frontend.log 2>&1 &
+    nohup node_modules/.bin/next start > /var/log/godfather-frontend.log 2>&1 &
+    FRONTEND_PID=$!
     sleep 5
-    ACTUAL_FRONTEND_PID=$(pgrep -f "node.*next.*start" | head -n 1)
-    if [ -n "$ACTUAL_FRONTEND_PID" ]; then
-        echo "✅ Frontend started on retry (Node PID: $ACTUAL_FRONTEND_PID)"
+    if ps -p $FRONTEND_PID > /dev/null; then
+        echo "✅ Frontend started on retry (PID: $FRONTEND_PID)"
+        ACTUAL_FRONTEND_PID=$FRONTEND_PID
     fi
 fi
 
