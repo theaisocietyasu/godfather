@@ -123,7 +123,7 @@ echo "🚀 Starting services with PM2..."
 # Start backend with PM2 (using venv python)
 cd /godfather/backend
 pm2 start venv/bin/python \
-    --name "backend" \
+    --name backend \
     --interpreter none \
     --output /var/log/godfather-backend.log \
     --error /var/log/godfather-backend-error.log \
@@ -132,15 +132,15 @@ pm2 start venv/bin/python \
     -- app.py
 echo "✅ Backend started with PM2"
 
-# Start frontend with PM2 using npm (PM2 handles npm properly)
+# Start frontend with PM2 - use ecosystem file approach instead
 cd /godfather/frontend
-NODE_ENV=production pm2 start npm \
-    --name "frontend" \
-    -- start \
+pm2 start npm \
+    --name frontend \
     --output /var/log/godfather-frontend.log \
     --error /var/log/godfather-frontend-error.log \
     --time \
-    --cwd /godfather/frontend
+    --cwd /godfather/frontend \
+    -- start
 echo "✅ Frontend started with PM2"
 
 # Save PM2 process list
