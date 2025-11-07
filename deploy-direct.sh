@@ -28,7 +28,7 @@ echo ""
 
 # Kill any existing processes
 echo "🛑 Stopping any existing processes..."
-pkill -f "python3 app.py" || true
+pkill -f "python app.py" || true
 pkill -f "node.*next" || true
 pkill -f "nginx" || true
 sleep 2
@@ -36,7 +36,7 @@ sleep 2
 # Install system dependencies
 echo "📦 Installing system dependencies..."
 apt-get update -qq
-apt-get install -y nginx python3-pip curl > /dev/null 2>&1
+apt-get install -y nginx python3 python3-venv python3-pip curl > /dev/null 2>&1
 echo "✅ System dependencies installed"
 
 # Install Node.js if not present
@@ -50,12 +50,26 @@ fi
 echo ""
 echo "🔨 Building Backend..."
 cd /godfather/backend
+
+# Create virtual environment if it doesn't exist
+if [ ! -d "venv" ]; then
+    echo "Creating Python virtual environment..."
+    python3 -m venv venv
+    echo "✅ Virtual environment created"
+fi
+
+# Activate virtual environment
+echo "Activating virtual environment..."
+source venv/bin/activate
+
 echo "Installing Python dependencies..."
-pip3 install -r requirements.txt
+pip install --upgrade pip
+pip install -r requirements.txt
 if [ $? -eq 0 ]; then
     echo "✅ Backend dependencies installed"
 else
     echo "❌ Failed to install backend dependencies"
+    deactivate
     exit 1
 fi
 
@@ -95,9 +109,10 @@ fi
 echo ""
 echo "🚀 Starting services..."
 
-# Start backend with environment variables
+# Start backend with environment variables (using venv)
 cd /godfather/backend
-nohup python3 app.py > /var/log/godfather-backend.log 2>&1 &
+source venv/bin/activate
+nohup python app.py > /var/log/godfather-backend.log 2>&1 &
 BACKEND_PID=$!
 echo "✅ Backend started (PID: $BACKEND_PID)"
 
@@ -189,8 +204,9 @@ echo ""
 echo "📝 Useful Commands:"
 echo "   View backend logs:  tail -f /var/log/godfather-backend.log"
 echo "   View frontend logs: tail -f /var/log/godfather-frontend.log"
-echo "   Check processes:    ps aux | grep -E 'python3|node|nginx'"
-echo "   Stop all:           pkill -f 'python3 app.py'; pkill -f 'node.*next'; nginx -s stop"
+echo "   Check processes:    ps aux | grep -E 'python|node|nginx'"
+echo "   Restart backend:    cd /godfather/backend && source venv/bin/activate && python app.py"
+echo "   Stop all:           pkill -f 'python app.py'; pkill -f 'node.*next'; nginx -s stop"
 echo ""
 
 echo "🎉 Deployment successful!"
