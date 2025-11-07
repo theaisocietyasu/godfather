@@ -128,18 +128,19 @@ pm2 start venv/bin/python \
     --output /var/log/godfather-backend.log \
     --error /var/log/godfather-backend-error.log \
     --time \
+    --cwd /godfather/backend \
     -- app.py
 echo "✅ Backend started with PM2"
 
-# Start frontend with PM2 using Node.js directly (not npm)
+# Start frontend with PM2 using npm (PM2 handles npm properly)
 cd /godfather/frontend
-pm2 start node \
+NODE_ENV=production pm2 start npm \
     --name "frontend" \
-    --interpreter none \
+    -- start \
     --output /var/log/godfather-frontend.log \
     --error /var/log/godfather-frontend-error.log \
     --time \
-    -- ./node_modules/next/dist/bin/next start
+    --cwd /godfather/frontend
 echo "✅ Frontend started with PM2"
 
 # Save PM2 process list
