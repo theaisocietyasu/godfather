@@ -45,22 +45,22 @@ echo ""
 # Check ports
 echo "🔌 Port Status:"
 echo "----------------------------------------"
-if lsof -Pi :5000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-    PORT_5000=$(lsof -Pi :5000 -sTCP:LISTEN -t)
+if ss -tlnp 2>/dev/null | grep -q ":5000 "; then
+    PORT_5000=$(ss -tlnp 2>/dev/null | grep ":5000 " | grep -oP 'pid=\K[0-9]+' | head -1)
     echo "✅ Port 5000 (Backend):  Listening (PID: $PORT_5000)"
 else
     echo "❌ Port 5000 (Backend):  Not listening"
 fi
 
-if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-    PORT_3000=$(lsof -Pi :3000 -sTCP:LISTEN -t)
+if ss -tlnp 2>/dev/null | grep -q ":3000 "; then
+    PORT_3000=$(ss -tlnp 2>/dev/null | grep ":3000 " | grep -oP 'pid=\K[0-9]+' | head -1)
     echo "✅ Port 3000 (Frontend): Listening (PID: $PORT_3000)"
 else
     echo "❌ Port 3000 (Frontend): Not listening"
 fi
 
-if lsof -Pi :80 -sTCP:LISTEN -t >/dev/null 2>&1; then
-    PORT_80=$(lsof -Pi :80 -sTCP:LISTEN -t)
+if ss -tlnp 2>/dev/null | grep -q ":80 "; then
+    PORT_80=$(ss -tlnp 2>/dev/null | grep ":80 " | grep -oP 'pid=\K[0-9]+' | head -1)
     echo "✅ Port 80   (Nginx):    Listening (PID: $PORT_80)"
 else
     echo "❌ Port 80   (Nginx):    Not listening"
