@@ -120,28 +120,11 @@ fi
 echo ""
 echo "🚀 Starting services with PM2..."
 
-# Start backend with PM2 (using venv python)
-cd /godfather/backend
-pm2 start venv/bin/python \
-    --name backend \
-    --interpreter none \
-    --output /var/log/godfather-backend.log \
-    --error /var/log/godfather-backend-error.log \
-    --time \
-    --cwd /godfather/backend \
-    -- app.py
-echo "✅ Backend started with PM2"
+# Use PM2 ecosystem file for better process management
+cd /godfather
+pm2 start ecosystem.config.js
 
-# Start frontend with PM2 - use ecosystem file approach instead
-cd /godfather/frontend
-pm2 start npm \
-    --name frontend \
-    --output /var/log/godfather-frontend.log \
-    --error /var/log/godfather-frontend-error.log \
-    --time \
-    --cwd /godfather/frontend \
-    -- start
-echo "✅ Frontend started with PM2"
+echo "✅ Services started with PM2"
 
 # Save PM2 process list
 pm2 save
