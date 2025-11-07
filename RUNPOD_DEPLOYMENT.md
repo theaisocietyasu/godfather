@@ -20,18 +20,18 @@ Your RunPod instance will have a public URL. To find it:
 
 ## Step 2: Configure Environment Variables
 
-Edit `.env.production` in your RunPod instance:
+Edit `.env` in your RunPod instance:
 
 ```bash
 cd /godfather
-nano .env.production
+nano .env
 ```
 
 Replace these values:
 
 ```bash
-# MongoDB (keep as is)
-MONGODB_URI=mongodb://admin:password@mongodb:27017/godfather?authSource=admin
+# MongoDB Atlas (Production - Already configured)
+MONGODB_URI=mongodb+srv://softwareTeam:Wt4qADxB0WsNK3tQ@cluster0.pj0m3k9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
 
 # Get from https://runpod.io/console/user/settings
 RUNPOD_API_KEY=your_actual_runpod_api_key
@@ -120,7 +120,11 @@ docker compose -f docker-compose.prod.yml down
 docker compose -f docker-compose.prod.yml down -v
 ```
 
-## Port Configuration
+## Security Notes
+
+1. **Change MongoDB Password**: The MongoDB Atlas connection is already configured
+2. **Keep .env Secret**: Never commit this file to git (it's in .gitignore)
+3. **Use HTTPS**: RunPod provides HTTPS by default through their proxy
 
 If RunPod exposes a different port (e.g., 3000 instead of 80):
 
@@ -180,5 +184,5 @@ df -h
 
 If you encounter issues:
 1. Check logs: `docker compose -f docker-compose.prod.yml logs`
-2. Verify environment variables: `cat .env.production`
+2. Verify environment variables: `cat .env`
 3. Check if ports are accessible: `curl http://localhost/health`

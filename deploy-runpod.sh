@@ -4,15 +4,15 @@ set -e
 echo "🚀 Deploying Godfather to RunPod"
 echo "================================"
 
-# Check if .env.production exists
-if [ ! -f .env.production ]; then
-    echo "❌ .env.production file not found!"
-    echo "Please create it with your configuration."
+# Check if .env exists
+if [ ! -f .env ]; then
+    echo "❌ .env file not found!"
+    echo "Please create it from .env.example with your configuration."
     exit 1
 fi
 
 # Load environment variables
-export $(cat .env.production | grep -v '^#' | xargs)
+export $(cat .env | grep -v '^#' | xargs)
 
 # Check required variables
 REQUIRED_VARS=("RUNPOD_API_KEY" "CLERK_SECRET_KEY" "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" "DISCORD_BOT_TOKEN" "DISCORD_GUILD_ID" "PUBLIC_URL")
@@ -49,7 +49,7 @@ docker compose down 2>/dev/null || true
 
 # Build and start services
 echo "🏗️  Building and starting services..."
-docker compose --env-file .env.production up --build -d
+docker compose --env-file .env up --build -d
 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to start..."

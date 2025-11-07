@@ -60,11 +60,11 @@ You should see it pointing to your RunPod IP/URL.
 
 ### Step 1: Update Environment Variables
 
-Edit `.env.production` in your RunPod instance:
+Edit `.env` in your RunPod instance:
 
 ```bash
 cd /godfather
-nano .env.production
+nano .env
 ```
 
 Update these lines:

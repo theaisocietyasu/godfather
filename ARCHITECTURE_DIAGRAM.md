@@ -257,7 +257,8 @@ All in same Docker network: godfather_network
 
 ```
 /godfather/
-├── .env.production                    ← Your config (secrets!)
+├── .env                               ← Your config (secrets!)
+├── .env.example                       ← Template for configuration
 ├── docker-compose.prod.yml            ← Production Docker config
 ├── docker-compose.ssl.yml             ← HTTPS overlay config
 ├── setup-ssl.sh                       ← SSL setup script
@@ -289,7 +290,7 @@ All in same Docker network: godfather_network
 
 **Key files you created:**
 - DNS A record in GoDaddy
-- `.env.production` with domain config
+- `.env` with domain config
 - SSL certificates in `nginx/ssl/`
 - All services running with HTTPS
 

@@ -16,12 +16,12 @@ if [ ! -f "docker-compose.prod.yml" ]; then
     exit 1
 fi
 
-# Step 1: Create .env.production if it doesn't exist
-if [ ! -f ".env.production" ]; then
-    echo "📝 Creating .env.production template..."
-    cat > .env.production << 'EOF'
-# MongoDB Configuration
-MONGODB_URI=mongodb://admin:password@mongodb:27017/godfather?authSource=admin
+# Step 1: Create .env if it doesn't exist
+if [ ! -f ".env" ]; then
+    echo "📝 Creating .env template..."
+    cat > .env << 'EOF'
+# MongoDB Configuration (Production - MongoDB Atlas)
+MONGODB_URI=mongodb+srv://softwareTeam:Wt4qADxB0WsNK3tQ@cluster0.pj0m3k9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
 
 # RunPod API (Get from https://runpod.io/console/user/settings)
 RUNPOD_API_KEY=your_runpod_api_key_here
@@ -40,12 +40,12 @@ NEXT_PUBLIC_API_URL=https://your-instance-id.proxy.runpod.net/api
 EOF
     
     echo ""
-    echo "✅ Created .env.production template"
+    echo "✅ Created .env template"
     echo ""
-    echo "⚠️  IMPORTANT: You must edit .env.production with your actual values!"
+    echo "⚠️  IMPORTANT: You must edit .env with your actual values!"
     echo ""
     echo "Run this command to edit:"
-    echo "  nano .env.production"
+    echo "  nano .env"
     echo ""
     echo "After editing, run this script again."
     exit 0
@@ -53,7 +53,7 @@ fi
 
 # Step 2: Validate environment variables
 echo "🔍 Validating environment variables..."
-source .env.production
+source .env
 
 MISSING_VARS=()
 [ -z "$RUNPOD_API_KEY" ] || [ "$RUNPOD_API_KEY" == "your_runpod_api_key_here" ] && MISSING_VARS+=("RUNPOD_API_KEY")
@@ -70,8 +70,8 @@ if [ ${#MISSING_VARS[@]} -gt 0 ]; then
         echo "   - $var"
     done
     echo ""
-    echo "Please edit .env.production with actual values:"
-    echo "  nano .env.production"
+    echo "Please edit .env with actual values:"
+    echo "  nano .env"
     echo ""
     exit 1
 fi

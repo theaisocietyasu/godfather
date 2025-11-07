@@ -1,25 +1,11 @@
 services:
-  mongodb:
-    image: mongo:latest
-    container_name: godfather_mongo
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - godfather_network
-    restart: unless-stopped
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: godfather_backend
     environment:
-      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_URI=${MONGODB_URI:-mongodb+srv://softwareTeam:Wt4qADxB0WsNK3tQ@cluster0.pj0m3k9.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0}
       - FLASK_ENV=production
       - RUNPOD_API_KEY=${RUNPOD_API_KEY}
       - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
@@ -27,8 +13,6 @@ services:
       - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
     ports:
       - "5000:5000"
-    depends_on:
-      - mongodb
     networks:
       - godfather_network
     restart: unless-stopped
@@ -63,9 +47,6 @@ services:
     networks:
       - godfather_network
     restart: unless-stopped
-
-volumes:
-  mongodb_data:
 
 networks:
   godfather_network:

@@ -17,13 +17,13 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Load environment variables
-if [ ! -f ".env.production" ]; then
-    echo "❌ .env.production file not found!"
+if [ ! -f ".env" ]; then
+    echo "❌ .env file not found!"
     echo "Please create it first with your configuration."
     exit 1
 fi
 
-source .env.production
+source .env
 
 # Extract domain from PUBLIC_URL or DOMAIN variable
 if [ -n "$DOMAIN" ]; then
@@ -31,7 +31,7 @@ if [ -n "$DOMAIN" ]; then
 elif [ -n "$PUBLIC_URL" ]; then
     DOMAIN_NAME=$(echo "$PUBLIC_URL" | sed -e 's|^https\?://||' -e 's|/.*||')
 else
-    echo "❌ No domain configured in .env.production"
+    echo "❌ No domain configured in .env"
     echo "Please set DOMAIN or PUBLIC_URL variable"
     exit 1
 fi
@@ -116,8 +116,8 @@ echo "✅ Certificates installed"
 
 # Update environment variables for HTTPS
 echo "📝 Updating environment variables for HTTPS..."
-sed -i "s|^PUBLIC_URL=http://|PUBLIC_URL=https://|g" .env.production
-sed -i "s|^NEXT_PUBLIC_API_URL=http://|NEXT_PUBLIC_API_URL=https://|g" .env.production
+sed -i "s|^PUBLIC_URL=http://|PUBLIC_URL=https://|g" .env
+sed -i "s|^NEXT_PUBLIC_API_URL=http://|NEXT_PUBLIC_API_URL=https://|g" .env
 
 # Start services with SSL
 echo "🚀 Starting services with HTTPS..."

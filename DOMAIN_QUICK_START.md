@@ -34,7 +34,7 @@ In your RunPod instance:
 
 ```bash
 cd /godfather
-nano .env.production
+nano .env
 ```
 
 **Change these lines:**
@@ -144,7 +144,7 @@ docker compose -f docker-compose.prod.yml -f docker-compose.ssl.yml restart
 
 - [ ] DNS record added in GoDaddy (admin.ais-asu.com → your RunPod IP)
 - [ ] DNS propagated (test with `nslookup admin.ais-asu.com`)
-- [ ] `.env.production` updated with domain
+- [ ] `.env` updated with domain
 - [ ] SSL certificate obtained (ran `setup-ssl.sh`)
 - [ ] Clerk redirect URLs updated
 - [ ] Discord OAuth redirect URLs updated
