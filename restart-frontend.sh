@@ -10,12 +10,12 @@ pkill -f "next start" || true
 fuser -k 3000/tcp 2>/dev/null || true
 sleep 3
 
-# Start frontend using node directly (not npm)
+# Start frontend using node directly (not npm or the next shell script)
 cd /godfather/frontend
-echo "🚀 Starting frontend..."
+echo "🚀 Starting frontend with Node.js..."
 
-# Use node directly to avoid npm exiting
-nohup node_modules/.bin/next start > /var/log/godfather-frontend.log 2>&1 &
+# Run Next.js server directly with node, not through the shell wrapper
+NODE_ENV=production nohup node ./node_modules/next/dist/bin/next start > /var/log/godfather-frontend.log 2>&1 &
 FRONTEND_PID=$!
 
 echo "Frontend process started with PID: $FRONTEND_PID"
@@ -30,6 +30,7 @@ if ps -p $FRONTEND_PID > /dev/null; then
 else
     echo "❌ Frontend process died"
     echo "📝 Check logs: tail -f /var/log/godfather-frontend.log"
+    tail -20 /var/log/godfather-frontend.log
     exit 1
 fi
 

@@ -26,19 +26,16 @@ echo "✅ Environment variables loaded"
 echo "✅ All required environment variables present"
 echo ""
 
-# Kill any existing processes
+# Stop any existing PM2 processes
 echo "🛑 Stopping any existing processes..."
-pkill -f "python app.py" || true
-pkill -f "npm start" || true
-pkill -f "node.*next" || true
-pkill -f "Next.js" || true
+pm2 delete all 2>/dev/null || true
 nginx -s stop 2>/dev/null || pkill -f "nginx" || true
 
-# Kill any processes using ports 3000 and 5000
+# Kill any stray processes using ports
 echo "🧹 Cleaning up ports..."
 fuser -k 3000/tcp 2>/dev/null || true
 fuser -k 5000/tcp 2>/dev/null || true
-sleep 3
+sleep 2
 
 # Install system dependencies
 echo "📦 Installing system dependencies..."
@@ -52,6 +49,13 @@ if ! command -v node &> /dev/null; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - > /dev/null 2>&1
     apt-get install -y nodejs > /dev/null 2>&1
     echo "✅ Node.js installed"
+fi
+
+# Install PM2 globally if not present
+if ! command -v pm2 &> /dev/null; then
+    echo "📦 Installing PM2 process manager..."
+    npm install -g pm2 > /dev/null 2>&1
+    echo "✅ PM2 installed"
 fi
 
 echo ""
@@ -114,75 +118,31 @@ else
 fi
 
 echo ""
-echo "🚀 Starting services..."
+echo "🚀 Starting services with PM2..."
 
-# Start backend with environment variables (using venv)
+# Start backend with PM2 (using venv python)
 cd /godfather/backend
-source venv/bin/activate
-nohup python app.py > /var/log/godfather-backend.log 2>&1 &
-BACKEND_PID=$!
-echo "✅ Backend started (PID: $BACKEND_PID)"
+pm2 start venv/bin/python --name "backend" \
+    --interpreter none \
+    -- app.py \
+    --log /var/log/godfather-backend.log \
+    --time
+echo "✅ Backend started with PM2"
 
-# Wait for backend to be ready
-echo "⏳ Waiting for backend to be ready..."
-sleep 5
-
-# Check if backend is running
-if ps -p $BACKEND_PID > /dev/null; then
-    echo "✅ Backend is running"
-else
-    echo "❌ Backend failed to start"
-    echo "Logs:"
-    tail -20 /var/log/godfather-backend.log
-    exit 1
-fi
-
-# Start frontend with environment variables
+# Start frontend with PM2
 cd /godfather/frontend
+pm2 start npm --name "frontend" \
+    -- start \
+    --log /var/log/godfather-frontend.log \
+    --time
+echo "✅ Frontend started with PM2"
 
-# Make sure port 3000 is free (with multiple checks)
-for i in 1 2 3; do
-    if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-        echo "⚠️  Port 3000 is in use (attempt $i/3), killing process..."
-        fuser -k 3000/tcp 2>/dev/null || true
-        sleep 3
-    else
-        break
-    fi
-done
+# Save PM2 process list
+pm2 save
 
-# Start frontend using node directly (not npm) to keep process alive
-echo "🚀 Starting frontend with Node.js..."
-nohup node_modules/.bin/next start > /var/log/godfather-frontend.log 2>&1 &
-FRONTEND_PID=$!
-echo "✅ Frontend process started (PID: $FRONTEND_PID)"
-
-# Wait for frontend to be ready
-echo "⏳ Waiting for frontend to be ready..."
-sleep 5
-
-# Check if frontend is still running
-if ps -p $FRONTEND_PID > /dev/null; then
-    echo "✅ Frontend is running (PID: $FRONTEND_PID)"
-    ACTUAL_FRONTEND_PID=$FRONTEND_PID
-else
-    echo "⚠️  Frontend process died, checking logs..."
-    tail -20 /var/log/godfather-frontend.log
-    echo ""
-    echo "Retrying frontend startup..."
-    fuser -k 3000/tcp 2>/dev/null || true
-    sleep 3
-    nohup node_modules/.bin/next start > /var/log/godfather-frontend.log 2>&1 &
-    FRONTEND_PID=$!
-    sleep 5
-    if ps -p $FRONTEND_PID > /dev/null; then
-        echo "✅ Frontend started on retry (PID: $FRONTEND_PID)"
-        ACTUAL_FRONTEND_PID=$FRONTEND_PID
-    fi
-fi
-
-# Wait a bit more for it to fully initialize
-sleep 5
+# Wait for services to initialize
+echo "⏳ Waiting for services to initialize..."
+sleep 10
 
 # Configure nginx
 echo "⚙️  Configuring nginx..."
@@ -232,12 +192,10 @@ echo ""
 
 echo ""
 echo "📊 Service Status:"
-echo "   Backend:  http://localhost:5000 (PID: $BACKEND_PID)"
-if [ -n "$ACTUAL_FRONTEND_PID" ]; then
-    echo "   Frontend: http://localhost:3000 (PID: $ACTUAL_FRONTEND_PID)"
-else
-    echo "   Frontend: http://localhost:3000 (status unknown)"
-fi
+pm2 list
+echo ""
+echo "   Backend:  http://localhost:5000"
+echo "   Frontend: http://localhost:3000"
 echo "   Nginx:    http://localhost:80"
 echo ""
 
@@ -250,16 +208,22 @@ if [ -n "$PUBLIC_URL" ]; then
 fi
 echo ""
 
-echo "📝 Useful Commands:"
-echo "   View backend logs:  tail -f /var/log/godfather-backend.log"
-echo "   View frontend logs: tail -f /var/log/godfather-frontend.log"
-echo "   Check processes:    ps aux | grep -E 'python|node|nginx'"
-echo "   Check ports:        lsof -i :3000 -i :5000 -i :80"
-echo "   Find frontend PID:  pgrep -f 'node.*next.*start'"
-echo "   Restart backend:    cd /godfather/backend && source venv/bin/activate && python app.py"
-echo "   Restart frontend:   cd /godfather/frontend && npm start"
-echo "   Stop all:           pkill -f 'python app.py'; pkill -f 'npm start'; pkill -f 'node.*next'; nginx -s stop"
-echo "   Clean ports:        fuser -k 3000/tcp 5000/tcp"
+echo "📝 Useful PM2 Commands:"
+echo "   View all processes:     pm2 list"
+echo "   View backend logs:      pm2 logs backend"
+echo "   View frontend logs:     pm2 logs frontend"
+echo "   View all logs:          pm2 logs"
+echo "   Restart backend:        pm2 restart backend"
+echo "   Restart frontend:       pm2 restart frontend"
+echo "   Stop all:               pm2 stop all"
+echo "   Delete all:             pm2 delete all"
+echo "   Process monitoring:     pm2 monit"
+echo "   Save process list:      pm2 save"
+echo ""
+echo "📝 Other Useful Commands:"
+echo "   Check nginx:            nginx -t"
+echo "   Restart nginx:          nginx -s reload"
+echo "   Health check script:    /godfather/check-status.sh"
 echo ""
 
 echo "🎉 Deployment successful!"

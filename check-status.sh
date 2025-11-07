@@ -5,11 +5,22 @@ echo "║              Godfather System Status Check                  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Check processes
-echo "📊 Running Processes:"
+# Check if PM2 is installed
+if command -v pm2 &> /dev/null; then
+    echo "📊 PM2 Process Status:"
+    echo "----------------------------------------"
+    pm2 list
+    echo ""
+else
+    echo "⚠️  PM2 not installed - falling back to manual process check"
+    echo ""
+fi
+
+# Check processes (manual fallback)
+echo "📊 Running Processes (manual check):"
 echo "----------------------------------------"
 BACKEND_PID=$(pgrep -f "python app.py" | head -n 1)
-FRONTEND_PID=$(pgrep -f "node.*next" | head -n 1)
+FRONTEND_PID=$(pgrep -f "node.*next\|npm.*start" | head -n 1)
 NGINX_PID=$(pgrep -f "nginx: master" | head -n 1)
 
 if [ -n "$BACKEND_PID" ]; then
@@ -114,12 +125,25 @@ echo "║                     Recommendations                          ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 
 # Provide recommendations
-if [ -z "$FRONTEND_PID" ]; then
-    echo "⚠️  Frontend is not running - run: ./restart-frontend.sh"
-fi
-
-if [ -z "$BACKEND_PID" ]; then
-    echo "⚠️  Backend is not running - run: cd /godfather/backend && source venv/bin/activate && nohup python app.py > /var/log/godfather-backend.log 2>&1 &"
+if command -v pm2 &> /dev/null; then
+    if [ -z "$FRONTEND_PID" ]; then
+        echo "⚠️  Frontend is not running - run: pm2 restart frontend"
+    fi
+    
+    if [ -z "$BACKEND_PID" ]; then
+        echo "⚠️  Backend is not running - run: pm2 restart backend"
+    fi
+    
+    echo "💡 View PM2 logs: pm2 logs"
+    echo "💡 Monitor processes: pm2 monit"
+else
+    if [ -z "$FRONTEND_PID" ]; then
+        echo "⚠️  Frontend is not running - run: ./restart-frontend.sh"
+    fi
+    
+    if [ -z "$BACKEND_PID" ]; then
+        echo "⚠️  Backend is not running - run: cd /godfather/backend && source venv/bin/activate && nohup python app.py > /var/log/godfather-backend.log 2>&1 &"
+    fi
 fi
 
 if [ -z "$NGINX_PID" ]; then
