@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/health",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/sign-out(.*)",  // Allow sign-out
 ]);
 
 export default clerkMiddleware(
@@ -19,6 +20,8 @@ export default clerkMiddleware(
   {
     // Configure Clerk to use correct URLs
     publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    // Trust the proxy headers
+    proxyUrl: process.env.NEXT_PUBLIC_APP_URL,
   }
 );
 

@@ -1,6 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Allow Server Actions from RunPod proxy
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        '8bzhwve1ri5cw2-80.proxy.runpod.net',
+        'admin.ais-asu.com',
+        'localhost:3000',
+      ],
+    },
+  },
+  
   async rewrites() {
     // Only use rewrites in development (docker-compose)
     // In production, nginx handles the routing
