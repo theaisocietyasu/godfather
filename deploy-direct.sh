@@ -151,26 +151,36 @@ for i in 1 2 3; do
     fi
 done
 
+# Start frontend and capture its PID properly
 nohup npm start > /var/log/godfather-frontend.log 2>&1 &
 FRONTEND_PID=$!
-echo "✅ Frontend started (PID: $FRONTEND_PID)"
+echo "✅ Frontend starting (initial PID: $FRONTEND_PID)"
 
-# Wait for frontend to be ready
+# Wait for frontend to be ready and get actual Node.js PID
 echo "⏳ Waiting for frontend to be ready..."
-sleep 10
+sleep 5
 
-# Check if frontend actually started
-if ! ps -p $FRONTEND_PID > /dev/null; then
-    echo "⚠️  Frontend process died, checking logs..."
+# Find the actual Node.js process (npm spawns a child process)
+ACTUAL_FRONTEND_PID=$(pgrep -f "node.*next.*start" | head -n 1)
+if [ -n "$ACTUAL_FRONTEND_PID" ]; then
+    echo "✅ Frontend started (Node PID: $ACTUAL_FRONTEND_PID)"
+else
+    echo "⚠️  Frontend process not found, checking logs..."
     tail -20 /var/log/godfather-frontend.log
     echo ""
     echo "Retrying frontend startup (clearing port again)..."
     fuser -k 3000/tcp 2>/dev/null || true
     sleep 3
     nohup npm start > /var/log/godfather-frontend.log 2>&1 &
-    FRONTEND_PID=$!
-    sleep 10
+    sleep 5
+    ACTUAL_FRONTEND_PID=$(pgrep -f "node.*next.*start" | head -n 1)
+    if [ -n "$ACTUAL_FRONTEND_PID" ]; then
+        echo "✅ Frontend started on retry (Node PID: $ACTUAL_FRONTEND_PID)"
+    fi
 fi
+
+# Wait a bit more for it to fully initialize
+sleep 5
 
 # Configure nginx
 echo "⚙️  Configuring nginx..."
@@ -218,9 +228,14 @@ echo "║                   Deployment Complete! ✅                    ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
+echo ""
 echo "📊 Service Status:"
 echo "   Backend:  http://localhost:5000 (PID: $BACKEND_PID)"
-echo "   Frontend: http://localhost:3000 (PID: $FRONTEND_PID)"
+if [ -n "$ACTUAL_FRONTEND_PID" ]; then
+    echo "   Frontend: http://localhost:3000 (PID: $ACTUAL_FRONTEND_PID)"
+else
+    echo "   Frontend: http://localhost:3000 (status unknown)"
+fi
 echo "   Nginx:    http://localhost:80"
 echo ""
 
@@ -238,6 +253,7 @@ echo "   View backend logs:  tail -f /var/log/godfather-backend.log"
 echo "   View frontend logs: tail -f /var/log/godfather-frontend.log"
 echo "   Check processes:    ps aux | grep -E 'python|node|nginx'"
 echo "   Check ports:        lsof -i :3000 -i :5000 -i :80"
+echo "   Find frontend PID:  pgrep -f 'node.*next.*start'"
 echo "   Restart backend:    cd /godfather/backend && source venv/bin/activate && python app.py"
 echo "   Restart frontend:   cd /godfather/frontend && npm start"
 echo "   Stop all:           pkill -f 'python app.py'; pkill -f 'npm start'; pkill -f 'node.*next'; nginx -s stop"
