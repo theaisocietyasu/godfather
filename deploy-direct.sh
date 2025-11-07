@@ -29,14 +29,21 @@ echo ""
 # Kill any existing processes
 echo "🛑 Stopping any existing processes..."
 pkill -f "python app.py" || true
+pkill -f "npm start" || true
 pkill -f "node.*next" || true
-pkill -f "nginx" || true
-sleep 2
+pkill -f "Next.js" || true
+nginx -s stop 2>/dev/null || pkill -f "nginx" || true
+
+# Kill any processes using ports 3000 and 5000
+echo "🧹 Cleaning up ports..."
+fuser -k 3000/tcp 2>/dev/null || true
+fuser -k 5000/tcp 2>/dev/null || true
+sleep 3
 
 # Install system dependencies
 echo "📦 Installing system dependencies..."
 apt-get update -qq
-apt-get install -y nginx python3 python3-venv python3-pip curl > /dev/null 2>&1
+apt-get install -y nginx python3 python3-venv python3-pip curl psmisc > /dev/null 2>&1
 echo "✅ System dependencies installed"
 
 # Install Node.js if not present
@@ -132,6 +139,14 @@ fi
 
 # Start frontend with environment variables
 cd /godfather/frontend
+
+# Make sure port 3000 is free
+if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo "⚠️  Port 3000 is in use, killing process..."
+    fuser -k 3000/tcp 2>/dev/null || true
+    sleep 2
+fi
+
 nohup npm start > /var/log/godfather-frontend.log 2>&1 &
 FRONTEND_PID=$!
 echo "✅ Frontend started (PID: $FRONTEND_PID)"
@@ -139,6 +154,17 @@ echo "✅ Frontend started (PID: $FRONTEND_PID)"
 # Wait for frontend to be ready
 echo "⏳ Waiting for frontend to be ready..."
 sleep 10
+
+# Check if frontend actually started
+if ! ps -p $FRONTEND_PID > /dev/null; then
+    echo "⚠️  Frontend process died, checking logs..."
+    tail -20 /var/log/godfather-frontend.log
+    echo ""
+    echo "Retrying frontend startup..."
+    nohup npm start > /var/log/godfather-frontend.log 2>&1 &
+    FRONTEND_PID=$!
+    sleep 10
+fi
 
 # Configure nginx
 echo "⚙️  Configuring nginx..."
@@ -205,8 +231,11 @@ echo "📝 Useful Commands:"
 echo "   View backend logs:  tail -f /var/log/godfather-backend.log"
 echo "   View frontend logs: tail -f /var/log/godfather-frontend.log"
 echo "   Check processes:    ps aux | grep -E 'python|node|nginx'"
+echo "   Check ports:        lsof -i :3000 -i :5000 -i :80"
 echo "   Restart backend:    cd /godfather/backend && source venv/bin/activate && python app.py"
-echo "   Stop all:           pkill -f 'python app.py'; pkill -f 'node.*next'; nginx -s stop"
+echo "   Restart frontend:   cd /godfather/frontend && npm start"
+echo "   Stop all:           pkill -f 'python app.py'; pkill -f 'npm start'; pkill -f 'node.*next'; nginx -s stop"
+echo "   Clean ports:        fuser -k 3000/tcp 5000/tcp"
 echo ""
 
 echo "🎉 Deployment successful!"
