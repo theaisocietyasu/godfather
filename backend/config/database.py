@@ -4,7 +4,7 @@ from config.settings import settings
 
 # Initialize MongoDB client
 client = MongoClient(settings.MONGODB_URI)
-db = client.godfather
+db = client.Godfather  # Match the existing database name (capital G)
 
 # Collections
 pods_collection = db.pods
