@@ -2,13 +2,37 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async rewrites() {
+    // Only use rewrites in development (docker-compose)
+    // In production, nginx handles the routing
+    if (process.env.NODE_ENV === 'development') {
+      return [
+        {
+          source: '/api/:path*',
+          destination: 'http://backend:5000/api/:path*', // Proxy to Backend
+        },
+      ];
+    }
+    return [];
+  },
+  
+  async headers() {
     return [
       {
-        source: '/api/:path*',
-        destination: 'http://backend:5000/api/:path*', // Proxy to Backend
+        source: "/:path*",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+        ],
       },
     ];
   },
+  
   images: {
     remotePatterns: [
       {

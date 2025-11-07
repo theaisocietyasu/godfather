@@ -5,14 +5,22 @@ const isPublicRoute = createRouteMatcher([
   "/cli-auth",
   "/api/pods/public",
   "/api/auth/verify",
-  "/api/health"
+  "/api/health",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+export default clerkMiddleware(
+  async (auth, request) => {
+    if (!isPublicRoute(request)) {
+      await auth.protect();
+    }
+  },
+  {
+    // Configure Clerk to use correct URLs
+    publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   }
-});
+);
 
 export const config = {
   matcher: [
