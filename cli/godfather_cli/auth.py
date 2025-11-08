@@ -33,7 +33,7 @@ class CLIAuthenticator:
             json.dump(self.config, f, indent=2)
     
     def authenticate(self) -> bool:
-        """Authenticate user via Clerk token"""
+        """Authenticate user via CLI token"""
         print("🔐 Authentication required...")
         print("Please visit the admin portal to get your authentication token:")
         print(f"   {self.api_base}/cli-auth")
@@ -44,18 +44,33 @@ class CLIAuthenticator:
             print("❌ No token provided")
             return False
         
+        # Extract Discord ID from token (format: discord_<ID>_<timestamp>)
+        try:
+            if token.startswith('discord_'):
+                parts = token.split('_')
+                if len(parts) >= 2:
+                    discord_user_id = parts[1]
+                else:
+                    print("❌ Invalid token format")
+                    return False
+            else:
+                print("❌ Invalid token format")
+                return False
+        except:
+            print("❌ Invalid token format")
+            return False
+        
         # Verify token with backend
         try:
-            headers = {'Authorization': f'Bearer {token}'}
             response = requests.post(
                 f'{self.api_base}/api/auth/verify',
-                json={'token': token},
-                headers=headers,
+                json={'discord_user_id': discord_user_id},
                 timeout=10
             )
             
             if response.status_code == 200:
                 self.config['token'] = token
+                self.config['discord_user_id'] = discord_user_id
                 self.save_config()
                 print("✅ Authentication successful!")
                 return True
@@ -71,6 +86,10 @@ class CLIAuthenticator:
     def get_token(self) -> Optional[str]:
         """Get authentication token"""
         return self.config.get('token')
+    
+    def get_discord_user_id(self) -> Optional[str]:
+        """Get Discord user ID"""
+        return self.config.get('discord_user_id')
     
     def is_authenticated(self) -> bool:
         """Check if user is authenticated"""
@@ -90,12 +109,14 @@ class CLIAuthenticator:
         if not self.is_authenticated():
             return False
         
+        discord_user_id = self.config.get('discord_user_id')
+        if not discord_user_id:
+            return False
+        
         try:
-            headers = {'Authorization': f'Bearer {self.get_token()}'}
             response = requests.post(
                 f'{self.api_base}/api/auth/verify',
-                json={'token': self.get_token()},
-                headers=headers,
+                json={'discord_user_id': discord_user_id},
                 timeout=5
             )
             return response.status_code == 200

@@ -9,10 +9,10 @@ class PodManager:
     def __init__(self, api_base: str):
         self.api_base = api_base
     
-    def get_public_pods(self, token: str) -> List[Dict]:
+    def get_public_pods(self, discord_user_id: str) -> List[Dict]:
         """Get list of public pods available for connection"""
         try:
-            headers = {'Authorization': f'Bearer {token}'}
+            headers = {'X-Discord-User-ID': discord_user_id}
             response = requests.get(
                 f'{self.api_base}/api/pods/public',
                 headers=headers,
@@ -22,7 +22,7 @@ class PodManager:
             if response.status_code == 200:
                 return response.json().get('pods', [])
             elif response.status_code == 401:
-                print("❌ Token expired. Please re-authenticate.")
+                print("❌ Authentication failed. Please re-authenticate.")
                 return []
             else:
                 error = response.json().get('error', 'Failed to fetch pods')
@@ -33,10 +33,10 @@ class PodManager:
             print(f"❌ Connection error: {e}")
             return []
     
-    def get_connection_info(self, pod_id: str, token: str) -> Optional[Dict]:
+    def get_connection_info(self, pod_id: str, discord_user_id: str) -> Optional[Dict]:
         """Get SSH connection information for a pod"""
         try:
-            headers = {'Authorization': f'Bearer {token}'}
+            headers = {'X-Discord-User-ID': discord_user_id}
             response = requests.post(
                 f'{self.api_base}/api/pods/{pod_id}/connect',
                 headers=headers,
@@ -54,10 +54,10 @@ class PodManager:
             print(f"❌ Connection error: {e}")
             return None
     
-    def list_pods(self, token: str):
+    def list_pods(self, discord_user_id: str):
         """List available public pods"""
         print("📡 Fetching available pods...")
-        pods = self.get_public_pods(token)
+        pods = self.get_public_pods(discord_user_id)
         
         if not pods:
             print("😔 No public pods available at the moment.")
@@ -74,9 +74,9 @@ class PodManager:
             print(f"     Created: {pod.get('created_at', 'Unknown')}")
             print()
     
-    def select_pod(self, token: str) -> Optional[str]:
+    def select_pod(self, discord_user_id: str) -> Optional[str]:
         """Interactive pod selection"""
-        pods = self.get_public_pods(token)
+        pods = self.get_public_pods(discord_user_id)
         
         if not pods:
             print("😔 No public pods available.")

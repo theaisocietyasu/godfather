@@ -61,31 +61,31 @@ class GodfatherCLI:
         if not self.ensure_authenticated():
             return
         
-        token = self.authenticator.get_token()
-        self.pod_manager.list_pods(token)
+        discord_user_id = self.authenticator.get_discord_user_id()
+        self.pod_manager.list_pods(discord_user_id)
     
     def connect_to_pod(self, pod_id: str = None):
         """Connect to a specific pod"""
         if not self.ensure_authenticated():
             return
         
-        token = self.authenticator.get_token()
+        discord_user_id = self.authenticator.get_discord_user_id()
         
         # Select pod if not provided
         if not pod_id:
-            pod_id = self.pod_manager.select_pod(token)
+            pod_id = self.pod_manager.select_pod(discord_user_id)
             if not pod_id:
                 return
         
         print(f"🔌 Connecting to pod {pod_id[:8]}...")
         
         # Get connection details
-        ssh_info = self.pod_manager.get_connection_info(pod_id, token)
+        ssh_info = self.pod_manager.get_connection_info(pod_id, discord_user_id)
         if not ssh_info:
             return
         
         # Fetch SSH key
-        if not self.ssh_connector.fetch_ssh_key(token):
+        if not self.ssh_connector.fetch_ssh_key(discord_user_id):
             return
         
         # Establish SSH connection

@@ -14,11 +14,11 @@ class SSHConnector:
         self.ssh_key_dir = config_dir / 'ssh'
         self.ssh_key_file = self.ssh_key_dir / 'godfather_key'
     
-    def fetch_ssh_key(self, token: str) -> bool:
+    def fetch_ssh_key(self, discord_user_id: str) -> bool:
         """Fetch SSH private key from API and save it"""
         print("🔑 Fetching SSH key...")
         try:
-            headers = {'Authorization': f'Bearer {token}'}
+            headers = {'X-Discord-User-ID': discord_user_id}
             response = requests.get(
                 f'{self.api_base}/api/ssh-key',
                 headers=headers,
