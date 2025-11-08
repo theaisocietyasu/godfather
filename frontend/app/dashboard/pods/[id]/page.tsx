@@ -11,10 +11,23 @@ import {
   RotateCw as RestartIcon,
   Trash2 as TrashIcon,
   Folder as FolderIcon,
+  Edit as EditIcon,
+  X as XIcon,
+  Save as SaveIcon,
 } from 'lucide-react';
 import moment from 'moment';
 import FileManager from '@/components/FileManager';
 import Navbar from '@/components/Navbar';
+import Image from 'next/image';
+
+interface DiscordMember {
+  discord_id: string;
+  username: string;
+  global_name?: string;
+  nickname?: string;
+  avatar?: string;
+  display_name: string;
+}
 
 interface Pod {
   id: string;
@@ -41,6 +54,16 @@ export default function PodDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const [showFileManager, setShowFileManager] = useState(false);
   const [verifyingAuth, setVerifyingAuth] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [discordMembers, setDiscordMembers] = useState<DiscordMember[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+  
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    is_public: false,
+    allowed_users: [] as string[]
+  });
 
   // Verify admin access on mount
   useEffect(() => {
@@ -111,6 +134,42 @@ export default function PodDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [podId, verifyingAuth]);
 
+  // Fetch Discord members
+  useEffect(() => {
+    if (verifyingAuth) return;
+
+    const fetchDiscordMembers = async () => {
+      try {
+        const response = await fetch('/api/discord/members', {
+          headers: {
+            'X-Discord-User-ID': session?.user?.discordId || '',
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setDiscordMembers(data.members || []);
+        }
+      } catch (error) {
+        console.error('Error fetching Discord members:', error);
+      } finally {
+        setLoadingMembers(false);
+      }
+    };
+
+    fetchDiscordMembers();
+  }, [session, verifyingAuth]);
+
+  // Initialize edit form when pod data changes
+  useEffect(() => {
+    if (pod) {
+      setEditForm({
+        is_public: pod.is_public,
+        allowed_users: pod.allowed_users || []
+      });
+    }
+  }, [pod]);
+
   const handlePodAction = async (action: string) => {
     setActionLoading(true);
     try {
@@ -162,6 +221,55 @@ export default function PodDetail() {
     }
   };
 
+  const handleOpenEditModal = () => {
+    if (pod) {
+      setEditForm({
+        is_public: pod.is_public,
+        allowed_users: pod.allowed_users || []
+      });
+      setShowEditModal(true);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!pod) return;
+
+    setEditLoading(true);
+    try {
+      const response = await fetch(`/api/pods/${podId}`, {
+        method: 'PUT',
+        headers: {
+          'X-Discord-User-ID': session?.user?.discordId || '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update pod');
+      }
+      
+      setPod({ ...pod, ...editForm });
+      toast.success('Pod updated successfully');
+      setShowEditModal(false);
+      fetchPodDetails(); // Refresh to get latest data
+    } catch (error: unknown) {
+      console.error('Error updating pod:', error);
+      toast.error('Failed to update pod');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      allowed_users: prev.allowed_users.includes(userId)
+        ? prev.allowed_users.filter(id => id !== userId)
+        : [...prev.allowed_users, userId]
+    }));
+  };
+  
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'running': return 'bg-green-100 text-green-800';
@@ -356,6 +464,14 @@ export default function PodDetail() {
                 )}
                 
                 <button
+                  onClick={handleOpenEditModal}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  <EditIcon className="w-4 h-4 mr-2" />
+                  Edit Pod Settings
+                </button>
+
+                <button
                   onClick={() => handlePodAction('terminate')}
                   disabled={actionLoading}
                   className="w-full flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
@@ -423,6 +539,125 @@ export default function PodDetail() {
           </div>
         </div>
       </main>
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-700">
+            <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white">Edit Pod Settings</h2>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-gray-400 hover:text-gray-200"
+              >
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Public Access Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-gray-300">Public Access</label>
+                  <p className="text-xs text-gray-500">Allow all members to view and connect via CLI</p>
+                </div>
+                <button
+                  onClick={() => setEditForm({ ...editForm, is_public: !editForm.is_public })}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    editForm.is_public ? 'bg-blue-600' : 'bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      editForm.is_public ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Allowed Users - Only show if private */}
+              {!editForm.is_public && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    Allowed Users
+                  </label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Select which members can access this pod via CLI
+                  </p>
+                  
+                  {loadingMembers ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                    </div>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto border border-gray-600 rounded-lg">
+                      {discordMembers.map((member) => (
+                        <div
+                          key={member.discord_id}
+                          className="flex items-center justify-between p-3 hover:bg-gray-700 border-b border-gray-600 last:border-b-0"
+                        >
+                          <div className="flex items-center space-x-3">
+                            {member.avatar ? (
+                              <Image
+                                src={`https://cdn.discordapp.com/avatars/${member.discord_id}/${member.avatar}.png`}
+                                alt={member.display_name}
+                                width={32}
+                                height={32}
+                                className="rounded-full"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white text-sm font-bold">
+                                {member.display_name.charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm font-medium text-white">{member.display_name}</p>
+                              <p className="text-xs text-gray-400">@{member.username}</p>
+                            </div>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={editForm.allowed_users.includes(member.discord_id)}
+                            onChange={() => toggleUserSelection(member.discord_id)}
+                            className="w-4 h-4 text-blue-600 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 bg-gray-700"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Save Button */}
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 border border-gray-600 text-gray-300 rounded-md hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={editLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center"
+                >
+                  {editLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <SaveIcon className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toaster />
     </div>
