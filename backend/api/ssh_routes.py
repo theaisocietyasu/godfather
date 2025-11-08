@@ -14,7 +14,7 @@ ssh_bp = Blueprint('ssh', __name__, url_prefix='/api')
 def get_ssh_key():
     """Get organization SSH private key for CLI users"""
     try:
-        logger.info(f'SSH key request from user: {request.user.get("sub")}')
+        logger.info(f'SSH key request from user: {request.discord_user_id}')
         
         private_key = SSHService.get_private_key()
         if not private_key:
