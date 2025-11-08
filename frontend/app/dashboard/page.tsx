@@ -86,6 +86,15 @@ export default function Dashboard() {
         throw new Error('Authentication failed');
       }
 
+      const verifyData = await verifyResponse.json();
+      
+      // Check if user is admin
+      if (!verifyData.is_admin) {
+        toast.error('Admin access required. Redirecting...');
+        router.push('/');
+        return;
+      }
+
       // Then fetch pods
       await fetchPods();
     } catch (error: unknown) {

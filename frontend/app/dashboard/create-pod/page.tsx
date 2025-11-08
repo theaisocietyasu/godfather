@@ -59,17 +59,60 @@ const defaultConfig: PodConfig = {
 };
 
 export default function CreatePod() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [config, setConfig] = useState<PodConfig>(defaultConfig);
   const [loading, setLoading] = useState(false);
   const [envKey, setEnvKey] = useState('');
   const [envValue, setEnvValue] = useState('');
   const [discordMembers, setDiscordMembers] = useState<DiscordMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [verifyingAuth, setVerifyingAuth] = useState(true);
   const router = useRouter();
+
+  // Verify admin access on mount
+  useEffect(() => {
+    const verifyAdmin = async () => {
+      if (status === 'loading') return;
+      
+      if (!session?.user?.discordId) {
+        router.push('/');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ discord_user_id: session.user.discordId })
+        });
+
+        if (!response.ok) {
+          throw new Error('Authentication failed');
+        }
+
+        const data = await response.json();
+        
+        if (!data.is_admin) {
+          toast.error('Admin access required');
+          router.push('/');
+          return;
+        }
+
+        setVerifyingAuth(false);
+      } catch (error) {
+        console.error('Auth verification error:', error);
+        toast.error('Authentication failed');
+        router.push('/');
+      }
+    };
+
+    verifyAdmin();
+  }, [session, status, router]);
 
   // Fetch Discord members on component mount
   useEffect(() => {
+    if (verifyingAuth) return;
+
     const fetchDiscordMembers = async () => {
       try {
         const response = await fetch('/api/discord/members', {
@@ -94,7 +137,7 @@ export default function CreatePod() {
     };
 
     fetchDiscordMembers();
-  }, [session]);
+  }, [session, verifyingAuth]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
