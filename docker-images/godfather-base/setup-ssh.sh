@@ -172,19 +172,12 @@ SWITCHSCRIPT
     # Return path to switch script
     echo "/tmp/switch_to_restricted_$USERNAME.sh"
 else
-    # Create admin profile
-    cat > /tmp/admin_profile_$USERNAME << 'PROFILE'
+    # Create admin shell wrapper
+    cat > /tmp/admin_shell_$USERNAME.sh << ADMINSHELL
+#!/bin/bash
 # Godfather Admin Environment
-export PS1="\[\033[01;31m\]👑 \u\[\033[00m\]@\[\033[01;35m\]godfather\[\033[00m\]:\[\033[01;33m\]\w\[\033[00m\]\\$ "
 
-# Useful aliases
-alias ll='ls -lah --color=auto'
-alias workspace='cd /workspace/users/$USERNAME'
-alias shared='cd /workspace/shared'
-alias pods='kubectl get pods 2>/dev/null || echo "kubectl not available"'
-
-cd /workspace/users/$USERNAME 2>/dev/null || cd /workspace
-
+# Display admin welcome banner
 echo ""
 echo "  ╔════════════════════════════════════════════════════════════════════════╗"
 echo "  ║                        👑 Admin Mode                                   ║"
@@ -209,10 +202,24 @@ echo "     • nvidia-smi         - Check GPU status"
 echo ""
 echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-PROFILE
+
+# Change to workspace
+cd /workspace/users/$USERNAME 2>/dev/null || cd /workspace
+
+# Start bash with custom prompt and aliases
+exec bash --rcfile <(echo '
+export PS1="\[\033[01;31m\]👑 \u\[\033[00m\]@\[\033[01;35m\]godfather\[\033[00m\]:\[\033[01;33m\]\w\[\033[00m\]\\$ "
+alias ll="ls -lah --color=auto"
+alias workspace="cd /workspace/users/$USERNAME"
+alias shared="cd /workspace/shared"
+alias pods="kubectl get pods 2>/dev/null || echo '\''kubectl not available'\''"
+')
+ADMINSHELL
     
-    # Return path to admin profile
-    echo "/tmp/admin_profile_$USERNAME"
+    chmod +x /tmp/admin_shell_$USERNAME.sh
+    
+    # Return path to admin shell script
+    echo "/tmp/admin_shell_$USERNAME.sh"
 fi
 USERSETUP
 
