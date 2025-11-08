@@ -22,23 +22,6 @@ source .env
 set +a
 echo "✅ Environment variables loaded"
 
-# Sync BACKEND_URL to all configs
-if [ -n "$BACKEND_URL" ]; then
-    echo "🔄 Syncing BACKEND_URL ($BACKEND_URL) to all configs..."
-    python3 scripts/sync-env.py
-    
-    # Reload .env files after sync
-    set -a
-    source .env
-    if [ -f frontend/.env.local ]; then
-        source frontend/.env.local
-    fi
-    set +a
-    echo ""
-else
-    echo "⚠️  BACKEND_URL not found in .env, using defaults"
-    echo ""
-fi
 
 # Stop any existing PM2 processes
 echo "🛑 Stopping any existing processes..."
