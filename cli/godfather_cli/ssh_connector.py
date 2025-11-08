@@ -74,18 +74,18 @@ class SSHConnector:
             return 1
         
         print(f"🔗 Connecting to {host}:{port}")
-        print(f"👤 User workspace: /workspace/users/{user_folder}")
         
         if is_admin:
             print("👑 Admin mode: Full system access")
         else:
-            print("🔒 Restricted mode: Limited to your workspace")
+            print("🔒 Restricted mode: Switched to non-root user account")
+            print(f"👤 Your workspace: /workspace/users/{user_folder}")
         
-        print("\n📁 Setting up your personal workspace...")
+        print("\n📁 Setting up your environment...")
         
-        # Setup user workspace
+        # Setup user workspace and get the profile/script to source
         admin_flag = "true" if is_admin else "false"
-        setup_command = f"/usr/local/bin/godfather-user-setup.sh {user_folder} {admin_flag}"
+        setup_command = f"SCRIPT=$(/usr/local/bin/godfather-user-setup.sh {user_folder} {admin_flag}) && bash $SCRIPT"
         
         # Build SSH connection command
         ssh_command = [
@@ -96,18 +96,19 @@ class SSHConnector:
             '-o', 'UserKnownHostsFile=/dev/null',
             '-p', str(port),
             f'{username}@{host}',
-            f'PROFILE=$({setup_command}) && source $PROFILE && exec bash'
+            setup_command
         ]
         
         try:
             print("🚪 Opening SSH session...")
             
             if is_admin:
-                print("✅ You have full admin access (sudo available)")
+                print("✅ You have full root access (sudo available)")
             else:
-                print("💡 You're in your personal workspace")
-                print("🤝 You can also access /workspace/shared for collaboration")
-                print("⚠️  Restricted mode: No sudo access")
+                print("✅ Running as restricted user (no sudo access)")
+                print("💡 You can work in your personal workspace")
+                print("🤝 Collaborate in /workspace/shared")
+                print("⚠️  System commands blocked for security")
             
             print("📝 Type 'exit' to disconnect\n")
             

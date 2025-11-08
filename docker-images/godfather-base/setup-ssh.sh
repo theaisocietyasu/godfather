@@ -62,54 +62,42 @@ echo "Workspace ready: $USER_WORKSPACE" >&2
 
 # If not admin, create restricted environment
 if [ "$IS_ADMIN" != "true" ]; then
-    # Create a restricted bash profile for non-admins
-    cat > /tmp/restricted_profile_$USERNAME << 'PROFILE'
-# Godfather Restricted User Environment
-export PS1="\[\033[01;32m\]\u@godfather\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "
-
-# Restrict access to user's own workspace
-cd /workspace/users/$USERNAME 2>/dev/null || cd /workspace/shared
-
-# Function to prevent leaving workspace
-function cd() {
-    local target="$1"
-    if [ -z "$target" ]; then
-        target="/workspace/users/$USERNAME"
+    # Create restricted user account if it doesn't exist
+    if ! id "godfather_$USERNAME" &>/dev/null; then
+        # Create user without sudo privileges and no password
+        useradd -m -s /bin/bash -d "/home/godfather_$USERNAME" "godfather_$USERNAME" 2>/dev/null || true
+        
+        # Lock the user account to prevent password login
+        passwd -l "godfather_$USERNAME" &>/dev/null || true
+        
+        # Create symlink from user home to their workspace
+        ln -sf "/workspace/users/$USERNAME" "/home/godfather_$USERNAME/workspace" 2>/dev/null || true
+        ln -sf "/workspace/shared" "/home/godfather_$USERNAME/shared" 2>/dev/null || true
     fi
     
-    # Resolve to absolute path
-    local abs_path=$(builtin cd "$target" 2>/dev/null && pwd)
+    # Set proper ownership
+    chown -R "godfather_$USERNAME:godfather_$USERNAME" "$USER_WORKSPACE" 2>/dev/null || true
     
-    # Check if path is within allowed directories
-    if [[ "$abs_path" == "/workspace/users/$USERNAME"* ]] || \
-       [[ "$abs_path" == "/workspace/shared"* ]] || \
-       [[ "$abs_path" == "/workspace/users/$USERNAME" ]] || \
-       [[ "$abs_path" == "/workspace/shared" ]]; then
-        builtin cd "$target"
-    else
-        echo "⛔ Access denied: You can only access your workspace (/workspace/users/$USERNAME) and shared folder (/workspace/shared)"
-        return 1
-    fi
-}
-
-# Disable dangerous commands
-alias sudo='echo "⛔ sudo: Permission denied. Contact an admin if you need elevated privileges."'
-alias su='echo "⛔ su: Permission denied."'
-alias chmod='echo "⛔ chmod: Permission denied in restricted environment."'
-alias chown='echo "⛔ chown: Permission denied in restricted environment."'
-
-# Show welcome message
+    # Create a wrapper script that switches to the restricted user
+    cat > /tmp/switch_to_restricted_$USERNAME.sh << SWITCHSCRIPT
+#!/bin/bash
+# Switch to restricted user account
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Welcome to Godfather Pod - Restricted User Mode"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📁 Your workspace: /workspace/users/$USERNAME"
 echo "🤝 Shared folder: /workspace/shared"
-echo "⚠️  You have restricted access (no sudo)"
+echo "⚠️  You have restricted access (no sudo/root)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-PROFILE
+
+# Execute shell as restricted user
+exec su - "godfather_$USERNAME" -c "cd /workspace/users/$USERNAME 2>/dev/null || cd /workspace/shared; exec bash --noprofile --norc"
+SWITCHSCRIPT
     
-    # Return path to restricted profile
-    echo "/tmp/restricted_profile_$USERNAME"
+    chmod +x /tmp/switch_to_restricted_$USERNAME.sh
+    
+    # Return path to switch script
+    echo "/tmp/switch_to_restricted_$USERNAME.sh"
 else
     # Create admin profile
     cat > /tmp/admin_profile_$USERNAME << 'PROFILE'
