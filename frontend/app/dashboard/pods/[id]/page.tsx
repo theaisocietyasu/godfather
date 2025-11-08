@@ -383,23 +383,64 @@ export default function PodDetail() {
             </div>
 
             {/* Machine Details */}
-            {pod.machine && (
-              <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Machine Details</h2>
+            <div className="bg-white shadow rounded-lg p-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-4">Machine Details</h2>
+              {pod.machine ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.entries(pod.machine).map(([key, value]) => (
-                    <div key={key}>
-                      <dt className="text-sm font-medium text-gray-500 capitalize">
-                        {key.replace(/([A-Z])/g, ' $1').trim()}
-                      </dt>
-                      <dd className="mt-1 text-sm text-gray-900">
-                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                      </dd>
-                    </div>
-                  ))}
+                  {/* Check if CPU pod by looking for cpuFlavor or gpuDisplayName */}
+                  {(pod.machine as Record<string, unknown>).gpuDisplayName === 'unknown' || 
+                   (pod.machine as Record<string, unknown>).cpuFlavor ? (
+                    <>
+                      {/* CPU Pod Information */}
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500">Compute Type</dt>
+                        <dd className="mt-1 text-sm text-gray-900">CPU-Only Instance</dd>
+                      </div>
+                      {(pod.machine as Record<string, unknown>).vcpuTotal && (
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500">vCPU Cores</dt>
+                          <dd className="mt-1 text-sm text-gray-900">
+                            {String((pod.machine as Record<string, unknown>).vcpuTotal)}
+                          </dd>
+                        </div>
+                      )}
+                      {(pod.machine as Record<string, unknown>).memoryTotal && (
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500">Memory</dt>
+                          <dd className="mt-1 text-sm text-gray-900">
+                            {String((pod.machine as Record<string, unknown>).memoryTotal)} GB
+                          </dd>
+                        </div>
+                      )}
+                      {(pod.machine as Record<string, unknown>).location && (
+                        <div>
+                          <dt className="text-sm font-medium text-gray-500">Location</dt>
+                          <dd className="mt-1 text-sm text-gray-900">
+                            {String((pod.machine as Record<string, unknown>).location)}
+                          </dd>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {/* GPU Pod Information */}
+                      {Object.entries(pod.machine).map(([key, value]) => (
+                        <div key={key}>
+                          <dt className="text-sm font-medium text-gray-500 capitalize">
+                            {key.replace(/([A-Z])/g, ' $1').trim()}
+                          </dt>
+                          <dd className="mt-1 text-sm text-gray-900">
+                            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                          </dd>
+                        </div>
+                      ))}
+                    </>
+                  )}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-gray-500">No machine details available</p>
+              )}
+            </div>
 
             {/* File Manager */}
             <div className="bg-white shadow rounded-lg p-6">
