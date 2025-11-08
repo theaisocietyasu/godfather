@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { signOut } from '@/lib/auth-client';
 import toast, { Toaster } from 'react-hot-toast';
-import { Copy as CopyIcon, Check as CheckIcon, Terminal as TerminalIcon, User as UserIcon, LogOut as LogOutIcon } from 'lucide-react';
+import { Copy as CopyIcon, Check as CheckIcon, Terminal as TerminalIcon } from 'lucide-react';
+import Navbar from '@/components/Navbar';
 
 export default function CLIAuth() {
   const { data: session, status } = useSession();
@@ -53,65 +53,37 @@ export default function CLIAuth() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="relative w-16 h-16 mx-auto mb-4">
+            <div className="absolute inset-0 rounded-full border-4 border-purple-500/30"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-purple-500 animate-spin"></div>
+          </div>
+          <p className="text-gray-300">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">Godfather by AIS</h1>
-              <span className="text-sm text-gray-500">CLI Authentication</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors"
-              >
-                ← Back to Dashboard
-              </button>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <UserIcon className="w-4 h-4" />
-                  <span>{session?.user?.name || session?.user?.discordUsername}</span>
-                </div>
-                <button
-                  onClick={() => signOut({ callbackUrl: '/' })}
-                  className="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
-                >
-                  <LogOutIcon className="w-4 h-4" />
-                  <span>Sign Out</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-900">
+      <Navbar />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white shadow rounded-lg p-8">
+        <div className="bg-gray-800 shadow-lg rounded-lg p-8 border border-gray-700">
           <div className="flex items-center space-x-3 mb-6">
-            <TerminalIcon className="w-8 h-8 text-purple-600" />
-            <h2 className="text-2xl font-bold text-gray-900">CLI Authentication Token</h2>
+            <TerminalIcon className="w-8 h-8 text-purple-500" />
+            <h2 className="text-2xl font-bold text-white">CLI Authentication Token</h2>
           </div>
 
           <div className="space-y-6">
             {/* Instructions */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h3 className="font-semibold text-blue-900 mb-2">How to use:</h3>
-              <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
+            <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4">
+              <h3 className="font-semibold text-blue-300 mb-2">How to use:</h3>
+              <ol className="list-decimal list-inside space-y-1 text-sm text-blue-200">
                 <li>Copy the token below by clicking the copy button</li>
-                <li>Run the Godfather CLI tool: <code className="bg-blue-100 px-2 py-1 rounded">godfather</code></li>
+                <li>Run the Godfather CLI tool: <code className="bg-blue-800 px-2 py-1 rounded text-blue-100">godfather</code></li>
                 <li>When prompted for authentication, paste the token</li>
                 <li>You&apos;ll now have access to public pods via the CLI</li>
               </ol>
@@ -119,30 +91,30 @@ export default function CLIAuth() {
 
             {/* Token Display */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Your Authentication Token
               </label>
               <div className="relative">
                 <textarea
                   readOnly
                   value={token}
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 pr-12 border border-gray-600 rounded-lg bg-gray-700 text-gray-100 font-mono text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   rows={6}
                   onClick={(e) => e.currentTarget.select()}
                 />
                 <button
                   onClick={copyToken}
-                  className="absolute right-2 top-2 p-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  className="absolute right-2 top-2 p-2 bg-gray-600 border border-gray-500 rounded-md hover:bg-gray-500 transition-colors"
                   title="Copy token"
                 >
                   {copied ? (
-                    <CheckIcon className="w-5 h-5 text-green-600" />
+                    <CheckIcon className="w-5 h-5 text-green-400" />
                   ) : (
-                    <CopyIcon className="w-5 h-5 text-gray-600" />
+                    <CopyIcon className="w-5 h-5 text-gray-300" />
                   )}
                 </button>
               </div>
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-2 text-sm text-gray-400">
                 This token expires after a period of time. If you get authentication errors, come back here to get a fresh token.
               </p>
             </div>
@@ -150,7 +122,7 @@ export default function CLIAuth() {
             {/* Quick Copy Button */}
             <button
               onClick={copyToken}
-              className="w-full bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all flex items-center justify-center space-x-2"
             >
               {copied ? (
                 <>
@@ -166,8 +138,8 @@ export default function CLIAuth() {
             </button>
 
             {/* CLI Example */}
-            <div className="bg-gray-900 text-gray-100 rounded-lg p-4 font-mono text-sm">
-              <div className="text-gray-400 mb-2"># Example CLI Usage</div>
+            <div className="bg-gray-950 border border-gray-700 text-gray-100 rounded-lg p-4 font-mono text-sm">
+              <div className="text-gray-500 mb-2"># Example CLI Usage</div>
               <div className="space-y-1">
                 <div className="text-green-400">$ godfather</div>
                 <div className="text-white">🎯 What would you like to do?</div>
@@ -179,14 +151,14 @@ export default function CLIAuth() {
                 <div className="mt-2 text-green-400">Enter your choice (1-5): 1</div>
                 <div className="text-white">📡 Fetching available pods...</div>
                 <div className="text-yellow-400">🔐 Authentication required...</div>
-                <div className="text-white">Enter your authentication token: <span className="text-gray-500">[paste token here]</span></div>
+                <div className="text-white">Enter your authentication token: <span className="text-gray-600">[paste token here]</span></div>
               </div>
             </div>
 
             {/* Security Warning */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <h3 className="font-semibold text-yellow-900 mb-2">⚠️ Security Notice:</h3>
-              <ul className="list-disc list-inside space-y-1 text-sm text-yellow-800">
+            <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4">
+              <h3 className="font-semibold text-yellow-300 mb-2">⚠️ Security Notice:</h3>
+              <ul className="list-disc list-inside space-y-1 text-sm text-yellow-200">
                 <li>Keep this token secure - it provides access to your account</li>
                 <li>Don&apos;t share this token with anyone</li>
                 <li>Don&apos;t commit this token to version control</li>

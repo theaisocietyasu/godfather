@@ -1,6 +1,12 @@
 """CLI Pod Operations module"""
 import requests
 from typing import List, Dict, Optional
+from rich.console import Console
+from rich.table import Table
+from rich import box
+from rich.prompt import IntPrompt
+
+console = Console()
 
 
 class PodManager:
@@ -22,15 +28,15 @@ class PodManager:
             if response.status_code == 200:
                 return response.json().get('pods', [])
             elif response.status_code == 401:
-                print("❌ Authentication failed. Please re-authenticate.")
+                console.print("[red]✗[/red] Authentication failed. Please re-authenticate.")
                 return []
             else:
                 error = response.json().get('error', 'Failed to fetch pods')
-                print(f"❌ Error: {error}")
+                console.print(f"[red]✗[/red] Error: {error}")
                 return []
                 
         except requests.RequestException as e:
-            print(f"❌ Connection error: {e}")
+            console.print(f"[red]✗[/red] Connection error: {e}")
             return []
     
     def get_connection_info(self, pod_id: str, discord_user_id: str) -> Optional[Dict]:
@@ -47,53 +53,80 @@ class PodManager:
                 return response.json().get('ssh_info')
             else:
                 error = response.json().get('error', 'Connection failed')
-                print(f"❌ Connection failed: {error}")
+                console.print(f"[red]✗[/red] Connection failed: {error}")
                 return None
                 
         except requests.RequestException as e:
-            print(f"❌ Connection error: {e}")
+            console.print(f"[red]✗[/red] Connection error: {e}")
             return None
     
     def list_pods(self, discord_user_id: str):
         """List available public pods"""
-        print("📡 Fetching available pods...")
+        console.print("[cyan]📡 Fetching available pods...[/cyan]")
         pods = self.get_public_pods(discord_user_id)
         
         if not pods:
-            print("😔 No public pods available at the moment.")
-            print("   Ask an admin to create and make pods public.")
+            console.print("[yellow]😔 No public pods available at the moment.[/yellow]")
+            console.print("   [dim]Ask a godfather to create and make pods public.[/dim]")
             return
         
-        print(f"\n🚀 Found {len(pods)} available pod(s):\n")
+        table = Table(title=f"[bold cyan]🚀 Available Pods ({len(pods)})[/bold cyan]", box=box.ROUNDED, border_style="cyan")
+        table.add_column("#", style="dim", width=3)
+        table.add_column("Status", justify="center", width=8)
+        table.add_column("Name", style="cyan bold")
+        table.add_column("ID", style="dim")
+        table.add_column("Created", style="white")
         
         for i, pod in enumerate(pods, 1):
-            status_emoji = "🟢" if pod.get('status') == 'RUNNING' else "🔴"
-            print(f"  {i}. {status_emoji} {pod['name']}")
-            print(f"     ID: {pod['id']}")
-            print(f"     Status: {pod.get('status', 'Unknown')}")
-            print(f"     Created: {pod.get('created_at', 'Unknown')}")
-            print()
+            status = pod.get('status', 'Unknown')
+            if status == 'RUNNING':
+                status_display = "[green]� RUN[/green]"
+            else:
+                status_display = "[red]🔴 OFF[/red]"
+            
+            table.add_row(
+                str(i),
+                status_display,
+                pod['name'],
+                pod['id'][:12] + "...",
+                pod.get('created_at', 'Unknown')
+            )
+        
+        console.print()
+        console.print(table)
     
     def select_pod(self, discord_user_id: str) -> Optional[str]:
         """Interactive pod selection"""
         pods = self.get_public_pods(discord_user_id)
         
         if not pods:
-            print("😔 No public pods available.")
+            console.print("[yellow]😔 No public pods available.[/yellow]")
             return None
         
-        print("\n🚀 Available pods:")
+        table = Table(title="[bold cyan]🚀 Select a Pod[/bold cyan]", box=box.SIMPLE, border_style="cyan")
+        table.add_column("#", style="cyan bold", width=3)
+        table.add_column("Status", justify="center", width=8)
+        table.add_column("Name", style="white")
+        table.add_column("ID", style="dim")
+        
         for i, pod in enumerate(pods, 1):
-            status_emoji = "🟢" if pod.get('status') == 'RUNNING' else "🔴"
-            print(f"  {i}. {status_emoji} {pod['name']} ({pod['id'][:8]}...)")
+            status = pod.get('status', 'Unknown')
+            status_display = "[green]🟢 RUN[/green]" if status == 'RUNNING' else "[red]🔴 OFF[/red]"
+            
+            table.add_row(
+                str(i),
+                status_display,
+                pod['name'],
+                pod['id'][:12] + "..."
+            )
+        
+        console.print()
+        console.print(table)
+        console.print()
         
         try:
-            choice = int(input(f"\nSelect a pod (1-{len(pods)}): "))
-            if 1 <= choice <= len(pods):
-                return pods[choice - 1]['id']
-            else:
-                print("❌ Invalid selection")
-                return None
-        except (ValueError, KeyboardInterrupt):
-            print("\n❌ Invalid input or cancelled")
+            choice = IntPrompt.ask("[cyan]Select a pod number[/cyan]", choices=[str(i) for i in range(1, len(pods) + 1)])
+            return pods[choice - 1]['id']
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[yellow]Selection cancelled[/yellow]")
             return None

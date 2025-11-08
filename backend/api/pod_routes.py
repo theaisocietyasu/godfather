@@ -4,6 +4,7 @@ from middleware.auth import require_auth, require_token
 from services.pod_service import PodService
 from services.ssh_service import SSHService
 from services.auth_service import AuthService
+from services.discord_service import DiscordService
 from utils.logger import get_logger
 import secrets
 
@@ -164,7 +165,14 @@ def connect_to_pod(pod_id):
         # Check if user is admin
         is_admin = AuthService.verify_discord_admin(discord_user_id)
         
-        ssh_info['user_folder'] = discord_user_id
+        # Get Discord username for folder name
+        member = DiscordService.get_member(discord_user_id)
+        if member and member.get('user'):
+            username = member['user'].get('username', discord_user_id)
+        else:
+            username = discord_user_id
+        
+        ssh_info['user_folder'] = username
         ssh_info['is_admin'] = is_admin
         
         return jsonify({'ssh_info': ssh_info})

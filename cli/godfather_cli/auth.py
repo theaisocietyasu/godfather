@@ -5,6 +5,12 @@ import requests
 import getpass
 from pathlib import Path
 from typing import Dict, Optional
+from rich.console import Console
+from rich.panel import Panel
+from rich import box
+from rich.prompt import Prompt
+
+console = Console()
 
 
 class CLIAuthenticator:
@@ -34,14 +40,19 @@ class CLIAuthenticator:
     
     def authenticate(self) -> bool:
         """Authenticate user via CLI token"""
-        print("🔐 Authentication required...")
-        print("Please visit the admin portal to get your authentication token:")
-        print(f"   {self.api_base}/cli-auth")
-        print()
+        panel = Panel(
+            f"[cyan]Visit the admin portal to get your authentication token:[/cyan]\n"
+            f"[bold white]{self.api_base}/cli-auth[/bold white]",
+            title="[bold magenta]🔐 Authentication Required[/bold magenta]",
+            border_style="magenta",
+            box=box.ROUNDED
+        )
+        console.print(panel)
+        console.print()
         
-        token = getpass.getpass("Enter your authentication token: ").strip()
+        token = Prompt.ask("[cyan]Enter your authentication token[/cyan]", password=True).strip()
         if not token:
-            print("❌ No token provided")
+            console.print("[red]✗[/red] No token provided")
             return False
         
         # Extract Discord ID from token (format: discord_<ID>_<timestamp>)
@@ -51,13 +62,13 @@ class CLIAuthenticator:
                 if len(parts) >= 2:
                     discord_user_id = parts[1]
                 else:
-                    print("❌ Invalid token format")
+                    console.print("[red]✗[/red] Invalid token format")
                     return False
             else:
-                print("❌ Invalid token format")
+                console.print("[red]✗[/red] Invalid token format")
                 return False
         except:
-            print("❌ Invalid token format")
+            console.print("[red]✗[/red] Invalid token format")
             return False
         
         # Verify token with backend
@@ -72,15 +83,15 @@ class CLIAuthenticator:
                 self.config['token'] = token
                 self.config['discord_user_id'] = discord_user_id
                 self.save_config()
-                print("✅ Authentication successful!")
+                console.print("[green]✓[/green] Authentication successful!")
                 return True
             else:
                 error = response.json().get('error', 'Authentication failed')
-                print(f"❌ Authentication failed: {error}")
+                console.print(f"[red]✗[/red] Authentication failed: {error}")
                 return False
                 
         except requests.RequestException as e:
-            print(f"❌ Connection error: {e}")
+            console.print(f"[red]✗[/red] Connection error: {e}")
             return False
     
     def get_token(self) -> Optional[str]:
@@ -100,9 +111,9 @@ class CLIAuthenticator:
         if 'token' in self.config:
             del self.config['token']
             self.save_config()
-            print("👋 Logged out successfully")
+            console.print("[green]✓[/green] Logged out successfully")
         else:
-            print("💡 You were not logged in")
+            console.print("[yellow]ℹ[/yellow] You were not logged in")
     
     def verify_token(self) -> bool:
         """Verify current token is still valid"""

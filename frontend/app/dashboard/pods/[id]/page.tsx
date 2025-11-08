@@ -3,21 +3,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { signOut } from '@/lib/auth-client';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
-  ArrowLeft as ArrowLeftIcon,
-  Server as ServerIcon,
+  ServerIcon,
   Play as PlayIcon,
   Square as StopIcon,
   RotateCw as RestartIcon,
   Trash2 as TrashIcon,
   Folder as FolderIcon,
-  User as UserIcon,
-  LogOut as LogOutIcon,
 } from 'lucide-react';
 import moment from 'moment';
 import FileManager from '@/components/FileManager';
+import Navbar from '@/components/Navbar';
 
 interface Pod {
   id: string;
@@ -134,10 +131,13 @@ export default function PodDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading pod details...</p>
+          <div className="relative w-16 h-16 mx-auto mb-4">
+            <div className="absolute inset-0 rounded-full border-4 border-purple-500/30"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-purple-500 animate-spin"></div>
+          </div>
+          <p className="text-gray-300">Loading pod details...</p>
         </div>
       </div>
     );
@@ -145,14 +145,14 @@ export default function PodDetail() {
 
   if (!pod) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <ServerIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Pod not found</h3>
-          <p className="text-gray-500 mb-4">The requested pod could not be found.</p>
+          <ServerIcon className="mx-auto h-12 w-12 text-gray-500 mb-4" />
+          <h3 className="text-lg font-medium text-white mb-2">Pod not found</h3>
+          <p className="text-gray-400 mb-4">The requested pod could not be found.</p>
           <button
             onClick={() => router.push('/dashboard')}
-            className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800"
+            className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700"
           >
             Back to Dashboard
           </button>
@@ -162,62 +162,41 @@ export default function PodDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <ArrowLeftIcon className="w-5 h-5" />
-              </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{pod.name}</h1>
-                <p className="text-sm text-gray-500">{pod.id}</p>
-              </div>
-              <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(pod.status)}`}>
-                {pod.status}
-              </span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <UserIcon className="w-4 h-4" />
-                <span>{session?.user?.name || session?.user?.discordUsername}</span>
-              </div>
-              <button
-                onClick={() => signOut({ callbackUrl: '/' })}
-                className="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
-              >
-                <LogOutIcon className="w-4 h-4" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-900">
+      <Navbar />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Pod Name Header */}
+        <div className="mb-6">
+          <div className="flex items-center space-x-4">
+            <div>
+              <h1 className="text-3xl font-bold text-white">{pod.name}</h1>
+              <p className="text-sm text-gray-400">{pod.id}</p>
+            </div>
+            <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(pod.status)}`}>
+              {pod.status}
+            </span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Pod Information */}
           <div className="lg:col-span-2 space-y-6">
             {/* Basic Info */}
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Pod Information</h2>
+            <div className="bg-gray-800 shadow rounded-lg p-6 border border-gray-700">
+              <h2 className="text-lg font-medium text-white mb-4">Pod Information</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Machine Type</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{pod.machine_type}</dd>
+                  <dt className="text-sm font-medium text-gray-400">Machine Type</dt>
+                  <dd className="mt-1 text-sm text-gray-200">{pod.machine_type}</dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Created</dt>
-                  <dd className="mt-1 text-sm text-gray-900">{moment(pod.created_at).format('MMMM Do YYYY, h:mm a')}</dd>
+                  <dt className="text-sm font-medium text-gray-400">Created</dt>
+                  <dd className="mt-1 text-sm text-gray-200">{moment(pod.created_at).format('MMMM Do YYYY, h:mm a')}</dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Runtime</dt>
+                  <dt className="text-sm font-medium text-gray-400">Runtime</dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {pod.runtime ? moment(pod.created_at).fromNow() : 'Not started'}
                   </dd>

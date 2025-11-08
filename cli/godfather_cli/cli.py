@@ -8,10 +8,18 @@ import os
 import sys
 import argparse
 from pathlib import Path
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich import box
+from rich.prompt import Prompt, Confirm
+from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from .auth import CLIAuthenticator
 from .pod_manager import PodManager
 from .ssh_connector import SSHConnector
+
+console = Console()
 
 
 class GodfatherCLI:
@@ -37,12 +45,14 @@ class GodfatherCLI:
     
     def print_banner(self):
         """Print CLI banner"""
-        print("""
-╔══════════════════════════════════════════════════════════════╗
-║                    AI Society Godfather CLI                  ║
-║                   RunPod Environment Manager                 ║
-╚══════════════════════════════════════════════════════════════╝
-        """)
+        banner = Panel.fit(
+            "[bold magenta]Godfather CLI[/bold magenta]\n"
+            "[dim]AI Society RunPod Environment Manager[/dim]",
+            border_style="magenta",
+            box=box.DOUBLE
+        )
+        console.print(banner)
+        console.print()
     
     def ensure_authenticated(self) -> bool:
         """Ensure user is authenticated"""
@@ -51,7 +61,7 @@ class GodfatherCLI:
         
         # Verify token is still valid
         if not self.authenticator.verify_token():
-            print("❌ Token expired. Please re-authenticate.")
+            console.print("[yellow]⚠[/yellow]  Token expired. Please re-authenticate.")
             return self.authenticator.authenticate()
         
         return True
@@ -77,7 +87,7 @@ class GodfatherCLI:
             if not pod_id:
                 return
         
-        print(f"🔌 Connecting to pod {pod_id[:8]}...")
+        console.print(f"[cyan]🔌 Connecting to pod {pod_id[:8]}...[/cyan]")
         
         # Get connection details
         ssh_info = self.pod_manager.get_connection_info(pod_id, discord_user_id)
@@ -93,20 +103,23 @@ class GodfatherCLI:
     
     def status(self):
         """Show CLI status and configuration"""
-        print("📊 Godfather CLI Status\n")
+        table = Table(title="[bold cyan]Godfather CLI Status[/bold cyan]", box=box.ROUNDED, border_style="cyan")
+        table.add_column("Setting", style="cyan bold", no_wrap=True)
+        table.add_column("Value", style="white")
         
         if self.authenticator.is_authenticated():
-            print("🔐 Authentication: ✅ Authenticated")
-            
+            table.add_row("🔐 Authentication", "[green]✓ Authenticated[/green]")
             if self.authenticator.verify_token():
-                print("🌐 API Connection: ✅ Connected")
+                table.add_row("🌐 API Connection", "[green]✓ Connected[/green]")
             else:
-                print("🌐 API Connection: ❌ Token expired")
+                table.add_row("🌐 API Connection", "[yellow]⚠ Token expired[/yellow]")
         else:
-            print("🔐 Authentication: ❌ Not authenticated")
+            table.add_row("🔐 Authentication", "[red]✗ Not authenticated[/red]")
         
-        print(f"🏠 Config Directory: {self.config_dir}")
-        print(f"🔗 API Endpoint: {self.api_base}")
+        table.add_row("🏠 Config Directory", str(self.config_dir))
+        table.add_row("🔗 API Endpoint", self.api_base)
+        
+        console.print(table)
     
     def logout(self):
         """Clear authentication token"""
@@ -121,15 +134,28 @@ class GodfatherCLI:
         self.print_banner()
         
         while True:
-            print("\n🎯 What would you like to do?")
-            print("  1. List available pods")
-            print("  2. Connect to a pod")
-            print("  3. Show status")
-            print("  4. Logout")
-            print("  5. Exit")
+            console.print()
+            menu = Table.grid(padding=(0, 2))
+            menu.add_column(style="cyan bold", justify="right")
+            menu.add_column(style="white")
+            
+            menu.add_row("1.", "📋 List available pods")
+            menu.add_row("2.", "🔌 Connect to a pod")
+            menu.add_row("3.", "📊 Show status")
+            menu.add_row("4.", "🚪 Logout")
+            menu.add_row("5.", "👋 Exit")
+            
+            panel = Panel(
+                menu,
+                title="[bold cyan]What would you like to do?[/bold cyan]",
+                border_style="cyan",
+                box=box.ROUNDED
+            )
+            console.print(panel)
             
             try:
-                choice = input("\nEnter your choice (1-5): ").strip()
+                choice = Prompt.ask("\n[cyan]Enter your choice[/cyan]", choices=["1", "2", "3", "4", "5"], default="1")
+                console.print()
                 
                 if choice == '1':
                     self.list_pods()
@@ -140,13 +166,11 @@ class GodfatherCLI:
                 elif choice == '4':
                     self.logout()
                 elif choice == '5':
-                    print("👋 Goodbye!")
+                    console.print("[bold magenta]👋 Goodbye![/bold magenta]")
                     break
-                else:
-                    print("❌ Invalid choice. Please enter 1-5.")
                     
             except KeyboardInterrupt:
-                print("\n👋 Goodbye!")
+                console.print("\n[bold magenta]👋 Goodbye![/bold magenta]")
                 break
 
 
