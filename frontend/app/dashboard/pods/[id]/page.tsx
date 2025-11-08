@@ -520,22 +520,7 @@ export default function PodDetail() {
               </div>
             </div>
 
-            {/* Port Information */}
-            {pod.ports && Object.keys(pod.ports).length > 0 && (
-              <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">Exposed Ports</h2>
-                <div className="space-y-2">
-                  {Object.entries(pod.ports).map(([port, details]) => (
-                    <div key={port} className="flex justify-between text-sm">
-                      <span className="font-medium">{port}</span>
-                      <span className="text-gray-500">
-                        {typeof details === 'object' ? JSON.stringify(details) : String(details)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+
           </div>
         </div>
       </main>
