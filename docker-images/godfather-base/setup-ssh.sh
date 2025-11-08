@@ -124,6 +124,11 @@ if [ "$IS_ADMIN" != "true" ]; then
         
         # Lock the user account to prevent password login
         passwd -l "godfather_$USERNAME" &>/dev/null || true
+        
+        # Ensure user is NOT in sudo/admin groups
+        deluser "godfather_$USERNAME" sudo 2>/dev/null || true
+        deluser "godfather_$USERNAME" admin 2>/dev/null || true
+        deluser "godfather_$USERNAME" wheel 2>/dev/null || true
     fi
     
     # Set proper ownership for the workspace
@@ -131,6 +136,9 @@ if [ "$IS_ADMIN" != "true" ]; then
     
     # Give restricted user access to shared folder
     chmod 777 /workspace/shared 2>/dev/null || true
+    
+    # Remove any sudoers files for this user
+    rm -f "/etc/sudoers.d/godfather_$USERNAME" 2>/dev/null || true
     
     # Create a wrapper script that switches to the restricted user
     cat > /tmp/switch_to_restricted_$USERNAME.sh << SWITCHSCRIPT
@@ -145,14 +153,17 @@ echo "  ╚═══════════════════════
 echo ""
 echo "  📁 Your Workspace:     /workspace/users/$USERNAME"
 echo "  🤝 Shared Folder:      /workspace/shared"
-echo "  🔒 Access Level:       Restricted (No sudo/root)"
+echo "  🔒 Access Level:       Restricted (No sudo/root access)"
+echo "  ⚠️  Note:              You are running as a non-privileged user"
 echo ""
 echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "  � Quick Tips:"
+echo "  💡 Quick Tips:"
 echo "     • All your files are saved in your personal workspace"
 echo "     • Use /workspace/shared for collaboration with others"
 echo "     • Changes persist across sessions"
+echo "     • You cannot install system packages (no sudo access)"
+echo "     • Contact an admin if you need software installed"
 echo ""
 echo "  ⚡ Common Commands:"
 echo "     • ls -la              - List files"
@@ -164,7 +175,8 @@ echo "  ━━━━━━━━━━━━━━━━━━━━━━━━
 echo ""
 
 # Execute shell as restricted user in their workspace
-exec su - "godfather_$USERNAME" -c "cd /workspace/users/$USERNAME && exec bash --rcfile <(echo 'export PS1=\"\[\033[01;36m\]godfather_$USERNAME\[\033[00m\]@\[\033[01;35m\]pod\[\033[00m\]:\[\033[01;33m\]\w\[\033[00m\]\\$ \"'; echo 'alias ll=\"ls -lah --color=auto\"'; echo 'alias workspace=\"cd /workspace/users/$USERNAME\"'; echo 'alias shared=\"cd /workspace/shared\"')"
+# Note: User does NOT have sudo access and cannot escalate privileges
+exec su - "godfather_$USERNAME" -c "cd /workspace/users/$USERNAME && exec bash --rcfile <(echo 'export PS1=\"\[\033[01;36m\]godfather_$USERNAME\[\033[00m\]@\[\033[01;35m\]pod\[\033[00m\]:\[\033[01;33m\]\w\[\033[00m\]\\$ \"'; echo 'alias ll=\"ls -lah --color=auto\"'; echo 'alias workspace=\"cd /workspace/users/$USERNAME\"'; echo 'alias shared=\"cd /workspace/shared\"'; echo 'echo -e \"\033[0;33m⚠️  Note: You do not have sudo access. Contact an admin if you need help.\033[0m\"' )"
 SWITCHSCRIPT
     
     chmod +x /tmp/switch_to_restricted_$USERNAME.sh

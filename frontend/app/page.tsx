@@ -20,7 +20,7 @@ export default function Home() {
     setHasAttemptedVerification(true);
     
     try {
-      console.log('Starting Discord admin verification...');
+      console.log('Starting Discord verification...');
       
       const response = await fetch('/api/auth/verify', {
         method: 'POST',
@@ -36,16 +36,24 @@ export default function Home() {
       console.log('Verification response:', data);
       
       if (response.ok && data.success) {
-        setIsAuthorized(true);
-        toast.success('Welcome to Godfather by AIS!');
-        router.push('/dashboard');
+        if (data.is_admin) {
+          // Admin users go to dashboard
+          setIsAuthorized(true);
+          toast.success('Welcome to Godfather Admin Portal!');
+          router.push('/dashboard');
+        } else {
+          // Regular members go to CLI auth page
+          setIsAuthorized(true);
+          toast.success('Welcome! Redirecting to CLI authentication...');
+          router.push('/cli-auth');
+        }
       } else {
         throw new Error(data.error || 'Verification failed');
       }
     } catch (error: unknown) {
       console.error('Verification error:', error);
       
-      const errorMessage = error instanceof Error ? error.message : 'Access denied. Godfather role required.';
+      const errorMessage = error instanceof Error ? error.message : 'Access denied. You must be a member of AI Society Discord.';
       toast.error(errorMessage);
       
       setIsAuthorized(false);
@@ -111,10 +119,10 @@ export default function Home() {
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Access Denied</h2>
             <p className="text-gray-400">
-              You need the Godfather role in the AI Society Discord server to access this platform.
+              You must be a member of the AI Society Discord server to access this platform.
             </p>
             <p className="text-gray-500 text-sm mt-3">
-              Please contact a server administrator if you believe this is an error.
+              Please join the AI Society Discord and try again.
             </p>
           </div>
           <div className="flex justify-center">
