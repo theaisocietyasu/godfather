@@ -97,9 +97,36 @@ export default function CLIAuth() {
                 <li>Copy the token below by clicking the copy button</li>
                 <li>Run the Godfather CLI tool: <code className="bg-blue-800 px-2 py-1 rounded text-blue-100">godfather</code></li>
                 <li>When prompted for authentication, paste the token</li>
-                <li>You&apos;ll now have access to public pods via the CLI</li>
+                <li>
+                  {isAdmin 
+                    ? "You'll have full admin access to manage all pods"
+                    : "You'll have access to view and connect to available pods"}
+                </li>
               </ol>
             </div>
+
+            {/* Role Badge */}
+            {isAdmin ? (
+              <div className="bg-cyan-900/30 border border-cyan-700 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-2xl">👑</span>
+                  <div>
+                    <h3 className="font-semibold text-cyan-300">Admin Access</h3>
+                    <p className="text-sm text-cyan-200">You have full administrative privileges</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-green-900/30 border border-green-700 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-2xl">👤</span>
+                  <div>
+                    <h3 className="font-semibold text-green-300">Member Access</h3>
+                    <p className="text-sm text-green-200">You can view and connect to available pods</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Token Display */}
             <div>
