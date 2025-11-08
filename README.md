@@ -1,4 +1,4 @@
-# Godfather - AI Society Admin Portal
+# Godfather - The AI Society at ASU
 
 **Godfather** is AI Society's comprehensive GPU pod management platform. It provides a beautiful web admin portal and powerful CLI tool for managing RunPod infrastructure, enabling seamless GPU resource allocation and user access control.
 
@@ -8,6 +8,7 @@
 ## ✨ Features
 
 ### Admin Portal
+
 - 🎮 **Pod Management**: Create, start, stop, restart, and terminate RunPod GPU instances
 - � **Real-time Monitoring**: View pod status, resource usage, and runtime information
 - 📁 **File Manager**: Web-based file browser with upload/download capabilities
@@ -16,6 +17,7 @@
 - � **Cost Optimization**: CPU-only and GPU options with resource configuration
 
 ### CLI Tool
+
 - 💻 **Secure SSH Access**: Direct terminal access to authorized pods
 - 🎨 **Beautiful Interface**: Themed welcome messages with ASCII art banners
 - � **User Isolation**: Each user gets their own workspace folder in shared pods
@@ -24,6 +26,7 @@
 - 🌐 **Cross-Platform**: Works on Windows, macOS, and Linux
 
 ### Security Features
+
 - � **SSH Key Authentication**: Automatic SSH key setup and management
 - 👑 **Role-Based Access**: Admin and user roles with different permissions
 - 🛡️ **Workspace Isolation**: Restricted users cannot access system files or other users' data
@@ -89,6 +92,7 @@ The frontend will start on `http://localhost:3000`
 ### 4. CLI Installation (for Users)
 
 **For Development:**
+
 ```bash
 cd cli
 pip install -e .
@@ -96,6 +100,7 @@ godfather
 ```
 
 **For Production (from PyPI):**
+
 ```bash
 pip install godfather-cli
 godfather
@@ -103,40 +108,9 @@ godfather
 
 ## ⚙️ Environment Variables
 
-### Backend Configuration (`backend/.env`)
+### Backend Configuration (`backend/.env`) -- Ask Admin
 
-```bash
-# RunPod Configuration
-RUNPOD_API_KEY=your_runpod_api_key_here
-
-# Discord Bot Configuration
-DISCORD_BOT_TOKEN=your_discord_bot_token
-DISCORD_GUILD_ID=your_discord_server_id
-ADMIN_ROLE_ID=your_admin_role_id
-
-# MongoDB Configuration
-MONGODB_URI=mongodb://localhost:27017/godfather
-# Or use MongoDB Atlas: mongodb+srv://username:password@cluster.mongodb.net/godfather
-
-# URLs
-PUBLIC_URL=http://localhost:3000
-BACKEND_URL=http://localhost:5000
-
-# Optional: RunPod Proxy (if using)
-RUNPOD_PROXY_URL=https://your-pod.proxy.runpod.net
-```
-
-### Frontend Configuration (`frontend/.env.local`)
-
-```bash
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_public_key
-CLERK_SECRET_KEY=sk_test_your_clerk_secret_key
-
-# API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:5000
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
+### Frontend Configuration (`frontend/.env.local`) -- Ask Admin
 
 ### Setting Up Discord Bot
 
@@ -241,12 +215,13 @@ godfather/
 ### Admin Portal
 
 1. **Login**
+
    - Visit `http://localhost:3000` (or your production URL)
    - Click "Sign in with Discord"
    - Authenticate via Discord OAuth
    - Only users with the configured Admin role can access
-
 2. **Create a Pod**
+
    - Navigate to Dashboard
    - Click "Create Pod"
    - Configure pod settings:
@@ -256,14 +231,14 @@ godfather/
      - **Resources**: Set vCPU, memory, disk space
      - **Access Control**: Make public or select specific users
    - Click "Create Pod"
-
 3. **Manage Pods**
+
    - View all pods on the dashboard
    - Start/Stop/Restart/Terminate pods
    - Monitor resource usage and status
    - Access file manager for running pods
-
 4. **Access Control**
+
    - **Public Pods**: Any Discord member can connect via CLI
    - **Private Pods**: Only selected users can access
    - Each user gets isolated workspace in `/workspace/users/<username>`
@@ -271,6 +246,7 @@ godfather/
 ### CLI Tool
 
 #### Authentication
+
 ```bash
 # First time setup - authenticate via web browser
 godfather auth login
@@ -283,6 +259,7 @@ godfather auth logout
 ```
 
 #### Pod Management
+
 ```bash
 # Interactive mode (recommended for beginners)
 godfather
@@ -301,7 +278,9 @@ godfather status <pod-id>
 ```
 
 #### Inside a Pod
+
 Once connected, you'll see a beautiful themed interface:
+
 - Your personal workspace: `/workspace/users/<your-username>`
 - Shared collaboration folder: `/workspace/shared`
 - Useful aliases: `workspace`, `shared`, `ll`
@@ -310,6 +289,7 @@ Once connected, you'll see a beautiful themed interface:
 ### API Usage
 
 #### Authentication
+
 All API requests require Discord user ID header for authentication:
 
 ```bash
@@ -318,6 +298,7 @@ curl -X GET http://localhost:5000/api/pods \
 ```
 
 #### Create a Pod
+
 ```bash
 curl -X POST http://localhost:5000/api/pods \
   -H "Content-Type: application/json" \
@@ -333,6 +314,7 @@ curl -X POST http://localhost:5000/api/pods \
 ```
 
 #### Control a Pod
+
 ```bash
 # Start pod
 curl -X POST http://localhost:5000/api/pods/{pod_id}/action \
@@ -382,22 +364,8 @@ docker tag theaisocietyasu/godfather-base:latest theaisocietyasu/godfather-base:
 docker push theaisocietyasu/godfather-base:v1.0.0
 ```
 
-**Manual build (alternative):**
-```bash
-cd docker-images/godfather-base
-
-# Build with custom tag
-docker build -t yourusername/godfather-base:latest .
-
-# Test the image locally
-docker run -it -e GODFATHER_SSH_PUBLIC_KEY="your-ssh-public-key" yourusername/godfather-base:latest
-
-# Push to Docker Hub
-docker login
-docker push yourusername/godfather-base:latest
-```
-
 **After publishing:**
+
 1. Update the default image in `frontend/app/dashboard/create-pod/page.tsx`
 2. Change `theaisocietyasu/godfather-base:latest` to your image name
 3. Users can now select your custom image when creating pods
@@ -434,6 +402,7 @@ git push origin cli-v1.0.1
 ```
 
 **The GitHub workflow does:**
+
 1. Checks out the code
 2. Sets up Python environment
 3. Installs build dependencies (`build`, `twine`)
@@ -442,6 +411,7 @@ git push origin cli-v1.0.1
 6. Publishes to PyPI (production)
 
 **After the workflow completes:**
+
 - Check the [Actions tab](https://github.com/theaisocietyasu/godfather/actions) for build status
 - Verify the package on [PyPI](https://pypi.org/project/godfather-cli/)
 - Users can install with: `pip install godfather-cli`
@@ -466,6 +436,7 @@ twine upload dist/*
 ```
 
 **Setting up PyPI credentials for GitHub Actions:**
+
 1. Create PyPI account at https://pypi.org
 2. Generate API token at https://pypi.org/manage/account/token/
 3. Add token to GitHub repository secrets as `PYPI_API_TOKEN`
@@ -474,6 +445,7 @@ twine upload dist/*
 ### Publishing Checklist
 
 **Before Docker Image Release:**
+
 - [ ] Test the image locally with SSH connection
 - [ ] Verify themed welcome messages display correctly
 - [ ] Check user isolation and workspace creation
@@ -484,6 +456,7 @@ twine upload dist/*
 - [ ] Update default image in `frontend/app/dashboard/create-pod/page.tsx`
 
 **Before CLI Release (via GitHub Actions):**
+
 - [ ] Update version number in `cli/pyproject.toml`
 - [ ] Update `cli/README.md` or CHANGELOG with changes
 - [ ] Test CLI commands locally: `cd cli && pip install -e .`
@@ -497,6 +470,7 @@ twine upload dist/*
 - [ ] Create GitHub release with notes
 
 **Before Web App Deployment:**
+
 - [ ] Update environment variables for production
 - [ ] Configure SSL certificates
 - [ ] Update domain in nginx configuration
@@ -523,27 +497,28 @@ All API endpoints require the `X-Discord-User-ID` header for authentication. Adm
 #### **Pod Management**
 
 - `GET /api/pods`
+
   - List all pods for admin
   - Headers: `X-Discord-User-ID`
   - Returns: Array of pod objects
-
 - `POST /api/pods`
+
   - Create a new pod
   - Headers: `X-Discord-User-ID`
   - Body: Pod configuration object
   - Returns: Created pod details
-
 - `GET /api/pods/<pod_id>`
+
   - Get specific pod details
   - Headers: `X-Discord-User-ID`
   - Returns: Pod object with full details
-
 - `PUT /api/pods/<pod_id>`
+
   - Update pod configuration (access control)
   - Headers: `X-Discord-User-ID`
   - Body: `{ "is_public": boolean, "allowed_users": ["user_id", ...] }`
-
 - `POST /api/pods/<pod_id>/action`
+
   - Control pod (start/stop/restart/terminate)
   - Headers: `X-Discord-User-ID`
   - Body: `{ "action": "start" | "stop" | "restart" | "terminate" }`
@@ -551,16 +526,17 @@ All API endpoints require the `X-Discord-User-ID` header for authentication. Adm
 #### **CLI Access**
 
 - `GET /api/pods/public`
+
   - List public pods accessible to user
   - Headers: `X-Discord-User-ID`
   - Returns: Array of accessible pods
-
 - `POST /api/pods/<pod_id>/connect`
+
   - Get SSH connection information
   - Headers: `X-Discord-User-ID`
   - Returns: `{ "host": string, "port": number, "username": string, "is_admin": boolean }`
-
 - `GET /api/ssh-key`
+
   - Get user's SSH private key for pod access
   - Headers: `X-Discord-User-ID`
   - Returns: `{ "private_key": string }`
@@ -568,12 +544,13 @@ All API endpoints require the `X-Discord-User-ID` header for authentication. Adm
 #### **File Management**
 
 - `GET /api/pods/<pod_id>/files`
+
   - List files in pod
   - Headers: `X-Discord-User-ID`
   - Query: `?path=/workspace`
   - Returns: Array of file objects
-
 - `POST /api/pods/<pod_id>/files/upload`
+
   - Upload file to pod
   - Headers: `X-Discord-User-ID`
   - Body: FormData with file
@@ -591,6 +568,7 @@ All API endpoints require the `X-Discord-User-ID` header for authentication. Adm
 ### Running in Development Mode
 
 **Backend:**
+
 ```bash
 cd backend
 # Set Flask environment
@@ -600,24 +578,28 @@ python app.py
 ```
 
 **Frontend:**
+
 ```bash
 cd frontend
 npm run dev
 ```
 
 **With Hot Reload:**
+
 - Backend: Flask auto-reloads on file changes when `FLASK_DEBUG=1`
 - Frontend: Next.js has built-in hot reload
 
 ### Testing
 
 **Backend Tests:**
+
 ```bash
 cd backend
 pytest tests/
 ```
 
 **Frontend Tests:**
+
 ```bash
 cd frontend
 npm test
@@ -626,11 +608,13 @@ npm test
 ### Code Style
 
 **Python (Backend & CLI):**
+
 - Follow PEP 8 style guide
 - Use Black for formatting: `black .`
 - Use flake8 for linting: `flake8 .`
 
 **TypeScript/JavaScript (Frontend):**
+
 - Use ESLint: `npm run lint`
 - Use Prettier for formatting: `npm run format`
 
@@ -639,6 +623,7 @@ npm test
 ### Common Issues
 
 **CLI not found after installation:**
+
 ```bash
 # Add to PATH
 export PATH="$HOME/.local/bin:$PATH"
@@ -653,6 +638,7 @@ source ~/.zshrc
 ```
 
 **Authentication fails:**
+
 - Verify Discord bot is in the server
 - Check bot has "Server Members Intent" enabled
 - Confirm Discord user has the Admin role
@@ -660,6 +646,7 @@ source ~/.zshrc
 - Check Clerk configuration and redirect URLs
 
 **Can't connect to pod via CLI:**
+
 - Ensure pod is running (status: RUNNING)
 - Verify you're using the `godfather-base` Docker image
 - Check pod has SSH enabled (port 22)
@@ -667,16 +654,19 @@ source ~/.zshrc
 - Try restarting the pod
 
 **MongoDB connection errors:**
+
 - Check MongoDB is running: `mongosh` or `docker ps`
 - Verify `MONGODB_URI` in `.env`
 - For Atlas, check IP whitelist and credentials
 
 **RunPod API errors:**
+
 - Verify `RUNPOD_API_KEY` is valid
 - Check RunPod account has sufficient credits
 - Ensure pod template/GPU type is available
 
 **Frontend build errors:**
+
 ```bash
 # Clear cache and reinstall
 rm -rf node_modules .next
@@ -685,6 +675,7 @@ npm run dev
 ```
 
 **Port already in use:**
+
 ```bash
 # Find process using port 3000 (frontend)
 lsof -i :3000
@@ -734,9 +725,3 @@ Need help? Here's how to get support:
 - **Issues**: [GitHub Issues](https://github.com/theaisocietyasu/godfather/issues)
 - **Discord**: AI Society ASU Discord Server
 - **Email**: Contact AI Society administrators
-
----
-
-**Built with ❤️ by AI Society ASU**
-
-*Empowering AI education through accessible GPU infrastructure*
