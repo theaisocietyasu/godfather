@@ -17,7 +17,7 @@ pods_bp = Blueprint('pods', __name__, url_prefix='/api/pods')
 def get_pods():
     """Get all pods"""
     try:
-        logger.info(f'Get all pods request from user: {request.user.get("sub")}')
+        logger.info(f'Get all pods request from user: {request.discord_user_id}')
         pods = PodService.get_all_pods()
         return jsonify({'pods': pods})
     except Exception as e:
@@ -55,7 +55,7 @@ def create_pod():
         
         pod = PodService.create_pod(
             config=config,
-            creator_id=request.user.get('sub'),
+            creator_id=request.discord_user_id,
             ssh_public_key=ssh_key['public_key']
         )
         
@@ -133,11 +133,7 @@ def get_public_pods():
     """Get pods accessible to CLI users"""
     try:
         # Get Discord ID for user
-        clerk_user_id = request.user.get('sub')
-        discord_user_id = AuthService.get_discord_id_from_clerk(clerk_user_id)
-        
-        if not discord_user_id:
-            return jsonify({'error': 'Discord account not linked'}), 401
+        discord_user_id = request.discord_user_id
         
         pods = PodService.get_accessible_pods(discord_user_id)
         return jsonify({'pods': pods})
@@ -154,11 +150,7 @@ def connect_to_pod(pod_id):
         logger.info(f'Connect request for pod: {pod_id}')
         
         # Get Discord ID
-        clerk_user_id = request.user.get('sub')
-        discord_user_id = AuthService.get_discord_id_from_clerk(clerk_user_id)
-        
-        if not discord_user_id:
-            return jsonify({'error': 'Discord account not linked'}), 401
+        discord_user_id = request.discord_user_id
         
         # Check access
         if not PodService.check_pod_access(pod_id, discord_user_id):
@@ -172,7 +164,7 @@ def connect_to_pod(pod_id):
         # Check if user is admin
         is_admin = AuthService.verify_discord_admin(discord_user_id)
         
-        ssh_info['user_folder'] = request.user.get('username', 'user')
+        ssh_info['user_folder'] = discord_user_id
         ssh_info['is_admin'] = is_admin
         
         return jsonify({'ssh_info': ssh_info})
