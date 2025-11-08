@@ -16,12 +16,6 @@ export default clerkMiddleware(
     if (!isPublicRoute(request)) {
       await auth.protect();
     }
-  },
-  {
-    // Configure Clerk to use correct URLs
-    publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-    signInUrl: '/sign-in',
-    signUpUrl: '/sign-up',
   }
 );
 
