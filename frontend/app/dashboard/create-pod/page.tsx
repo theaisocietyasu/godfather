@@ -1,11 +1,12 @@
 'use client';
 
-import { useAuth, UserButton } from '@clerk/nextjs';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { signOut } from '@/lib/auth-client';
 import Image from 'next/image';
 import toast, { Toaster } from 'react-hot-toast';
-import { ArrowLeft as ArrowLeftIcon } from 'lucide-react';
+import { ArrowLeft as ArrowLeftIcon, User as UserIcon, LogOut as LogOutIcon } from 'lucide-react';
 
 interface DiscordMember {
   discord_id: string;
@@ -59,7 +60,7 @@ const defaultConfig: PodConfig = {
 };
 
 export default function CreatePod() {
-  const { getToken } = useAuth();
+  const { data: session } = useSession();
   const [config, setConfig] = useState<PodConfig>(defaultConfig);
   const [loading, setLoading] = useState(false);
   const [envKey, setEnvKey] = useState('');
@@ -72,10 +73,9 @@ export default function CreatePod() {
   useEffect(() => {
     const fetchDiscordMembers = async () => {
       try {
-        const token = await getToken();
         const response = await fetch('/api/discord/members', {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'X-Discord-User-ID': session?.user?.discordId || '',
           },
         });
         
@@ -95,7 +95,7 @@ export default function CreatePod() {
     };
 
     fetchDiscordMembers();
-  }, [getToken]);
+  }, [session]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,11 +106,10 @@ export default function CreatePod() {
 
     setLoading(true);
     try {
-      const token = await getToken();
       const response = await fetch('/api/pods', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(config),
@@ -162,7 +161,19 @@ export default function CreatePod() {
               </button>
               <h1 className="text-2xl font-bold text-gray-900">Create New Pod</h1>
             </div>
-            <UserButton />
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <UserIcon className="w-4 h-4" />
+                <span>{session?.user?.name || session?.user?.discordUsername}</span>
+              </div>
+              <button
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+              >
+                <LogOutIcon className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import {
   Folder as FolderIcon,
@@ -47,7 +47,7 @@ async function getErrorMessage(response: Response, defaultMessage: string): Prom
 }
 
 export default function FileManager({ podId, initialPath = '/workspace' }: FileManagerProps) {
-  const { getToken } = useAuth();
+  const { data: session } = useSession();
   const [files, setFiles] = useState<FileItem[]>([]);
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [loading, setLoading] = useState(false);
@@ -74,9 +74,10 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
   const fetchFiles = async () => {
     setLoading(true);
     try {
-      const token = await getToken();
       const response = await fetch(`/api/pods/${podId}/files?path=${encodeURIComponent(currentPath)}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          'X-Discord-User-ID': session?.user?.discordId || '',
+        },
       });
 
       if (!response.ok) {
@@ -128,14 +129,15 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
   const uploadFile = async (file: File) => {
     setUploadingFile(true);
     try {
-      const token = await getToken();
       const formData = new FormData();
       formData.append('file', file);
       formData.append('path', currentPath);
 
       const response = await fetch(`/api/pods/${podId}/files/upload`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          'X-Discord-User-ID': session?.user?.discordId || '',
+        },
         body: formData,
       });
 
@@ -171,13 +173,12 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
 
   const handleDownload = async (fileName: string) => {
     try {
-      const token = await getToken();
       const filePath = `${currentPath}/${fileName}`.replace(/\/+/g, '/');
 
       const response = await fetch(`/api/pods/${podId}/files/download`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ path: filePath }),
@@ -212,13 +213,12 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     if (!confirm(confirmMsg)) return;
 
     try {
-      const token = await getToken();
       const filePath = `${currentPath}/${fileName}`.replace(/\/+/g, '/');
 
       const response = await fetch(`/api/pods/${podId}/files/delete`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ path: filePath, type: fileType }),
@@ -245,13 +245,12 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     if (!confirm(`Delete ${selectedFiles.size} selected item(s)?`)) return;
 
     try {
-      const token = await getToken();
       const paths = Array.from(selectedFiles).map(name => `${currentPath}/${name}`.replace(/\/+/g, '/'));
 
       const response = await fetch(`/api/pods/${podId}/files/bulk-delete`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ paths }),
@@ -278,13 +277,12 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     }
 
     try {
-      const token = await getToken();
       const dirPath = `${currentPath}/${newFolderName}`.replace(/\/+/g, '/');
 
       const response = await fetch(`/api/pods/${podId}/files/mkdir`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ path: dirPath }),
@@ -306,13 +304,12 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
 
   const handlePreview = async (fileName: string) => {
     try {
-      const token = await getToken();
       const filePath = `${currentPath}/${fileName}`.replace(/\/+/g, '/');
 
       const response = await fetch(`/api/pods/${podId}/files/read`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ path: filePath }),
@@ -332,13 +329,12 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
 
   const handleEdit = async (fileName: string) => {
     try {
-      const token = await getToken();
       const filePath = `${currentPath}/${fileName}`.replace(/\/+/g, '/');
 
       const response = await fetch(`/api/pods/${podId}/files/read`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ path: filePath }),
@@ -360,12 +356,10 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     if (!editingFile) return;
 
     try {
-      const token = await getToken();
-
       const response = await fetch(`/api/pods/${podId}/files/write`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ path: editingFile.path, content: editingFile.content }),
@@ -388,14 +382,13 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     if (!renameFile || !renameFile.newName.trim()) return;
 
     try {
-      const token = await getToken();
       const oldPath = `${currentPath}/${renameFile.oldName}`.replace(/\/+/g, '/');
       const newPath = `${currentPath}/${renameFile.newName}`.replace(/\/+/g, '/');
 
       const response = await fetch(`/api/pods/${podId}/files/rename`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ old_path: oldPath, new_path: newPath }),
@@ -424,14 +417,13 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     if (!copySource) return;
 
     try {
-      const token = await getToken();
       const fileName = copySource.split('/').pop();
       const destPath = `${currentPath}/${fileName}`.replace(/\/+/g, '/');
 
       const response = await fetch(`/api/pods/${podId}/files/copy`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ source_path: copySource, dest_path: destPath }),
@@ -458,11 +450,12 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
 
     setIsSearching(true);
     try {
-      const token = await getToken();
       const response = await fetch(
         `/api/pods/${podId}/files/search?query=${encodeURIComponent(searchQuery)}&path=${encodeURIComponent(currentPath)}`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { 
+            'X-Discord-User-ID': session?.user?.discordId || '',
+          },
         }
       );
 

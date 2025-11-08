@@ -1,6 +1,12 @@
 """Application configuration settings"""
 import os
 from typing import Optional
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load environment variables from .env file in project root
+env_path = Path(__file__).resolve().parent.parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 class Settings:
     """Application settings from environment variables"""
@@ -10,10 +16,7 @@ class Settings:
     
     # RunPod
     RUNPOD_API_KEY: Optional[str] = os.getenv('RUNPOD_API_KEY')
-    
-    # Clerk Authentication
-    CLERK_SECRET_KEY: Optional[str] = os.getenv('CLERK_SECRET_KEY')
-    
+        
     # Discord Bot
     DISCORD_BOT_TOKEN: Optional[str] = os.getenv('DISCORD_BOT_TOKEN')
     DISCORD_GUILD_ID: Optional[str] = os.getenv('DISCORD_GUILD_ID')
@@ -30,7 +33,6 @@ class Settings:
         """Validate required settings"""
         required = [
             ('RUNPOD_API_KEY', cls.RUNPOD_API_KEY),
-            ('CLERK_SECRET_KEY', cls.CLERK_SECRET_KEY),
             ('DISCORD_BOT_TOKEN', cls.DISCORD_BOT_TOKEN),
             ('DISCORD_GUILD_ID', cls.DISCORD_GUILD_ID),
         ]

@@ -1,23 +1,29 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/cli-auth",
-  "/api/pods/public",
-  "/api/auth/verify",
-  "/api/health",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/sign-out(.*)",  // Allow sign-out
-]);
-
-export default clerkMiddleware(
-  async (auth, request) => {
-    if (!isPublicRoute(request)) {
-      await auth.protect();
-    }
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // Public routes that don't require authentication
+  const publicRoutes = [
+    '/',
+    '/cli-auth',
+    '/api/auth',
+    '/api/pods/public',
+    '/api/health',
+  ];
+  
+  // Check if the route is public
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
+  
+  if (isPublicRoute) {
+    return NextResponse.next();
   }
-);
+  
+  // For protected routes, let the client handle the redirect
+  // BetterAuth uses session cookies automatically
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [

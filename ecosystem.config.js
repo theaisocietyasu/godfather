@@ -41,8 +41,8 @@ module.exports = {
       min_uptime: '10s',
       env: {
         RUNPOD_API_KEY: envVars.RUNPOD_API_KEY,
-        CLERK_SECRET_KEY: envVars.CLERK_SECRET_KEY,
         DISCORD_BOT_TOKEN: envVars.DISCORD_BOT_TOKEN,
+        
         DISCORD_GUILD_ID: envVars.DISCORD_GUILD_ID,
         ADMIN_ROLE_ID: envVars.ADMIN_ROLE_ID,
         MONGODB_URI: envVars.MONGODB_URI || 'mongodb://localhost:27017/godfather',

@@ -1,8 +1,9 @@
 'use client';
 
-import { useAuth, UserButton } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { signOut } from '@/lib/auth-client';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
   ArrowLeft as ArrowLeftIcon,
@@ -12,6 +13,8 @@ import {
   RotateCw as RestartIcon,
   Trash2 as TrashIcon,
   Folder as FolderIcon,
+  User as UserIcon,
+  LogOut as LogOutIcon,
 } from 'lucide-react';
 import moment from 'moment';
 import FileManager from '@/components/FileManager';
@@ -31,7 +34,7 @@ interface Pod {
 }
 
 export default function PodDetail() {
-  const { getToken } = useAuth();
+  const { data: session } = useSession();
   const router = useRouter();
   const params = useParams();
   const podId = params.id as string;
@@ -43,9 +46,10 @@ export default function PodDetail() {
 
   const fetchPodDetails = async () => {
     try {
-      const token = await getToken();
       const response = await fetch(`/api/pods/${podId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          'X-Discord-User-ID': session?.user?.discordId || '',
+        }
       });
       
       if (!response.ok) {
@@ -70,11 +74,10 @@ export default function PodDetail() {
   const handlePodAction = async (action: string) => {
     setActionLoading(true);
     try {
-      const token = await getToken();
       const response = await fetch(`/api/pods/${podId}/action`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ action }),
@@ -98,11 +101,10 @@ export default function PodDetail() {
     if (!pod) return;
     
     try {
-      const token = await getToken();
       const response = await fetch(`/api/pods/${podId}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'X-Discord-User-ID': session?.user?.discordId || '',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ is_public: !pod.is_public }),
@@ -180,7 +182,19 @@ export default function PodDetail() {
                 {pod.status}
               </span>
             </div>
-            <UserButton />
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <UserIcon className="w-4 h-4" />
+                <span>{session?.user?.name || session?.user?.discordUsername}</span>
+              </div>
+              <button
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+              >
+                <LogOutIcon className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>

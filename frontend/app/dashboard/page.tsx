@@ -1,6 +1,7 @@
 'use client';
 
-import { useAuth, UserButton } from '@clerk/nextjs';
+import { useSession } from 'next-auth/react';
+import { signOut } from '@/lib/auth-client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
@@ -12,7 +13,8 @@ import {
   RotateCw as RestartIcon,
   Trash2 as TrashIcon,
   Eye as EyeIcon,
-  Terminal as TerminalIcon
+  Terminal as TerminalIcon,
+  LogOut as LogOutIcon
 } from 'lucide-react';
 import moment from 'moment';
 
@@ -36,7 +38,7 @@ interface Pod {
 }
 
 export default function Dashboard() {
-  const { isSignedIn, getToken } = useAuth();
+  const { data: session, status } = useSession();
   const [pods, setPods] = useState<Pod[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -44,9 +46,10 @@ export default function Dashboard() {
 
   const fetchPods = useCallback(async () => {
     try {
-      const token = await getToken();
       const response = await fetch('/api/pods', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: {
+          'X-Discord-User-ID': session?.user?.discordId || '',
+        },
       });
       
       if (!response.ok) {
@@ -61,20 +64,24 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [getToken]);
+  }, [session]);
 
   const verifyAndFetchPods = useCallback(async () => {
+    if (!session?.user?.discordId) {
+      router.push('/');
+      return;
+    }
+
     try {
-      const token = await getToken();
-      
       // First verify authentication
       const verifyResponse = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ 
+          discord_user_id: session.user.discordId 
+        }),
       });
 
       if (!verifyResponse.ok) {
@@ -88,27 +95,28 @@ export default function Dashboard() {
       toast.error('Authentication failed. Redirecting to home...');
       router.push('/');
     }
-  }, [getToken, fetchPods, router]);
+  }, [session, fetchPods, router]);
 
   useEffect(() => {
-    if (!isSignedIn) {
+    if (status === 'loading') return;
+    
+    if (!session) {
       router.push('/');
       return;
     }
     
     // Verify auth first, then fetch pods
     verifyAndFetchPods();
-  }, [isSignedIn, router, verifyAndFetchPods]);
+  }, [session, status, router, verifyAndFetchPods]);
 
   const handlePodAction = async (podId: string, action: string) => {
     setActionLoading(podId);
     try {
-      const token = await getToken();
       const response = await fetch(`/api/pods/${podId}/action`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
+          'X-Discord-User-ID': session?.user?.discordId || '',
         },
         body: JSON.stringify({ action }),
       });
@@ -173,7 +181,13 @@ export default function Dashboard() {
                 <PlusIcon className="w-4 h-4" />
                 <span>Create Pod</span>
               </button>
-              <UserButton />
+              <button
+                onClick={() => signOut({ callbackUrl: '/' })}
+                className="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+              >
+                <LogOutIcon className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
             </div>
           </div>
         </div>

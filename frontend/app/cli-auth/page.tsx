@@ -1,40 +1,43 @@
 'use client';
 
-import { useAuth, UserButton } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { signOut } from '@/lib/auth-client';
 import toast, { Toaster } from 'react-hot-toast';
-import { Copy as CopyIcon, Check as CheckIcon, Terminal as TerminalIcon } from 'lucide-react';
+import { Copy as CopyIcon, Check as CheckIcon, Terminal as TerminalIcon, User as UserIcon, LogOut as LogOutIcon } from 'lucide-react';
 
 export default function CLIAuth() {
-  const { isSignedIn, getToken } = useAuth();
+  const { data: session, status } = useSession();
   const [token, setToken] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    if (!isSignedIn) {
+    if (status === 'loading') return;
+    
+    if (!session) {
       router.push('/');
       return;
     }
 
     const fetchToken = async () => {
       try {
-        const authToken = await getToken();
-        if (authToken) {
-          setToken(authToken);
-        }
+        // For NextAuth, we can use the session directly or generate a custom token
+        // In this case, we'll create a simple token based on the discord ID
+        const customToken = `discord_${session.user.discordId}_${Date.now()}`;
+        setToken(customToken);
       } catch (error) {
-        console.error('Error fetching token:', error);
-        toast.error('Failed to fetch authentication token');
+        console.error('Error generating token:', error);
+        toast.error('Failed to generate authentication token');
       } finally {
         setLoading(false);
       }
     };
 
     fetchToken();
-  }, [isSignedIn, getToken, router]);
+  }, [session, status, router]);
 
   const copyToken = async () => {
     try {
@@ -76,7 +79,19 @@ export default function CLIAuth() {
               >
                 ← Back to Dashboard
               </button>
-              <UserButton />
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <UserIcon className="w-4 h-4" />
+                  <span>{session?.user?.name || session?.user?.discordUsername}</span>
+                </div>
+                <button
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  className="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+                >
+                  <LogOutIcon className="w-4 h-4" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
