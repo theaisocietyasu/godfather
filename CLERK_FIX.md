@@ -6,26 +6,34 @@ When signing in/up with Discord on the deployed portal, you're experiencing an i
 https://100.65.19.4/sign-in?redirect_url=...&__clerk_hs_reason=dev-browser-missing
 ```
 
-This happens because Clerk detects it's running in production but can't verify the browser session due to missing configuration.
+This happens because Clerk's **development instance** is being used in a deployed environment (not localhost).
 
 ## Root Cause
 The issue is caused by:
-1. ❌ Clerk thinking it's in development mode when it's actually production
+1. ❌ Using Clerk's dev instance on a non-localhost domain
 2. ❌ Missing `CLERK_TRUST_HOST=true` environment variable
-3. ❌ Incorrect domain configuration in Clerk Dashboard
+3. ❌ `NODE_ENV` set to `production` instead of `development`
 
 ## Solution
 
+### Strategy: Use Development Mode Everywhere
+We're using Clerk's **dev instance** everywhere (local + deployed). This requires:
+- ✅ `NODE_ENV=development` 
+- ✅ `CLERK_TRUST_HOST=true` (to allow dev instance on non-localhost domains)
+
 ### Step 1: Update Your Deployment
 
-I've already updated the following files:
-- ✅ `deploy-direct.sh` - Now sets `CLERK_TRUST_HOST=true`
+I've already updated the following files to use `NODE_ENV=development` everywhere:
+- ✅ `deploy-direct.sh` - Sets `NODE_ENV=development` and `CLERK_TRUST_HOST=true`
+- ✅ `ecosystem.config.js` - PM2 config uses `NODE_ENV=development`
+- ✅ `docker-compose.yml` - Local dev uses `NODE_ENV=development`
+- ✅ `docker-compose.prod.yml` - Production deployment uses `NODE_ENV=development`
 - ✅ `frontend/middleware.ts` - Simplified Clerk middleware configuration
 - ✅ `frontend/app/layout.tsx` - Proper ClerkProvider setup
 
-### Step 2: Configure Clerk Dashboard (CRITICAL)
+### Step 2: Configure Clerk Dashboard (Optional but Recommended)
 
-Go to your Clerk Dashboard and configure the following:
+Since you're using Clerk's dev instance, you don't *need* to configure production domains, but it's still good practice:
 
 #### 2.1 Add Your Production Domain
 
@@ -50,17 +58,18 @@ Go to your Clerk Dashboard and configure the following:
 Make sure your `.env` file includes:
 ```bash
 # In root .env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
-CLERK_SECRET_KEY=sk_...
-CLERK_TRUST_HOST=true
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...  # Note: pk_test_ for dev instance
+CLERK_SECRET_KEY=sk_test_...                    # Note: sk_test_ for dev instance
 
-# Your backend URL (whatever your actual production URL is)
+# Your backend URL (whatever your actual deployment URL is)
 BACKEND_URL=https://100.65.19.4
 # OR
 BACKEND_URL=https://8bzhwve1ri5cw2-80.proxy.runpod.net
 # OR
 BACKEND_URL=https://admin.ais-asu.com
 ```
+
+**Note:** Dev instance keys start with `pk_test_` and `sk_test_`. Production keys start with `pk_live_` and `sk_live_`.
 
 ### Step 3: Redeploy
 
@@ -78,18 +87,32 @@ cd /home/ash/student_orgs/AIS/godfather
 
 ## Additional Notes
 
-### Using IP Addresses (Not Recommended)
-If you're using `https://100.65.19.4`, be aware that:
-- ❌ IP addresses don't work well with OAuth providers
-- ❌ SSL certificates typically don't work with IP addresses
-- ❌ Clerk may have issues with IP-based domains
-- ✅ **Solution**: Use a proper domain name (like `admin.ais-asu.com`)
+### Using Clerk Dev Instance Everywhere
+We're using Clerk's **development instance** in all environments:
+- ✅ Local development (localhost)
+- ✅ Deployed VM (IP address or domain)
 
-### Recommended Setup
-1. Use your custom domain: `admin.ais-asu.com`
-2. Or use the RunPod proxy URL: `8bzhwve1ri5cw2-80.proxy.runpod.net`
-3. Configure Clerk to use that domain
-4. Update `BACKEND_URL` in `.env` to match
+**Benefits:**
+- ✅ Free tier
+- ✅ Same auth across all environments
+- ✅ Simplified configuration
+
+**Limitations:**
+- ⚠️ Rate limits (100 MAUs for free)
+- ⚠️ Dev instance not meant for high-traffic production
+- ⚠️ Some advanced features require production instance
+
+**When to upgrade to production instance:**
+- When you have real users (not just testing)
+- When you need more than 100 monthly active users
+- When you need production-level SLAs
+
+### Environment Configuration
+All environments now use:
+```bash
+NODE_ENV=development       # Tell Next.js and Clerk we're in dev mode
+CLERK_TRUST_HOST=true     # Allow dev instance on non-localhost
+```
 
 ## Debugging
 

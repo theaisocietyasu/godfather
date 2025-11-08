@@ -63,7 +63,7 @@ module.exports = {
       max_restarts: 10,
       min_uptime: '10s',
       env: {
-        NODE_ENV: 'production',
+        NODE_ENV: 'development',
         HOSTNAME: '0.0.0.0',
         PORT: '3000',
       },
