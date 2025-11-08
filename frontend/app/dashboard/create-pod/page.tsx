@@ -20,7 +20,7 @@ interface PodConfig {
   name: string;
   image_name: string;
   gpu_type_id: string;
-  instance_id?: string;
+  instance_ids?: string[];  // Changed to plural array
   use_cpu_only: boolean;
   cloud_type: string;
   support_public_ip: boolean;
@@ -42,7 +42,7 @@ const defaultConfig: PodConfig = {
   name: '',
   image_name: 'theaisocietyasu/godfather-base:latest',  // Default to Godfather custom image
   gpu_type_id: 'NVIDIA RTX A4000',
-  instance_id: 'cpu3c-2-4',  // Default CPU instance
+  instance_ids: ['cpu3c-2-4'],  // Default CPU instance - now an array
   use_cpu_only: false,
   cloud_type: 'COMMUNITY',
   support_public_ip: false,
@@ -271,8 +271,8 @@ export default function CreatePod() {
                     CPU Instance Type
                   </label>
                   <select
-                    value={config.instance_id}
-                    onChange={(e) => setConfig({ ...config, instance_id: e.target.value })}
+                    value={config.instance_ids?.[0] || 'cpu3c-2-4'}
+                    onChange={(e) => setConfig({ ...config, instance_ids: [e.target.value] })}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
                     <option value="cpu3c-2-4">3 vCPU, 2 GB RAM (Minimal) 💰</option>

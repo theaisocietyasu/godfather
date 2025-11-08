@@ -102,18 +102,25 @@ class PodService:
             config['env'] = env
             
             # Handle CPU vs GPU configuration
-            # For CPU-only pods, use instance_id instead of gpu_type_id
+            # For CPU-only pods, use instanceIds and computeType instead of gpu_type_id
             if use_cpu_only:
                 # Remove gpu_type_id if present
                 config.pop('gpu_type_id', None)
-                # Set instance_id for CPU if not already set
-                if 'instance_id' not in config:
-                    # Default CPU instance type
-                    config['instance_id'] = 'cpu3c-2-4'
-                logger.info(f'Creating CPU-only pod with instance_id: {config.get("instance_id")}')
+                config.pop('instance_id', None)  # Remove singular form if present
+                
+                # Set computeType to CPU
+                config['compute_type'] = 'CPU'
+                
+                # Set instanceIds (plural, array) for CPU if not already set
+                if 'instance_ids' not in config:
+                    # Default CPU instance type - must be an array
+                    config['instance_ids'] = ['cpu3c-2-4']
+                logger.info(f'Creating CPU-only pod with instance_ids: {config.get("instance_ids")} and compute_type: CPU')
             else:
-                # For GPU pods, remove instance_id if present
+                # For GPU pods, remove CPU-specific fields if present
                 config.pop('instance_id', None)
+                config.pop('instance_ids', None)
+                config.pop('compute_type', None)
                 logger.info(f'Creating GPU pod with gpu_type_id: {config.get("gpu_type_id")}')
             
             # Create pod via RunPod API
