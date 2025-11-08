@@ -90,6 +90,10 @@ class PodService:
         try:
             logger.info(f'Creating pod: {config.get("name")}')
             
+            # Extract custom fields that shouldn't be sent to RunPod API
+            is_public = config.pop('is_public', False)
+            allowed_users = config.pop('allowed_users', [])
+            
             # Add SSH public key as environment variable
             env = config.get('env', {})
             env['GODFATHER_SSH_PUBLIC_KEY'] = ssh_public_key
@@ -106,8 +110,8 @@ class PodService:
                 pod_doc = {
                     'runpod_id': pod['id'],
                     'name': config['name'],
-                    'is_public': config.get('is_public', False),
-                    'allowed_users': config.get('allowed_users', []),
+                    'is_public': is_public,
+                    'allowed_users': allowed_users,
                     'custom_config': config,
                     'ssh_public_key': ssh_public_key,
                     'created_by': creator_id,
