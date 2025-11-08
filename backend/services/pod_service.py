@@ -108,22 +108,33 @@ class PodService:
                 config.pop('gpu_type_id', None)
                 config.pop('instance_id', None)  # Remove singular form if present
                 
-                # Set computeType to CPU
-                config['compute_type'] = 'CPU'
+                # Set computeType to CPU (camelCase for GraphQL)
+                config['computeType'] = 'CPU'
                 
-                # Set instanceIds (plural, array) for CPU if not already set
-                if 'instance_ids' not in config:
+                # Set instanceIds (plural, array, camelCase) for CPU if not already set
+                if 'instanceIds' not in config and 'instance_ids' not in config:
                     # Default CPU instance type - must be an array
-                    config['instance_ids'] = ['cpu3c-2-4']
-                logger.info(f'Creating CPU-only pod with instance_ids: {config.get("instance_ids")} and compute_type: CPU')
+                    config['instanceIds'] = ['cpu3c-2-4']
+                elif 'instance_ids' in config:
+                    # Convert snake_case to camelCase
+                    config['instanceIds'] = config.pop('instance_ids')
+                    
+                # Set gpuCount to 0 for CPU-only pods
+                config['gpuCount'] = 0
+                
+                logger.info(f'Creating CPU-only pod with instanceIds: {config.get("instanceIds")} and computeType: CPU')
+                logger.info(f'Full CPU config: {config}')
             else:
                 # For GPU pods, remove CPU-specific fields if present
                 config.pop('instance_id', None)
                 config.pop('instance_ids', None)
+                config.pop('instanceIds', None)
                 config.pop('compute_type', None)
+                config.pop('computeType', None)
                 logger.info(f'Creating GPU pod with gpu_type_id: {config.get("gpu_type_id")}')
             
             # Create pod via RunPod API
+            logger.info(f'Calling runpod.create_pod with config keys: {list(config.keys())}')
             pod = runpod.create_pod(**config)
             
             if pod and 'id' in pod:
