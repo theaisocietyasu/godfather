@@ -38,6 +38,61 @@ chmod 777 /workspace/shared
 
 echo "✅ Workspace ready"
 
+# Create beautiful MOTD (Message of the Day)
+echo "🎨 Creating welcome banner..."
+cat > /etc/motd << 'MOTD'
+
+MOTD
+
+cat > /etc/update-motd.d/00-header << 'HEADER'
+#!/bin/bash
+cat << 'EOF'
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║   ██████╗  ██████╗ ██████╗ ███████╗ ██████╗ ████████╗██╗  ██╗███████╗██████╗║
+║  ██╔════╝ ██╔═══██╗██╔══██╗██╔════╝██╔═══██╗╚══██╔══╝██║  ██║██╔════╝██╔══██║
+║  ██║  ███╗██║   ██║██║  ██║█████╗  ███████║   ██║   ███████║█████╗  ██████╔╝║
+║  ██║   ██║██║   ██║██║  ██║██╔══╝  ██╔══██║   ██║   ██╔══██║██╔══╝  ██╔══██╗║
+║  ╚██████╔╝╚██████╔╝██████╔╝██║     ██║  ██║   ██║   ██║  ██║███████╗██║  ██║║
+║   ╚═════╝  ╚═════╝ ╚═════╝ ╚═╝     ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝║
+║                                                                              ║
+║                      🚀 High-Performance Computing Pod 🚀                    ║
+║                        Powered by RunPod & AIS Society                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+EOF
+HEADER
+
+chmod +x /etc/update-motd.d/00-header
+
+# Create system info script
+cat > /etc/update-motd.d/10-sysinfo << 'SYSINFO'
+#!/bin/bash
+echo ""
+echo "  📊 System Information"
+echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if command -v nvidia-smi &> /dev/null; then
+    GPU_INFO=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
+    if [ -n "$GPU_INFO" ]; then
+        echo "  💎 GPU: $GPU_INFO"
+    fi
+fi
+echo "  🖥️  CPU: $(nproc) cores"
+echo "  💾 RAM: $(free -h | awk '/^Mem:/ {print $2}')"
+echo "  💿 Disk: $(df -h / | awk 'NR==2 {print $4}') available"
+echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+SYSINFO
+
+chmod +x /etc/update-motd.d/10-sysinfo
+
+# Disable other MOTD scripts to keep it clean
+chmod -x /etc/update-motd.d/10-help-text 2>/dev/null || true
+chmod -x /etc/update-motd.d/50-motd-news 2>/dev/null || true
+chmod -x /etc/update-motd.d/90-updates-available 2>/dev/null || true
+
+echo "✅ Welcome banner created"
+
 # Create user setup script that will be called when users connect
 cat > /usr/local/bin/godfather-user-setup.sh << 'USERSETUP'
 #!/bin/bash
@@ -81,16 +136,35 @@ if [ "$IS_ADMIN" != "true" ]; then
     cat > /tmp/switch_to_restricted_$USERNAME.sh << SWITCHSCRIPT
 #!/bin/bash
 # Switch to restricted user account
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Welcome to Godfather Pod - Restricted User Mode"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📁 Your workspace: /workspace/users/$USERNAME"
-echo "🤝 Shared folder: /workspace/shared"
-echo "⚠️  You have restricted access (no sudo/root)"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Display user welcome banner
+echo ""
+echo "  ╔════════════════════════════════════════════════════════════════════════╗"
+echo "  ║                    👤 Restricted User Mode                             ║"
+echo "  ╚════════════════════════════════════════════════════════════════════════╝"
+echo ""
+echo "  📁 Your Workspace:     /workspace/users/$USERNAME"
+echo "  🤝 Shared Folder:      /workspace/shared"
+echo "  🔒 Access Level:       Restricted (No sudo/root)"
+echo ""
+echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  � Quick Tips:"
+echo "     • All your files are saved in your personal workspace"
+echo "     • Use /workspace/shared for collaboration with others"
+echo "     • Changes persist across sessions"
+echo ""
+echo "  ⚡ Common Commands:"
+echo "     • ls -la              - List files"
+echo "     • cd ~                - Go to home directory"
+echo "     • pwd                 - Show current path"
+echo "     • exit                - Disconnect from pod"
+echo ""
+echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
 
 # Execute shell as restricted user in their workspace
-exec su - "godfather_$USERNAME" -c "cd /workspace/users/$USERNAME && exec bash --rcfile <(echo 'export PS1=\"\[\033[01;32m\]godfather_$USERNAME@pod\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\\$ \"'; echo 'echo \"\"'; echo 'echo \"💡 Tip: Your files are in /workspace/users/$USERNAME\"'; echo 'echo \"🤝 Collaborate in /workspace/shared\"'; echo 'echo \"\"')"
+exec su - "godfather_$USERNAME" -c "cd /workspace/users/$USERNAME && exec bash --rcfile <(echo 'export PS1=\"\[\033[01;36m\]godfather_$USERNAME\[\033[00m\]@\[\033[01;35m\]pod\[\033[00m\]:\[\033[01;33m\]\w\[\033[00m\]\\$ \"'; echo 'alias ll=\"ls -lah --color=auto\"'; echo 'alias workspace=\"cd /workspace/users/$USERNAME\"'; echo 'alias shared=\"cd /workspace/shared\"')"
 SWITCHSCRIPT
     
     chmod +x /tmp/switch_to_restricted_$USERNAME.sh
@@ -101,17 +175,40 @@ else
     # Create admin profile
     cat > /tmp/admin_profile_$USERNAME << 'PROFILE'
 # Godfather Admin Environment
-export PS1="\[\033[01;31m\]\u@godfather(ADMIN)\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "
+export PS1="\[\033[01;31m\]👑 \u\[\033[00m\]@\[\033[01;35m\]godfather\[\033[00m\]:\[\033[01;33m\]\w\[\033[00m\]\\$ "
+
+# Useful aliases
+alias ll='ls -lah --color=auto'
+alias workspace='cd /workspace/users/$USERNAME'
+alias shared='cd /workspace/shared'
+alias pods='kubectl get pods 2>/dev/null || echo "kubectl not available"'
 
 cd /workspace/users/$USERNAME 2>/dev/null || cd /workspace
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Welcome to Godfather Pod - Admin Mode"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📁 Your workspace: /workspace/users/$USERNAME"
-echo "👑 Full system access (sudo available)"
-echo "⚠️  With great power comes great responsibility!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  ╔════════════════════════════════════════════════════════════════════════╗"
+echo "  ║                        👑 Admin Mode                                   ║"
+echo "  ╚════════════════════════════════════════════════════════════════════════╝"
+echo ""
+echo "  📁 Your Workspace:     /workspace/users/$USERNAME"
+echo "  👑 Access Level:       Administrator (Full root access)"
+echo "  ⚡ Sudo:               Available"
+echo ""
+echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  ⚠️  Important Reminders:"
+echo "     • You have full system access - use with caution"
+echo "     • Changes to system files affect all users"
+echo "     • Keep user workspaces isolated and secure"
+echo ""
+echo "  ⚡ Quick Admin Commands:"
+echo "     • workspace          - Jump to your workspace"
+echo "     • shared             - Go to shared folder"
+echo "     • htop               - View system resources"
+echo "     • nvidia-smi         - Check GPU status"
+echo ""
+echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
 PROFILE
     
     # Return path to admin profile

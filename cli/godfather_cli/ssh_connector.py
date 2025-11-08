@@ -73,15 +73,22 @@ class SSHConnector:
             print("❌ No host information available")
             return 1
         
-        print(f"🔗 Connecting to {host}:{port}")
+        print("\n" + "━" * 78)
+        print("  � GODFATHER POD CONNECTION")
+        print("━" * 78)
+        print(f"  🌐 Host:        {host}:{port}")
+        print(f"  👤 User:        {user_folder}")
+        print(f"  🔑 Auth:        SSH Key")
         
         if is_admin:
-            print("👑 Admin mode: Full system access")
+            print(f"  👑 Mode:        Administrator (Full Access)")
         else:
-            print("🔒 Restricted mode: Switched to non-root user account")
-            print(f"👤 Your workspace: /workspace/users/{user_folder}")
+            print(f"  🔒 Mode:        Restricted User")
         
-        print("\n📁 Setting up your environment...")
+        print("━" * 78)
+        print()
+        
+        print("� Establishing secure connection...")
         
         # Setup user workspace and get the profile/script to source
         admin_flag = "true" if is_admin else "false"
@@ -94,53 +101,57 @@ class SSHConnector:
             '-i', str(self.ssh_key_file),
             '-o', 'StrictHostKeyChecking=no',
             '-o', 'UserKnownHostsFile=/dev/null',
+            '-o', 'LogLevel=ERROR',  # Suppress SSH warnings
             '-p', str(port),
             f'{username}@{host}',
             setup_command
         ]
         
         try:
-            print("🚪 Opening SSH session...")
-            
-            if is_admin:
-                print("✅ You have full root access (sudo available)")
-            else:
-                print("✅ Running as restricted user (no sudo access)")
-                print("💡 You can work in your personal workspace")
-                print("🤝 Collaborate in /workspace/shared")
-                print("⚠️  System commands blocked for security")
-            
-            print("📝 Type 'exit' to disconnect\n")
-            
             # Execute SSH connection
             result = subprocess.run(ssh_command)
             
             if result.returncode != 0:
-                print("\n❌ SSH connection failed!")
-                print("\n⚠️  SSH Key Setup Required")
-                print("=" * 60)
+                print("\n" + "━" * 78)
+                print("  ❌ CONNECTION FAILED")
+                print("━" * 78)
+                print()
+                print("⚠️  SSH Key Setup Required")
+                print()
                 print("The pod needs to have the SSH key configured first.")
-                print("\nOption 1: Use the godfather-base Docker image (recommended)")
-                print("  - The image automatically sets up SSH on startup")
-                print("  - Image: theaisocietyasu/godfather-base:latest")
-                print("\nOption 2: Manual setup in RunPod web terminal:")
-                print("\n  mkdir -p /root/.ssh && \\")
-                print(f'  echo "$GODFATHER_SSH_PUBLIC_KEY" >> /root/.ssh/authorized_keys && \\')
-                print("  chmod 700 /root/.ssh && \\")
-                print("  chmod 600 /root/.ssh/authorized_keys")
-                print("\n💡 The GODFATHER_SSH_PUBLIC_KEY environment variable is already set in your pod.")
-                print("=" * 60)
+                print()
+                print("✅ Recommended Solution:")
+                print("   Use the godfather-base Docker image which auto-configures SSH")
+                print("   Image: theaisocietyasu/godfather-base:latest")
+                print()
+                print("🔧 Manual Setup (if needed):")
+                print("   1. Open RunPod web terminal")
+                print("   2. Run these commands:")
+                print()
+                print("      mkdir -p /root/.ssh && \\")
+                print('      echo "$GODFATHER_SSH_PUBLIC_KEY" >> /root/.ssh/authorized_keys && \\')
+                print("      chmod 700 /root/.ssh && \\")
+                print("      chmod 600 /root/.ssh/authorized_keys")
+                print()
+                print("💡 The GODFATHER_SSH_PUBLIC_KEY variable is already set in your pod")
+                print("━" * 78)
                 return result.returncode
             else:
-                print("\n👋 Disconnected from pod")
+                print("\n" + "━" * 78)
+                print("  👋 DISCONNECTED")
+                print("━" * 78)
+                print("  Thank you for using Godfather! See you next time! 🚀")
+                print("━" * 78 + "\n")
                 return 0
             
         except KeyboardInterrupt:
-            print("\n👋 Connection cancelled")
+            print("\n\n" + "━" * 78)
+            print("  ⚠️  CONNECTION CANCELLED")
+            print("━" * 78 + "\n")
             return 1
         except FileNotFoundError:
-            print("❌ SSH client not found. Please install OpenSSH client.")
+            print("\n❌ SSH client not found. Please install OpenSSH client.")
             return 1
         except subprocess.SubprocessError as e:
-            print(f"❌ SSH connection failed: {e}")
+            print(f"\n❌ SSH connection failed: {e}")
             return 1

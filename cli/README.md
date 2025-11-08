@@ -38,15 +38,16 @@ pip install -e .
 ## 🚀 Quick Start
 
 1. **Run the CLI**:
+
    ```bash
    godfather
    ```
-
 2. **Authenticate**:
+
    - Visit the admin portal to get your authentication token
    - Paste the token when prompted
-
 3. **Connect to a Pod**:
+
    - Select option `2` to connect to a pod
    - Choose from available pods
    - Automatically SSH into your isolated workspace
@@ -56,11 +57,13 @@ pip install -e .
 ### Interactive Menu
 
 Simply run:
+
 ```bash
 godfather
 ```
 
 You'll see a beautiful menu:
+
 ```
 ╔═══════════════════════════════════════╗
 ║ Godfather CLI                         ║
@@ -119,18 +122,6 @@ Configuration is stored in `~/.godfather/config.json`:
 }
 ```
 
-### Environment Variables
-
-You can override the API URL with:
-
-```bash
-export GODFATHER_API_URL="https://your-api.com"
-# or
-export BACKEND_URL="https://your-api.com"
-# or
-export NEXT_PUBLIC_BACKEND_URL="https://your-api.com"
-```
-
 ## 🎨 Features in Detail
 
 ### Beautiful Tables
@@ -176,14 +167,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🆘 Support
 
-- **Issues**: [GitHub Issues](https://github.com/theaisocietyasu/godfather/issues)
-- **Discord**: Contact AI Society ASU administrators
-- **Email**: admin@ais-asu.com
-
+- [**Discord**](https://discord.gg/fXWXwz6fEG)
 ## 🎓 About
 
-Built with ❤️ by [AI Society at Arizona State University](https://github.com/theaisocietyasu)
-
----
-
-**Note**: You need to be a member of the AI Society Discord server with appropriate permissions to use this CLI.
+Built with ❤️ by [AI Society at Arizona State University](https://ais-asu.com/)

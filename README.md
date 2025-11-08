@@ -1,611 +1,47 @@
-# Godfather - AI Society RunPod Admin Portal# Godfather - AI Society Admin Portal
+# Godfather - AI Society Admin Portal
 
+**Godfather** is AI Society's comprehensive GPU pod management platform. It provides a beautiful web admin portal and powerful CLI tool for managing RunPod infrastructure, enabling seamless GPU resource allocation and user access control.
 
+[![Documentation](https://img.shields.io/badge/docs-notion-blue)](https://www.notion.so/theaisociety/Grandfather-2668867868b480cab87ecfdb4e4a1dbe)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Administrative dashboard for managing RunPod GPU instances for AI Society ASU. Features Discord OAuth authentication with role-based access control.Admin dashboard for managing RunPod GPU environments. Discord OAuth authentication, pod management, file operations, and CLI access.
+## ✨ Features
 
-
-
-## Features## 🚀 Features
-
-
-
-- **Discord Authentication**: Secure OAuth login via NextAuth- **Discord OAuth**: Admin role verification via Clerk
-
-- **Role-Based Access**: Admin role verification via Discord API- **Pod Management**: Create, monitor, control RunPod instances
-
-- **Pod Management**: Create, start, stop, and terminate RunPod instances- **File Manager**: Web-based file browser with upload/download
-
-- **Real-time Status**: Monitor pod status and resource usage- **CLI Tool**: Secure terminal access to pods
-
-- **File Management**: SSH and file transfer capabilities- **User Isolation**: Separate workspaces per user
-
-- **CLI Tool**: Command-line interface for pod management- **Access Control**: Public/private pod settings
-
-
-
-## Tech Stack## �️ Setup
-
-
-
-**Frontend:**### Prerequisites
-
-- Next.js 15 with App Router- Docker & Docker Compose
-
-- TypeScript- RunPod API key
-
-- Tailwind CSS- Clerk account
-
-- NextAuth for Discord OAuth- Discord bot token
-
-- React Hot Toast for notifications
-
-### Installation
-
-**Backend:**
-
-- Python Flask1. **Clone and configure:**
-
-- MongoDB for pod metadata```bash
-
-- Discord API for authenticationgit clone https://github.com/theaisocietyasu/godfather.git
-
-- RunPod API for GPU managementcd godfather
-
-cp .env.example .env
-
-## Prerequisites# Edit .env with your API keys
-
-```
-
-- Node.js 18+ and npm
-
-- Python 3.8+2. **Deploy (choose one):**
-
-- Discord Application (OAuth credentials)
-
-- RunPod API Key**Local Development:**
-
-- MongoDB database```bash
-
-docker-compose up -d
-
-## Setup```
-
-
-
-### 1. Discord OAuth Application**RunPod Production:**
-
-```bash
-
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)# On RunPod instance
-
-2. Create a new application or select existinggit clone https://github.com/theaisocietyasu/godfather.git
-
-3. Navigate to **OAuth2** sectioncd godfather
-
-4. Copy **Client ID** and **Client Secret**./setup-runpod-env.sh  # Creates .env file
-
-5. Add redirect URIs:./deploy-direct.sh     # Deploys without Docker
-
-   - Local: `http://localhost:3000/api/auth/callback/discord````
-
-   - Production: `https://your-domain.com/api/auth/callback/discord`
-
-6. Under **OAuth2** > **OAuth2 URL Generator**, select scopes:3. **Install CLI:**
-
-   - `identify````bash
-
-   - `email`cd cli
-
-   - `guilds`pip install -e .
-
-   - `guilds.members.read````
-
-
-
-### 2. Environment Configuration### Environment Variables
-
-
-
-Create `.env` file in the root directory:Required in `.env`:
-
-```bash
-
-```bashRUNPOD_API_KEY=your_key
-
-# RunPod APICLERK_SECRET_KEY=your_key
-
-RUNPOD_API_KEY=your_runpod_api_keyNEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_key
-
-DISCORD_BOT_TOKEN=your_token
-
-# Discord OAuthDISCORD_GUILD_ID=your_guild_id
-
-DISCORD_CLIENT_ID=your_discord_client_idADMIN_ROLE_ID=your_role_id
-
-DISCORD_CLIENT_SECRET=your_discord_client_secretMONGODB_URI=mongodb+srv://...
-
-PUBLIC_URL=https://admin.ais-asu.com
-
-# Discord Bot (for role verification)RUNPOD_PROXY_URL=https://your-pod.proxy.runpod.net
-
-DISCORD_BOT_TOKEN=your_discord_bot_token```
-
-DISCORD_GUILD_ID=your_discord_server_id
-
-ADMIN_ROLE_ID=your_admin_role_id## 🎯 Usage
-
-
-
-# MongoDB**Admin Portal:** Visit `http://localhost` or `https://admin.ais-asu.com`
-
-MONGODB_URI=your_mongodb_connection_string
-
-**CLI:**
-
-# NextAuth```bash
-
-NEXTAUTH_SECRET=generate_with_openssl_rand_base64_32godfather              # Interactive mode
-
-NEXTAUTH_URL=http://localhost:3000godfather list         # List pods
-
-godfather connect      # Connect to pod
-
-# Frontend URL```
-
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-
-## 📁 Project Structure
-
-# Backend URL
-
-BACKEND_URL=http://localhost:5000```
-
-```godfather/
-
-├── backend/           # Flask API
-
-Generate NextAuth secret:├── frontend/          # Next.js portal
-
-```bash├── cli/               # Python CLI tool
-
-openssl rand -base64 32├── nginx/             # Reverse proxy
-
-```├── docker-images/     # Custom Docker images
-
-├── deploy-direct.sh   # RunPod deployment
-
-### 3. Install Dependencies└── setup-runpod-env.sh # Environment setup
-
-```
-
-**Frontend:**
-
-```bash## 🔐 Security
-
-cd frontend
-
-npm install- Discord Admin role required
-
-```- JWT authentication
-
-- SSL/TLS in production
-
-**Backend:**- User workspace isolation
-
-```bash- No sudo access for regular users
-
-cd backend
-
-pip install -r requirements.txt## 📄 License
-
-```
-
-MIT License
-
-**CLI Tool:**
-
-```bash---
-
-cd cli
-
-pip install -e .Built by AI Society ASU | [Documentation](https://www.notion.so/theaisociety/Grandfather-2668867868b480cab87ecfdb4e4a1dbe)
-
-```
-
-## 🔧 Development
-
-### 4. Run Development Servers
-
-### Development Commands
-
-**Frontend:**```bash
-
-```bash# Start all services
-
-cd frontend./dev.sh start
-
-npm run dev
-
-```# View logs
-
-./dev.sh logs
-
-**Backend:**
-
-```bash# Open shell in backend
-
-cd backend./dev.sh shell backend
-
-python app.py
-
-```# Build and restart
-
-./dev.sh build && ./dev.sh restart
-
-Visit `http://localhost:3000` to access the dashboard.
-
-# Show service status
-
-## Authentication Flow./dev.sh status
-
-```
-
-1. User clicks "Sign in with Discord"
-
-2. Discord OAuth redirects back with user info### Project Structure
-
-3. NextAuth creates session with Discord user ID```
-
-4. On each request, backend verifies admin role via Discord APIgodfather/
-
-5. Discord server membership and "Admin" role required for access├── backend/              # Flask API server
-
-│   ├── app.py           # Main application
-
-## Project Structure│   ├── file_manager.py  # SSH/SFTP utilities
-
-│   └── requirements.txt # Python dependencies
-
-```├── frontend/            # Next.js admin portal
-
-godfather/│   ├── app/            # App router pages
-
-├── frontend/           # Next.js frontend│   ├── components/     # React components
-
-│   ├── app/           # App router pages│   └── middleware.ts   # Clerk middleware
-
-│   ├── components/    # React components├── cli/                # Python CLI tool
-
-│   ├── lib/          # Auth config, utilities│   ├── godfather_cli/  # CLI package
-
-│   └── types/        # TypeScript definitions│   └── pyproject.toml  # Package configuration
-
-├── backend/           # Flask API├── nginx/              # Reverse proxy
-
-│   ├── api/          # Route handlers│   └── nginx.conf      # Configuration
-
-│   ├── services/     # Business logic├── docker-compose.yml  # Service orchestration
-
-│   ├── middleware/   # Auth middleware├── setup.sh           # Installation script
-
-│   └── config/       # Settings, database└── dev.sh             # Development helper
-
-├── cli/              # Command-line tool```
-
-│   └── godfather_cli/
-
-├── nginx/            # Nginx configurations## 🌐 API Endpoints
-
-└── docker-images/    # Custom Docker images
-
-```### Authentication
-
-- `POST /api/auth/verify` - Verify Discord admin access
-
-## API Endpoints
-
-### Pod Management
-
-### Authentication- `GET /api/pods` - List all pods
-
-- `POST /api/auth/verify` - Verify Discord admin role- `POST /api/pods` - Create new pod
-
-- `GET /api/pods/{id}` - Get pod details
-
-### Pods- `PUT /api/pods/{id}` - Update pod settings
-
-- `GET /api/pods` - List all pods- `POST /api/pods/{id}/action` - Control pod (start/stop/restart/terminate)
-
-- `POST /api/pods` - Create new pod
-
-- `GET /api/pods/:id` - Get pod details### CLI Access
-
-- `POST /api/pods/:id/action` - Control pod (start/stop/terminate)- `GET /api/pods/public` - List public pods for CLI
-
-- `POST /api/pods/{id}/connect` - Get SSH connection details
-
-### SSH & Files
-
-- `GET /api/ssh/:pod_id` - Get SSH credentials### File Management
-
-- `GET /api/files/:pod_id` - List files- `GET /api/pods/{id}/files` - List pod files
-
-- `POST /api/files/:pod_id/upload` - Upload files- `POST /api/pods/{id}/files/upload` - Upload files
-
-
-
-## CLI Usage## 🚀 Production Deployment
-
-
-
-```bash### 1. Server Setup
-
-# Authenticate```bash
-
-godfather auth login# On your Ubuntu server
-
-git clone https://github.com/theaisocietyasu/godfather.git
-
-# List podscd godfather
-
-godfather pods list```
-
-
-
-# Create pod### 2. Configure Production Environment
-
-godfather pods create --name my-pod --gpu RTX_3090```bash
-
-# Update .env with production values
-
-# Connect via SSHcp .env.example .env
-
-godfather ssh connect <pod-id># Edit .env with production credentials
-
-```
-
-# Update domain in nginx config
-
-## Deployment# Edit nginx/nginx.conf for your domain
-
-```
-
-### Using Docker Compose
-
-### 3. SSL Certificates
-
-```bash```bash
-
-docker-compose up -d# For Let's Encrypt (recommended)
-
-```certbot certonly --webroot -w /var/www/html -d admin.ais-asu.com
-
-
-
-### Manual Deployment# Copy certificates to nginx/ssl/
-
-cp /etc/letsencrypt/live/admin.ais-asu.com/fullchain.pem nginx/ssl/cert.pem
-
-1. Build frontend: `cd frontend && npm run build`cp /etc/letsencrypt/live/admin.ais-asu.com/privkey.pem nginx/ssl/key.pem
-
-2. Configure Nginx reverse proxy (see `nginx/` directory)```
-
-3. Set up SSL certificates
-
-4. Update environment variables for production### 4. Deploy
-
-5. Run backend with Gunicorn: `gunicorn app:app````bash
-
-./setup.sh
-
-## Security Notes# Follow the prompts for production setup
-
-```
-
-- Admin role verification happens on every request via Discord API
-
-- No user data stored in database - Discord is source of truth### 5. DNS Configuration
-
-- NextAuth sessions use JWT tokens with HTTP-only cookiesPoint `admin.ais-asu.com` to your server's IP address.
-
-- All API endpoints require Discord admin role
-
-## 🔧 Configuration
-
-## Contributing
-
-### Clerk Setup
-
-1. Fork the repository1. Create a Clerk application
-
-2. Create feature branch (`git checkout -b feature/amazing-feature`)2. Enable Discord OAuth provider
-
-3. Commit changes (`git commit -m 'Add amazing feature'`)3. Configure redirect URLs:
-
-4. Push to branch (`git push origin feature/amazing-feature`)   - Development: `http://localhost:3000`
-
-5. Open Pull Request   - Production: `https://admin.ais-asu.com`
-
-4. Set up webhooks for user management
-
-## License
-
-### Discord Bot Setup
-
-MIT License - see LICENSE file for details1. Create Discord application and bot
-
-2. Add bot to AI Society server with read permissions
-
-## Support3. Note the bot token and guild ID
-
-4. Ensure "Admin" role exists in your Discord server
-
-For issues or questions, contact the AI Society ASU team or open an issue on GitHub.
-
-### RunPod API
-1. Get API key from RunPod dashboard
-2. Ensure sufficient credits for pod creation
-3. Configure default pod templates as needed
-
-## 📊 Monitoring
-
-### Health Checks
-```bash
-# Check all services
-./dev.sh status
-
-# Individual service health
-curl http://localhost/health
-curl http://localhost:5000/health
-```
-
-### Logs
-```bash
-# All logs
-./dev.sh logs
-
-# Specific service
-./dev.sh logs backend
-./dev.sh logs frontend
-```
-
-### Backup
-```bash
-# Create backup
-./dev.sh backup
-
-# Backups stored in backups/ directory
-```
-
-## 🔒 Security Considerations
-
-- **Discord Authentication**: Only users with Admin role can access
-- **API Rate Limiting**: Protects against abuse
-- **Environment Variables**: Keep secrets secure
-- **SSL/TLS**: Always use HTTPS in production
-- **User Isolation**: Each CLI user has separate workspace
-- **Token Expiration**: JWT tokens have reasonable expiry times
-
-## 🛟 Troubleshooting
-
-### Common Issues
-
-**CLI not found after installation:**
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-```
-
-**Services not starting:**
-```bash
-# Check logs
-./dev.sh logs
-
-# Reset everything
-./dev.sh reset
-./setup.sh
-```
-
-**Authentication issues:**
-1. Verify Discord Admin role
-2. Check Clerk configuration
-3. Ensure Discord bot has proper permissions
-
-**Pod connection failures:**
-1. Verify RunPod API key
-2. Check pod status (must be running)
-3. Ensure SSH client is installed
-
-### Getting Help
-- Check the logs: `./dev.sh logs`
-- Verify configuration: `./dev.sh status`
-- Contact AI Society administrators
-- Create an issue on GitHub
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## � License
-
-MIT License - see LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- AI Society ASU team
-- RunPod for GPU infrastructure
-- Clerk for authentication services
-- Discord for OAuth integration
-
----
-
-Built with ❤️ by AI Society ASU
-
-[Documentation](https://www.notion.so/theaisociety/Grandfather-2668867868b480cab87ecfdb4e4a1dbe?source=copy_link)
-
-## 🏗️ Architecture
-
-The Godfather system consists of several interconnected components:
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│     Frontend    │    │     Backend     │    │    Database     │
-│   (Next.js)     │◄──►│    (Flask)      │◄──►│   (MongoDB)     │
-│                 │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         ▲                       ▲                       ▲
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│      Nginx      │    │   RunPod API    │    │ Discord OAuth   │
-│ (Reverse Proxy) │    │                 │    │   (via Clerk)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         ▲
-         │
-         ▼
-┌─────────────────┐
-│       CLI       │
-│    (Python)     │
-└─────────────────┘
-```
-
-## 🚀 Features
-
-### Admin Dashboard
-- **Discord OAuth Authentication**: Secure login via AI Society Discord server
-- **RunPod Management**: Create, monitor, and manage GPU environments
-- **Access Control**: Set pods as public/private for user access
-- **Real-time Monitoring**: View pod status, resource usage, and health
-- **File Management**: Browse and manage files in running pods
-- **User Management**: Control who can access specific environments
+### Admin Portal
+- 🎮 **Pod Management**: Create, start, stop, restart, and terminate RunPod GPU instances
+- � **Real-time Monitoring**: View pod status, resource usage, and runtime information
+- 📁 **File Manager**: Web-based file browser with upload/download capabilities
+- 👥 **Access Control**: Set pods as public (accessible to all members) or private (specific users only)
+- 🔐 **Discord OAuth**: Secure authentication via Discord with admin role verification
+- � **Cost Optimization**: CPU-only and GPU options with resource configuration
 
 ### CLI Tool
-- **Secure Connection**: Direct SSH access to authorized pods
-- **Isolated Workspaces**: Each user gets their own folder in shared pods
-- **Easy Discovery**: Automatically find available public pods
-- **Cross-Platform**: Works on Windows, macOS, and Linux
+- 💻 **Secure SSH Access**: Direct terminal access to authorized pods
+- 🎨 **Beautiful Interface**: Themed welcome messages with ASCII art banners
+- � **User Isolation**: Each user gets their own workspace folder in shared pods
+- 🤝 **Collaboration**: Shared folders for team projects
+- ⚡ **Easy Discovery**: Automatically find and connect to available public pods
+- 🌐 **Cross-Platform**: Works on Windows, macOS, and Linux
 
 ### Security Features
-- **Role-Based Access**: Only Discord server admins can manage pods
-- **Token-Based Auth**: Secure JWT authentication via Clerk
-- **Isolated Environments**: User workspaces are strictly separated
-- **SSL/TLS**: Encrypted connections in production
+- � **SSH Key Authentication**: Automatic SSH key setup and management
+- 👑 **Role-Based Access**: Admin and user roles with different permissions
+- 🛡️ **Workspace Isolation**: Restricted users cannot access system files or other users' data
+- � **Token-Based Auth**: JWT authentication for API requests
+- 🔒 **No Sudo for Users**: Regular users run in isolated, unprivileged accounts
 
 ## 📋 Prerequisites
 
-- **Docker & Docker Compose**: For containerized deployment
-- **RunPod Account**: With API access for pod management
-- **Clerk Account**: For Discord OAuth integration
-- **Discord Bot**: With permissions to check user roles
-- **Domain & SSL**: For production deployment (optional for development)
+Before you begin, ensure you have the following:
 
-## 🛠️ Quick Setup
+- **Node.js** 18+ and npm (for frontend development)
+- **Python** 3.8+ (for backend and CLI)
+- **RunPod Account** with API access ([Get API Key](https://www.runpod.io/console/user/settings))
+- **Discord Bot** with permissions to read server roles
+- **MongoDB** instance (can use Docker or MongoDB Atlas)
+- **Clerk Account** for Discord OAuth integration ([Sign up](https://clerk.com))
+
+## 🚀 Quick Start
 
 ### 1. Clone the Repository
 
@@ -614,306 +50,693 @@ git clone https://github.com/theaisocietyasu/godfather.git
 cd godfather
 ```
 
-### 2. Run Setup Script
+### 2. Backend Setup
 
 ```bash
-./setup.sh
+cd backend
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Create .env file
+cp .env.example .env
+# Edit .env with your configuration (see Environment Variables section)
+
+# Run the backend server
+python app.py
 ```
 
-The setup script will:
-- Check Docker installation
-- Create environment files
-- Generate SSL certificates
-- Build and start all services
-- Install the CLI tool
+The backend will start on `http://localhost:5000`
 
-### 3. Configure Environment Variables
-
-Edit `.env` with your API keys:
+### 3. Frontend Setup
 
 ```bash
-# RunPod API Configuration
-RUNPOD_API_KEY=your_runpod_api_key_here
+cd frontend
 
-# Clerk Authentication
-CLERK_SECRET_KEY=sk_live_your_CLERK_SECRET_KEY
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_your_clerk_public_key
+# Install dependencies
+npm install
+
+# Create environment file
+cp .env.local.example .env.local
+# Add your Clerk keys and API URL
+
+# Run the development server
+npm run dev
+```
+
+The frontend will start on `http://localhost:3000`
+
+### 4. CLI Installation (for Users)
+
+**For Development:**
+```bash
+cd cli
+pip install -e .
+godfather
+```
+
+**For Production (from PyPI):**
+```bash
+pip install godfather-cli
+godfather
+```
+
+## ⚙️ Environment Variables
+
+### Backend Configuration (`backend/.env`)
+
+```bash
+# RunPod Configuration
+RUNPOD_API_KEY=your_runpod_api_key_here
 
 # Discord Bot Configuration
 DISCORD_BOT_TOKEN=your_discord_bot_token
 DISCORD_GUILD_ID=your_discord_server_id
+ADMIN_ROLE_ID=your_admin_role_id
+
+# MongoDB Configuration
+MONGODB_URI=mongodb://localhost:27017/godfather
+# Or use MongoDB Atlas: mongodb+srv://username:password@cluster.mongodb.net/godfather
+
+# URLs
+PUBLIC_URL=http://localhost:3000
+BACKEND_URL=http://localhost:5000
+
+# Optional: RunPod Proxy (if using)
+RUNPOD_PROXY_URL=https://your-pod.proxy.runpod.net
 ```
 
-Edit `frontend/.env.local`:
+### Frontend Configuration (`frontend/.env.local`)
 
 ```bash
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_your_clerk_public_key
-CLERK_SECRET_KEY=sk_live_your_CLERK_SECRET_KEY
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_public_key
+CLERK_SECRET_KEY=sk_test_your_clerk_secret_key
+
+# API Configuration
 NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-### 4. Access the Portal
+### Setting Up Discord Bot
 
-- **Local Development**: http://localhost
-- **Production**: https://admin.ais-asu.com
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Create a new application or select existing
+3. Go to **Bot** section and create a bot
+4. Copy the bot token to `DISCORD_BOT_TOKEN`
+5. Enable **Server Members Intent** and **Message Content Intent**
+6. Go to **OAuth2** > **URL Generator**
+   - Select scopes: `bot`
+   - Select bot permissions: `Read Messages/View Channels`
+7. Invite bot to your Discord server
+8. Get your server ID (enable Developer Mode in Discord, right-click server, Copy ID)
+9. Get your Admin role ID (right-click role, Copy ID)
 
-## 🔧 Manual Setup
+### Setting Up Clerk
 
-If you prefer manual setup or need to customize the installation:
+1. Sign up at [Clerk](https://clerk.com)
+2. Create a new application
+3. Enable **Discord** OAuth provider
+4. Configure redirect URLs:
+   - Development: `http://localhost:3000`
+   - Production: `https://admin.ais-asu.com`
+5. Copy your publishable and secret keys to frontend `.env.local`
 
-### Backend Setup
+## 📁 Project Structure
 
-```bash
-cd backend
-pip install -r requirements.txt
-python app.py
 ```
-
-### Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### CLI Setup
-
-```bash
-cd cli
-pip install -e .
-godfather --help
+godfather/
+├── backend/                    # Flask API Server
+│   ├── api/                   # API route handlers
+│   │   ├── auth_routes.py    # Authentication endpoints
+│   │   ├── pod_routes.py     # Pod management endpoints
+│   │   ├── file_routes.py    # File operations endpoints
+│   │   ├── ssh_routes.py     # SSH connection endpoints
+│   │   └── discord_routes.py # Discord integration endpoints
+│   ├── services/              # Business logic layer
+│   │   ├── pod_service.py    # RunPod API interactions
+│   │   ├── auth_service.py   # Authentication logic
+│   │   ├── discord_service.py # Discord API interactions
+│   │   └── ssh_service.py    # SSH key management
+│   ├── middleware/            # Request middleware
+│   │   └── auth.py           # JWT authentication middleware
+│   ├── config/                # Configuration
+│   │   ├── settings.py       # App settings
+│   │   └── database.py       # MongoDB connection
+│   ├── utils/                 # Utility functions
+│   │   └── logger.py         # Logging configuration
+│   ├── app.py                # Main application entry point
+│   ├── file_manager.py       # SSH/SFTP file operations
+│   └── requirements.txt      # Python dependencies
+│
+├── frontend/                  # Next.js Admin Portal
+│   ├── app/                  # Next.js 15 App Router
+│   │   ├── api/             # API routes
+│   │   │   └── auth/        # NextAuth configuration
+│   │   ├── dashboard/       # Main dashboard pages
+│   │   │   ├── page.tsx    # Pod list view
+│   │   │   ├── create-pod/ # Pod creation form
+│   │   │   └── pods/[id]/  # Pod detail view
+│   │   ├── cli-auth/        # CLI authentication page
+│   │   └── settings/        # User settings
+│   ├── components/           # Reusable React components
+│   │   ├── Navbar.tsx       # Navigation bar
+│   │   └── FileManager.tsx  # File browser component
+│   ├── lib/                 # Utilities and configurations
+│   │   ├── auth.ts         # Auth helper functions
+│   │   └── auth-client.ts  # Client-side auth
+│   ├── types/               # TypeScript type definitions
+│   │   └── next-auth.d.ts  # NextAuth type extensions
+│   └── package.json         # Node.js dependencies
+│
+├── cli/                      # Python CLI Tool
+│   ├── godfather_cli/       # CLI package
+│   │   ├── __init__.py     # Package initialization
+│   │   ├── cli.py          # Main CLI interface
+│   │   ├── auth.py         # CLI authentication
+│   │   ├── pod_manager.py  # Pod listing and selection
+│   │   └── ssh_connector.py # SSH connection handler
+│   ├── pyproject.toml       # Python package configuration
+│   ├── README.md            # CLI-specific documentation
+│   └── publish.sh           # PyPI publishing script
+│
+├── docker-images/            # Custom Docker Images
+│   └── godfather-base/      # Custom RunPod base image
+│       ├── Dockerfile       # Image definition
+│       ├── setup-ssh.sh     # SSH setup and theming script
+│       └── build.sh         # Build script for Docker Hub
+│
+├── nginx/                    # Nginx Reverse Proxy
+│   ├── nginx.direct.conf    # Production configuration (used by deploy-direct.sh)
+│   └── ssl/                 # SSL certificates directory
+│
+├── docker-compose.yml        # Docker Compose for development
+├── docker-compose.prod.yml   # Docker Compose for production
+├── .env.example             # Example environment variables
+└── README.md                # This file
 ```
 
 ## 🎯 Usage
 
-### Admin Dashboard
+### Admin Portal
 
-1. **Login**: Visit the portal and sign in with Discord
-2. **Create Pods**: Click "Create Pod" and configure your environment
-3. **Manage Access**: Toggle public/private access for each pod
-4. **Monitor**: View real-time status and resource usage
-5. **File Management**: Browse and edit files in running pods
+1. **Login**
+   - Visit `http://localhost:3000` (or your production URL)
+   - Click "Sign in with Discord"
+   - Authenticate via Discord OAuth
+   - Only users with the configured Admin role can access
 
-### CLI Usage
+2. **Create a Pod**
+   - Navigate to Dashboard
+   - Click "Create Pod"
+   - Configure pod settings:
+     - **Name**: Unique identifier for the pod
+     - **Image**: Docker image (recommended: `theaisocietyasu/godfather-base:latest`)
+     - **Compute Type**: Choose CPU-only or GPU
+     - **Resources**: Set vCPU, memory, disk space
+     - **Access Control**: Make public or select specific users
+   - Click "Create Pod"
 
+3. **Manage Pods**
+   - View all pods on the dashboard
+   - Start/Stop/Restart/Terminate pods
+   - Monitor resource usage and status
+   - Access file manager for running pods
+
+4. **Access Control**
+   - **Public Pods**: Any Discord member can connect via CLI
+   - **Private Pods**: Only selected users can access
+   - Each user gets isolated workspace in `/workspace/users/<username>`
+
+### CLI Tool
+
+#### Authentication
 ```bash
-# Interactive mode
+# First time setup - authenticate via web browser
+godfather auth login
+
+# Check authentication status
+godfather auth status
+
+# Logout
+godfather auth logout
+```
+
+#### Pod Management
+```bash
+# Interactive mode (recommended for beginners)
 godfather
 
 # List available pods
 godfather list
 
-# Connect to a pod
+# Connect to a pod (interactive selection)
 godfather connect
 
 # Connect to specific pod
 godfather connect <pod-id>
 
-# Check status
-godfather status
-
-# Logout
-godfather logout
+# Show pod details
+godfather status <pod-id>
 ```
 
-## 🔐 Authentication & Security
+#### Inside a Pod
+Once connected, you'll see a beautiful themed interface:
+- Your personal workspace: `/workspace/users/<your-username>`
+- Shared collaboration folder: `/workspace/shared`
+- Useful aliases: `workspace`, `shared`, `ll`
+- Type `exit` to disconnect
 
-### Discord OAuth Setup
-
-1. **Create Clerk Application**:
-   - Sign up at [clerk.com](https://clerk.com)
-   - Create a new application
-   - Enable Discord OAuth provider
-
-2. **Discord Bot Setup**:
-   - Create bot at [Discord Developer Portal](https://discord.com/developers/applications)
-   - Add bot to your Discord server
-   - Grant necessary permissions to read roles
-
-3. **Configure Role Checking**:
-   - Ensure users have "Admin" role in Discord server
-   - Bot will verify role before granting access
-
-### Security Best Practices
-
-- **Use SSL/TLS** in production environments
-- **Rotate API keys** regularly
-- **Monitor access logs** for suspicious activity
-- **Limit pod exposure** to trusted networks
-- **Regular security audits** of configurations
-
-## 🏗️ Development
-
-### Project Structure
-
-```
-godfather/
-├── backend/           # Flask API server
-│   ├── app.py        # Main application
-│   ├── file_manager.py # SSH/SFTP utilities
-│   └── requirements.txt
-├── frontend/          # Next.js web interface
-│   ├── app/          # App router pages
-│   ├── components/   # Reusable components
-│   └── package.json
-├── cli/              # Python CLI tool
-│   ├── godfather_cli/
-│   └── pyproject.toml
-├── nginx/            # Reverse proxy config
-├── docker-compose.yml
-└── setup.sh
-```
-
-### API Endpoints
+### API Usage
 
 #### Authentication
-- `POST /api/auth/verify` - Verify Discord admin status
-
-#### Pod Management
-- `GET /api/pods` - List all pods
-- `POST /api/pods` - Create new pod
-- `GET /api/pods/<id>` - Get pod details
-- `PUT /api/pods/<id>` - Update pod configuration
-- `POST /api/pods/<id>/action` - Start/stop/restart pod
-
-#### Public Access
-- `GET /api/pods/public` - List public pods for CLI
-- `POST /api/pods/<id>/connect` - Get SSH connection info
-
-#### File Management
-- `GET /api/pods/<id>/files` - List files in pod
-- `POST /api/pods/<id>/files/upload` - Upload file to pod
-
-### Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `RUNPOD_API_KEY` | RunPod API authentication | Yes |
-| `CLERK_SECRET_KEY` | Clerk authentication secret | Yes |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk public key | Yes |
-| `DISCORD_BOT_TOKEN` | Discord bot token | Yes |
-| `DISCORD_GUILD_ID` | Discord server ID | Yes |
-| `MONGODB_URI` | MongoDB connection string | Auto |
-
-## 🐳 Docker Deployment
-
-The system uses Docker Compose for easy deployment:
+All API requests require Discord user ID header for authentication:
 
 ```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-
-# Rebuild and restart
-docker-compose build --no-cache
-docker-compose up -d
+curl -X GET http://localhost:5000/api/pods \
+  -H "X-Discord-User-ID: your_discord_user_id"
 ```
 
-### Production Deployment
+#### Create a Pod
+```bash
+curl -X POST http://localhost:5000/api/pods \
+  -H "Content-Type: application/json" \
+  -H "X-Discord-User-ID: your_discord_user_id" \
+  -d '{
+    "name": "my-gpu-pod",
+    "image_name": "theaisocietyasu/godfather-base:latest",
+    "gpu_type_id": "NVIDIA RTX A4000",
+    "cloud_type": "COMMUNITY",
+    "volume_in_gb": 10,
+    "is_public": true
+  }'
+```
 
-For production deployment:
+#### Control a Pod
+```bash
+# Start pod
+curl -X POST http://localhost:5000/api/pods/{pod_id}/action \
+  -H "Content-Type: application/json" \
+  -H "X-Discord-User-ID: your_discord_user_id" \
+  -d '{"action": "start"}'
 
-1. **Domain Setup**: Point `admin.ais-asu.com` to your server
-2. **SSL Certificates**: Replace self-signed certs with valid ones
-3. **Environment Security**: Use production-grade secrets
-4. **Monitoring**: Set up logging and monitoring systems
-5. **Backups**: Configure MongoDB backups
+# Stop pod
+curl -X POST http://localhost:5000/api/pods/{pod_id}/action \
+  -H "Content-Type: application/json" \
+  -H "X-Discord-User-ID: your_discord_user_id" \
+  -d '{"action": "stop"}'
 
-## 🔍 Troubleshooting
+# Terminate pod
+curl -X POST http://localhost:5000/api/pods/{pod_id}/action \
+  -H "Content-Type: application/json" \
+  -H "X-Discord-User-ID: your_discord_user_id" \
+  -d '{"action": "terminate"}'
+```
+
+## 📦 Publishing to Production
+
+### Publishing Docker Image to Docker Hub
+
+The `godfather-base` Docker image provides automatic SSH setup, themed CLI interface, and user isolation for RunPod instances.
+
+**Steps to publish:**
+
+```bash
+# Navigate to the Docker image directory
+cd docker-images/godfather-base
+
+# Build the image (replace with your Docker Hub username)
+DOCKER_USERNAME=theaisocietyasu ./build.sh
+
+# The build script will create: theaisocietyasu/godfather-base:latest
+
+# Login to Docker Hub
+docker login
+# Enter your Docker Hub username and password
+
+# Push the image to Docker Hub
+docker push theaisocietyasu/godfather-base:latest
+
+# Optional: Tag and push a specific version
+docker tag theaisocietyasu/godfather-base:latest theaisocietyasu/godfather-base:v1.0.0
+docker push theaisocietyasu/godfather-base:v1.0.0
+```
+
+**Manual build (alternative):**
+```bash
+cd docker-images/godfather-base
+
+# Build with custom tag
+docker build -t yourusername/godfather-base:latest .
+
+# Test the image locally
+docker run -it -e GODFATHER_SSH_PUBLIC_KEY="your-ssh-public-key" yourusername/godfather-base:latest
+
+# Push to Docker Hub
+docker login
+docker push yourusername/godfather-base:latest
+```
+
+**After publishing:**
+1. Update the default image in `frontend/app/dashboard/create-pod/page.tsx`
+2. Change `theaisocietyasu/godfather-base:latest` to your image name
+3. Users can now select your custom image when creating pods
+
+### Publishing CLI to PyPI
+
+The CLI tool is automatically published to PyPI via GitHub Actions workflow when you push a version tag.
+
+**Automated Publishing Process:**
+
+```bash
+# Navigate to CLI directory
+cd cli
+
+# 1. Update version in pyproject.toml
+# Edit pyproject.toml and increment version number:
+# version = "1.0.1"  # Change this
+
+# 2. Update CHANGELOG or README with changes (optional)
+
+# 3. Commit your changes
+git add .
+git commit -m "Release CLI v1.0.1"
+
+# 4. Create and push a version tag
+git tag cli-v1.0.1
+git push origin cli-v1.0.1
+
+# 5. GitHub Actions will automatically:
+#    - Build the package
+#    - Publish to TestPyPI (for testing)
+#    - Publish to PyPI (production)
+#    - Users can install with: pip install godfather-cli
+```
+
+**The GitHub workflow does:**
+1. Checks out the code
+2. Sets up Python environment
+3. Installs build dependencies (`build`, `twine`)
+4. Builds the package in `cli/dist/`
+5. Publishes to TestPyPI first
+6. Publishes to PyPI (production)
+
+**After the workflow completes:**
+- Check the [Actions tab](https://github.com/theaisocietyasu/godfather/actions) for build status
+- Verify the package on [PyPI](https://pypi.org/project/godfather-cli/)
+- Users can install with: `pip install godfather-cli`
+- Create a GitHub release with release notes
+
+**Manual Publishing (Not Recommended):**
+
+If you absolutely need to publish manually (e.g., workflow issues):
+
+```bash
+cd cli
+
+# Install publishing tools
+pip install build twine
+
+# Build the package
+python -m build
+
+# Upload to PyPI (requires PyPI API token)
+twine upload dist/*
+# Use __token__ as username and your API token as password
+```
+
+**Setting up PyPI credentials for GitHub Actions:**
+1. Create PyPI account at https://pypi.org
+2. Generate API token at https://pypi.org/manage/account/token/
+3. Add token to GitHub repository secrets as `PYPI_API_TOKEN`
+4. The workflow uses trusted publishing (no token needed with proper setup)
+
+### Publishing Checklist
+
+**Before Docker Image Release:**
+- [ ] Test the image locally with SSH connection
+- [ ] Verify themed welcome messages display correctly
+- [ ] Check user isolation and workspace creation
+- [ ] Test with both admin and regular users
+- [ ] Update version/tag in build script
+- [ ] Build: `DOCKER_USERNAME=theaisocietyasu ./build.sh`
+- [ ] Push: `docker push theaisocietyasu/godfather-base:latest`
+- [ ] Update default image in `frontend/app/dashboard/create-pod/page.tsx`
+
+**Before CLI Release (via GitHub Actions):**
+- [ ] Update version number in `cli/pyproject.toml`
+- [ ] Update `cli/README.md` or CHANGELOG with changes
+- [ ] Test CLI commands locally: `cd cli && pip install -e .`
+- [ ] Verify authentication flow works
+- [ ] Test SSH connection to pods
+- [ ] Commit changes: `git commit -m "Release CLI vX.X.X"`
+- [ ] Create tag: `git tag cli-vX.X.X`
+- [ ] Push tag: `git push origin cli-vX.X.X`
+- [ ] Monitor GitHub Actions workflow
+- [ ] Verify package on PyPI
+- [ ] Create GitHub release with notes
+
+**Before Web App Deployment:**
+- [ ] Update environment variables for production
+- [ ] Configure SSL certificates
+- [ ] Update domain in nginx configuration
+- [ ] Test authentication flow
+- [ ] Verify API endpoints work correctly
+- [ ] Test pod creation and management
+- [ ] Check file manager functionality
+
+## 🔒 API Reference
+
+### Authentication
+
+All API endpoints require the `X-Discord-User-ID` header for authentication. Admin endpoints also verify the user has the Admin role in Discord.
+
+### Endpoints
+
+#### **Authentication**
+
+- `POST /api/auth/verify`
+  - Verify Discord user has admin access
+  - Body: `{ "discord_user_id": "string" }`
+  - Returns: `{ "is_admin": boolean, "user": {...} }`
+
+#### **Pod Management**
+
+- `GET /api/pods`
+  - List all pods for admin
+  - Headers: `X-Discord-User-ID`
+  - Returns: Array of pod objects
+
+- `POST /api/pods`
+  - Create a new pod
+  - Headers: `X-Discord-User-ID`
+  - Body: Pod configuration object
+  - Returns: Created pod details
+
+- `GET /api/pods/<pod_id>`
+  - Get specific pod details
+  - Headers: `X-Discord-User-ID`
+  - Returns: Pod object with full details
+
+- `PUT /api/pods/<pod_id>`
+  - Update pod configuration (access control)
+  - Headers: `X-Discord-User-ID`
+  - Body: `{ "is_public": boolean, "allowed_users": ["user_id", ...] }`
+
+- `POST /api/pods/<pod_id>/action`
+  - Control pod (start/stop/restart/terminate)
+  - Headers: `X-Discord-User-ID`
+  - Body: `{ "action": "start" | "stop" | "restart" | "terminate" }`
+
+#### **CLI Access**
+
+- `GET /api/pods/public`
+  - List public pods accessible to user
+  - Headers: `X-Discord-User-ID`
+  - Returns: Array of accessible pods
+
+- `POST /api/pods/<pod_id>/connect`
+  - Get SSH connection information
+  - Headers: `X-Discord-User-ID`
+  - Returns: `{ "host": string, "port": number, "username": string, "is_admin": boolean }`
+
+- `GET /api/ssh-key`
+  - Get user's SSH private key for pod access
+  - Headers: `X-Discord-User-ID`
+  - Returns: `{ "private_key": string }`
+
+#### **File Management**
+
+- `GET /api/pods/<pod_id>/files`
+  - List files in pod
+  - Headers: `X-Discord-User-ID`
+  - Query: `?path=/workspace`
+  - Returns: Array of file objects
+
+- `POST /api/pods/<pod_id>/files/upload`
+  - Upload file to pod
+  - Headers: `X-Discord-User-ID`
+  - Body: FormData with file
+  - Returns: Upload confirmation
+
+#### **Discord Integration**
+
+- `GET /api/discord/members`
+  - Get all Discord server members
+  - Headers: `X-Discord-User-ID`
+  - Returns: Array of member objects with avatars and names
+
+## 🛠️ Development
+
+### Running in Development Mode
+
+**Backend:**
+```bash
+cd backend
+# Set Flask environment
+export FLASK_ENV=development
+export FLASK_DEBUG=1
+python app.py
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+
+**With Hot Reload:**
+- Backend: Flask auto-reloads on file changes when `FLASK_DEBUG=1`
+- Frontend: Next.js has built-in hot reload
+
+### Testing
+
+**Backend Tests:**
+```bash
+cd backend
+pytest tests/
+```
+
+**Frontend Tests:**
+```bash
+cd frontend
+npm test
+```
+
+### Code Style
+
+**Python (Backend & CLI):**
+- Follow PEP 8 style guide
+- Use Black for formatting: `black .`
+- Use flake8 for linting: `flake8 .`
+
+**TypeScript/JavaScript (Frontend):**
+- Use ESLint: `npm run lint`
+- Use Prettier for formatting: `npm run format`
+
+## 🐛 Troubleshooting
 
 ### Common Issues
 
-#### Authentication Problems
+**CLI not found after installation:**
 ```bash
-# Check Clerk configuration
-curl -X POST http://localhost:5000/api/auth/verify \
-  -H "Content-Type: application/json" \
-  -d '{"token":"your_token"}'
+# Add to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
+# Make permanent (bash)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+
+# Make permanent (zsh)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
 ```
 
-#### Pod Connection Issues
+**Authentication fails:**
+- Verify Discord bot is in the server
+- Check bot has "Server Members Intent" enabled
+- Confirm Discord user has the Admin role
+- Verify `DISCORD_GUILD_ID` and `ADMIN_ROLE_ID` are correct
+- Check Clerk configuration and redirect URLs
+
+**Can't connect to pod via CLI:**
+- Ensure pod is running (status: RUNNING)
+- Verify you're using the `godfather-base` Docker image
+- Check pod has SSH enabled (port 22)
+- Confirm you have access (public pod or you're in allowed_users)
+- Try restarting the pod
+
+**MongoDB connection errors:**
+- Check MongoDB is running: `mongosh` or `docker ps`
+- Verify `MONGODB_URI` in `.env`
+- For Atlas, check IP whitelist and credentials
+
+**RunPod API errors:**
+- Verify `RUNPOD_API_KEY` is valid
+- Check RunPod account has sufficient credits
+- Ensure pod template/GPU type is available
+
+**Frontend build errors:**
 ```bash
-# Check RunPod API connectivity
-curl -H "Authorization: Bearer $RUNPOD_API_KEY" \
-  https://api.runpod.io/v1/user/pods
+# Clear cache and reinstall
+rm -rf node_modules .next
+npm install
+npm run dev
 ```
 
-#### Docker Issues
+**Port already in use:**
 ```bash
-# Check container status
-docker-compose ps
+# Find process using port 3000 (frontend)
+lsof -i :3000
+kill -9 <PID>
 
-# View specific service logs
-docker-compose logs backend
-docker-compose logs frontend
-docker-compose logs mongodb
-```
-
-### Debug Mode
-
-Enable debug mode for additional logging:
-
-```bash
-# Backend debug
-FLASK_DEBUG=1 python backend/app.py
-
-# Frontend debug
-npm run dev -- --debug
-
-# CLI debug
-godfather --debug list
+# Find process using port 5000 (backend)
+lsof -i :5000
+kill -9 <PID>
 ```
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Make your changes and test thoroughly
-4. Submit a pull request with detailed description
+We welcome contributions! Here's how you can help:
 
-### Development Guidelines
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Make your changes**
+4. **Test thoroughly**
+5. **Commit with clear messages**: `git commit -m 'Add amazing feature'`
+6. **Push to your fork**: `git push origin feature/amazing-feature`
+7. **Open a Pull Request**
 
-- Follow Python PEP 8 for backend code
-- Use TypeScript for frontend development
-- Write comprehensive tests for new features
-- Update documentation for API changes
-- Follow security best practices
+### Contribution Guidelines
+
+- Follow the existing code style
+- Add tests for new features
+- Update documentation as needed
+- Keep commits focused and atomic
+- Write descriptive commit messages
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🙏 Acknowledgments
 
-For support and questions:
+- **AI Society ASU** - For sponsoring and supporting this project
+- **RunPod** - For providing GPU infrastructure
+- **Clerk** - For authentication services
+- **Discord** - For OAuth integration and community platform
 
-- **GitHub Issues**: Report bugs and feature requests
-- **Discord**: Join AI Society ASU Discord server
+## 📞 Support
+
+Need help? Here's how to get support:
+
+- **Documentation**: [Notion Docs](https://www.notion.so/theaisociety/Grandfather-2668867868b480cab87ecfdb4e4a1dbe)
+- **Issues**: [GitHub Issues](https://github.com/theaisocietyasu/godfather/issues)
+- **Discord**: AI Society ASU Discord Server
 - **Email**: Contact AI Society administrators
-- **Documentation**: Check the Notion documentation link
-
-## 🎯 Roadmap
-
-- [ ] **Advanced Monitoring**: Resource usage metrics and alerts
-- [ ] **Multi-Cloud Support**: Integration with other GPU providers
-- [ ] **Advanced File Management**: Web-based file editor
-- [ ] **User Quotas**: Resource limits per user
-- [ ] **Audit Logging**: Comprehensive activity logs
-- [ ] **API Rate Limiting**: Enhanced security controls
-- [ ] **Webhook Integration**: Slack/Discord notifications
-- [ ] **Backup Management**: Automated pod backups
 
 ---
 
 **Built with ❤️ by AI Society ASU**
 
-For the latest updates and documentation, visit our [Notion page](https://www.notion.so/theaisociety/Grandfather-2668867868b480cab87ecfdb4e4a1dbe?source=copy_link).dfather
-The mastermind backend that’s powered by GPU, will be the main platform for all our t ools.
-
-[Documentation](https://www.notion.so/theaisociety/Grandfather-2668867868b480cab87ecfdb4e4a1dbe?source=copy_link)
+*Empowering AI education through accessible GPU infrastructure*
