@@ -120,6 +120,9 @@ NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
 NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+
+# Disable Clerk dev browser check in production
+CLERK_TRUST_HOST=true
 EOF
 echo "✅ Frontend .env.local created with BACKEND_URL: ${BACKEND_URL}"
 

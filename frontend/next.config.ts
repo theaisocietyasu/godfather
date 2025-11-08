@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
         '8bzhwve1ri5cw2-80.proxy.runpod.net',
         'admin.ais-asu.com',
         'localhost:3000',
+        '100.65.19.4',  // Direct IP access
       ],
     },
   },

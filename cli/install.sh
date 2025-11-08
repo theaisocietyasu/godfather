@@ -52,9 +52,16 @@ fi
 echo "   ✓ SSH client found"
 echo ""
 
-# Install CLI
-echo "📦 Installing Godfather CLI..."
-pip3 install --user --upgrade git+https://github.com/theaisocietyasu/godfather.git#subdirectory=cli
+# Detect if running from repo or standalone
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -f "$SCRIPT_DIR/pyproject.toml" ] && [ -d "$SCRIPT_DIR/godfather_cli" ]; then
+    echo "📦 Installing Godfather CLI from local repository..."
+    pip3 install --user --upgrade -e "$SCRIPT_DIR"
+    echo "   (Development mode - edits will be reflected immediately)"
+else
+    echo "📦 Installing Godfather CLI from GitHub..."
+    pip3 install --user --upgrade git+https://github.com/theaisocietyasu/godfather.git#subdirectory=cli
+fi
 
 # Ensure pip bin directory is in PATH
 if [[ "$OS" == "Linux" ]]; then
@@ -97,8 +104,23 @@ echo ""
 echo "⚙️  Configuration..."
 echo ""
 
-# Auto-set to production URL - users don't need to configure anything
-API_URL="https://8bzhwve1ri5cw2-80.proxy.runpod.net"
+# Try to detect BACKEND_URL from parent .env if we're in the repo
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+    echo "🔍 Detecting backend URL from .env..."
+    DETECTED_URL=$(grep '^BACKEND_URL=' "$SCRIPT_DIR/../.env" | cut -d '=' -f2 | tr -d '"' | tr -d "'")
+    if [ -n "$DETECTED_URL" ]; then
+        API_URL="$DETECTED_URL"
+        echo "   ✓ Found: $API_URL"
+    else
+        # Fallback to production URL
+        API_URL="https://8bzhwve1ri5cw2-80.proxy.runpod.net"
+        echo "   ⚠️  BACKEND_URL not found, using default: $API_URL"
+    fi
+else
+    # Public install - use production URL
+    API_URL="https://8bzhwve1ri5cw2-80.proxy.runpod.net"
+    echo "   Using production URL: $API_URL"
+fi
 
 # Add to profiles (optional - CLI will auto-detect anyway)
 if [ -f "$HOME/.bashrc" ]; then
