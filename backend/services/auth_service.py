@@ -32,6 +32,11 @@ class AuthService:
     def verify_discord_admin(discord_user_id: str) -> bool:
         """Verify if user has Admin role in Discord - source of truth"""
         try:
+            # Check if ADMIN_ROLE_ID is configured
+            if not settings.ADMIN_ROLE_ID:
+                logger.error('ADMIN_ROLE_ID not configured in environment variables')
+                return False
+            
             headers = {
                 'Authorization': f'Bot {settings.DISCORD_BOT_TOKEN}',
                 'Content-Type': 'application/json'
@@ -46,31 +51,11 @@ class AuthService:
             
             member_data = response.json()
             
-            # Get all roles in the guild
-            roles_url = f'https://discord.com/api/v10/guilds/{settings.DISCORD_GUILD_ID}/roles'
-            roles_response = requests.get(roles_url, headers=headers)
-            
-            if roles_response.status_code != 200:
-                return False
-            
-            roles = roles_response.json()
-            admin_role_id = None
-            
-            # Find the Admin role
-            for role in roles:
-                if role.get('name', '').lower() == 'admin':
-                    admin_role_id = role['id']
-                    break
-            
-            if not admin_role_id:
-                logger.error('Admin role not found in guild')
-                return False
-            
-            # Check if user has the Admin role
+            # Check if user has the Admin role by ID
             user_roles = member_data.get('roles', [])
-            has_admin = admin_role_id in user_roles
+            has_admin = settings.ADMIN_ROLE_ID in user_roles
             
-            logger.info(f'User {discord_user_id} admin check: {has_admin}')
+            logger.info(f'User {discord_user_id} admin check: {has_admin} (checking role ID: {settings.ADMIN_ROLE_ID})')
             return has_admin
             
         except Exception as e:

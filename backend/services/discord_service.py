@@ -60,7 +60,7 @@ class DiscordService:
         for role in roles:
             if role.get('name', '').lower() == 'admin':
                 return role['id']
-        
+         
         return None
     
     @staticmethod
