@@ -221,23 +221,36 @@ export default function CreatePod() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  GPU Type
+                  Compute Type
                 </label>
                 <select
-                  value={config.gpu_type_id}
-                  onChange={(e) => setConfig({ ...config, gpu_type_id: e.target.value })}
+                  value={config.use_cpu_only ? 'cpu' : 'gpu'}
+                  onChange={(e) => setConfig({ ...config, use_cpu_only: e.target.value === 'cpu' })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
                 >
-                  <option value="NVIDIA RTX A4000">NVIDIA RTX A4000 (Budget GPU) 💰</option>
-                  <option value="NVIDIA RTX A5000">NVIDIA RTX A5000</option>
-                  <option value="NVIDIA RTX A6000">NVIDIA RTX A6000</option>
-                  <option value="NVIDIA A100 PCIe">NVIDIA A100 PCIe (Expensive)</option>
-                  <option value="NVIDIA A100 SXM4">NVIDIA A100 SXM4 (Most Expensive)</option>
+                  <option value="cpu">CPU Only (Cheapest) 💰</option>
+                  <option value="gpu">GPU</option>
                 </select>
-                <p className="mt-2 text-xs text-blue-600">
-                  💡 Starting with the cheapest GPU option. Upgrade if you need more power.
-                </p>
               </div>
+
+              {!config.use_cpu_only && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    GPU Type
+                  </label>
+                  <select
+                    value={config.gpu_type_id}
+                    onChange={(e) => setConfig({ ...config, gpu_type_id: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                  >
+                    <option value="NVIDIA RTX A4000">NVIDIA RTX A4000 (Minimal) 💰</option>
+                    <option value="NVIDIA RTX A5000">NVIDIA RTX A5000 (Normal)</option>
+                  </select>
+                  <p className="mt-2 text-xs text-blue-600">
+                    💡 Starting with minimal GPU option. Upgrade if you need more power.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

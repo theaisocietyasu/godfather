@@ -345,17 +345,17 @@ export default function Dashboard() {
                             <>
                               <button
                                 onClick={() => handlePodAction(pod.id, 'restart')}
-                                disabled={actionLoading === pod.id}
-                                className="text-yellow-600 hover:text-yellow-900 p-1 rounded disabled:opacity-50"
-                                title="Restart Pod"
+                                disabled={actionLoading === pod.id || pod.name.toLowerCase() === 'godfather'}
+                                className="text-yellow-600 hover:text-yellow-900 p-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={pod.name.toLowerCase() === 'godfather' ? 'Protected pod - cannot restart' : 'Restart Pod'}
                               >
                                 <RestartIcon className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => handlePodAction(pod.id, 'stop')}
-                                disabled={actionLoading === pod.id}
-                                className="text-orange-600 hover:text-orange-900 p-1 rounded disabled:opacity-50"
-                                title="Stop Pod"
+                                disabled={actionLoading === pod.id || pod.name.toLowerCase() === 'godfather'}
+                                className="text-orange-600 hover:text-orange-900 p-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={pod.name.toLowerCase() === 'godfather' ? 'Protected pod - cannot stop' : 'Stop Pod'}
                               >
                                 <StopIcon className="w-4 h-4" />
                               </button>
@@ -364,9 +364,9 @@ export default function Dashboard() {
                           
                           <button
                             onClick={() => handlePodAction(pod.id, 'terminate')}
-                            disabled={actionLoading === pod.id}
-                            className="text-red-600 hover:text-red-900 p-1 rounded disabled:opacity-50"
-                            title="Terminate Pod"
+                            disabled={actionLoading === pod.id || pod.name.toLowerCase() === 'godfather'}
+                            className="text-red-600 hover:text-red-900 p-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={pod.name.toLowerCase() === 'godfather' ? 'Protected pod - cannot terminate' : 'Terminate Pod'}
                           >
                             <TrashIcon className="w-4 h-4" />
                           </button>

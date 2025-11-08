@@ -45,7 +45,7 @@ export default function Home() {
     } catch (error: unknown) {
       console.error('Verification error:', error);
       
-      const errorMessage = error instanceof Error ? error.message : 'Access denied. Admin role required.';
+      const errorMessage = error instanceof Error ? error.message : 'Access denied. Godfather role required.';
       toast.error(errorMessage);
       
       setIsAuthorized(false);
@@ -87,7 +87,7 @@ export default function Home() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-white">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Verifying admin access...</p>
+          <p className="text-gray-600">Verifying godfather access...</p>
         </div>
       </div>
     );
@@ -105,7 +105,7 @@ export default function Home() {
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
             <p className="text-gray-600">
-              You need Admin role in the AI Society Discord server to access this portal.
+              You need Godfather role in the AI Society Discord server to access this portal.
             </p>
           </div>
           <div className="flex justify-center">
@@ -163,7 +163,7 @@ export default function Home() {
           </div>
 
           <div className="text-center text-xs text-gray-500">
-            Only AI Society ASU Discord members with Admin role can access this portal
+            Only AI Society ASU Discord members with Godfather role can access this portal
           </div>
         </div>
       </div>
