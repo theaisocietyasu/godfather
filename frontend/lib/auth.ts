@@ -4,6 +4,7 @@ import { JWT } from "next-auth/jwt";
 import DiscordProvider from "next-auth/providers/discord";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     DiscordProvider({
       clientId: process.env.DISCORD_CLIENT_ID!,
