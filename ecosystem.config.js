@@ -66,7 +66,7 @@ module.exports = {
         NODE_ENV: 'production',
         HOSTNAME: '0.0.0.0',
         PORT: '3000',
-        BACKEND_URL: 'http://localhost:8000',
+        BACKEND_URL: 'http://localhost:5000',
         RUNPOD_API_KEY: envVars.RUNPOD_API_KEY,
         DISCORD_CLIENT_ID: envVars.DISCORD_CLIENT_ID,
         DISCORD_CLIENT_SECRET: envVars.DISCORD_CLIENT_SECRET,
