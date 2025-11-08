@@ -7,7 +7,7 @@ name = "godfather-cli"
 version = "1.0.0"
 description = "AI Society Godfather CLI - RunPod Environment Manager"
 authors = [
-    {name = "AI Society ASU", email = "admin@ais-asu.com"}
+    {name = "AI Society ASU", email = "theaisocietyasu@gmail.com"}
 ]
 license = {text = "MIT"}
 readme = "README.md"
