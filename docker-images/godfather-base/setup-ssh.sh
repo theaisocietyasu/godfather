@@ -69,14 +69,13 @@ if [ "$IS_ADMIN" != "true" ]; then
         
         # Lock the user account to prevent password login
         passwd -l "godfather_$USERNAME" &>/dev/null || true
-        
-        # Create symlink from user home to their workspace
-        ln -sf "/workspace/users/$USERNAME" "/home/godfather_$USERNAME/workspace" 2>/dev/null || true
-        ln -sf "/workspace/shared" "/home/godfather_$USERNAME/shared" 2>/dev/null || true
     fi
     
-    # Set proper ownership
+    # Set proper ownership for the workspace
     chown -R "godfather_$USERNAME:godfather_$USERNAME" "$USER_WORKSPACE" 2>/dev/null || true
+    
+    # Give restricted user access to shared folder
+    chmod 777 /workspace/shared 2>/dev/null || true
     
     # Create a wrapper script that switches to the restricted user
     cat > /tmp/switch_to_restricted_$USERNAME.sh << SWITCHSCRIPT
@@ -90,8 +89,8 @@ echo "🤝 Shared folder: /workspace/shared"
 echo "⚠️  You have restricted access (no sudo/root)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Execute shell as restricted user
-exec su - "godfather_$USERNAME" -c "cd /workspace/users/$USERNAME 2>/dev/null || cd /workspace/shared; exec bash --noprofile --norc"
+# Execute shell as restricted user in their workspace
+exec su - "godfather_$USERNAME" -c "cd /workspace/users/$USERNAME && exec bash --rcfile <(echo 'export PS1=\"\[\033[01;32m\]godfather_$USERNAME@pod\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\\$ \"'; echo 'echo \"\"'; echo 'echo \"💡 Tip: Your files are in /workspace/users/$USERNAME\"'; echo 'echo \"🤝 Collaborate in /workspace/shared\"'; echo 'echo \"\"')"
 SWITCHSCRIPT
     
     chmod +x /tmp/switch_to_restricted_$USERNAME.sh
