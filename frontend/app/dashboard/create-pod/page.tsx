@@ -188,6 +188,22 @@ export default function CreatePod() {
     setConfig({ ...config, env: newEnv });
   };
 
+  if (verifyingAuth || loadingMembers) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center">
+          <div className="relative w-16 h-16 mx-auto mb-4">
+            <div className="absolute inset-0 rounded-full border-4 border-purple-500/30"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-purple-500 animate-spin"></div>
+          </div>
+          <p className="text-gray-300">
+            {verifyingAuth ? 'Verifying access...' : 'Loading...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-900">
       <Navbar />

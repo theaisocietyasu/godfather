@@ -31,7 +31,7 @@ interface Pod {
 }
 
 export default function PodDetail() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
   const podId = params.id as string;
@@ -40,6 +40,47 @@ export default function PodDetail() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [showFileManager, setShowFileManager] = useState(false);
+  const [verifyingAuth, setVerifyingAuth] = useState(true);
+
+  // Verify admin access on mount
+  useEffect(() => {
+    const verifyAdmin = async () => {
+      if (status === 'loading') return;
+      
+      if (!session?.user?.discordId) {
+        router.push('/');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ discord_user_id: session.user.discordId })
+        });
+
+        if (!response.ok) {
+          throw new Error('Authentication failed');
+        }
+
+        const data = await response.json();
+        
+        if (!data.is_admin) {
+          toast.error('Admin access required');
+          router.push('/');
+          return;
+        }
+
+        setVerifyingAuth(false);
+      } catch (error) {
+        console.error('Auth verification error:', error);
+        toast.error('Authentication failed');
+        router.push('/');
+      }
+    };
+
+    verifyAdmin();
+  }, [session, status, router]);
 
   const fetchPodDetails = async () => {
     try {
@@ -64,9 +105,11 @@ export default function PodDetail() {
   };
 
   useEffect(() => {
+    if (verifyingAuth) return;
+    
     fetchPodDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [podId]);
+  }, [podId, verifyingAuth]);
 
   const handlePodAction = async (action: string) => {
     setActionLoading(true);
@@ -128,6 +171,22 @@ export default function PodDetail() {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (verifyingAuth || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-center">
+          <div className="relative w-16 h-16 mx-auto mb-4">
+            <div className="absolute inset-0 rounded-full border-4 border-purple-500/30"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-purple-500 animate-spin"></div>
+          </div>
+          <p className="text-gray-300">
+            {verifyingAuth ? 'Verifying access...' : 'Loading pod details...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
