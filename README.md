@@ -337,24 +337,53 @@ curl -X POST http://localhost:5000/api/pods/{pod_id}/action \
 
 ## 📦 Publishing to Production
 
+### Deployment Scripts Overview
+
+Godfather provides three main deployment scripts:
+
+1. **`./deploy-portal.sh`** - Deploy the web portal (frontend + backend)
+   - Sets up and deploys the admin portal to RunPod
+   - Handles both frontend and backend services
+   - Configures Nginx reverse proxy
+
+2. **`./deploy-cli.sh`** - Deploy the CLI tool to PyPI
+   - Build and publish the CLI package to PyPI
+   - Test the CLI locally before publishing
+   - Supports both Test PyPI and Production PyPI
+
+3. **`./deploy-docker.sh`** - Deploy the Docker base image
+   - Build and push the `godfather-base` image to Docker Hub
+   - Tag images with versions and 'latest'
+   - Test images locally before pushing
+
 ### Publishing Docker Image to Docker Hub
 
 The `godfather-base` Docker image provides automatic SSH setup, themed CLI interface, and user isolation for RunPod instances.
 
-**Steps to publish:**
+**Using the deployment script (recommended):**
+
+```bash
+# Run the interactive deployment script
+./deploy-docker.sh
+
+# The script will guide you through:
+# 1. Building the image
+# 2. Tagging versions (including 'latest')
+# 3. Testing locally (optional)
+# 4. Pushing to Docker Hub
+```
+
+**Manual steps:**
 
 ```bash
 # Navigate to the Docker image directory
 cd docker-images/godfather-base
 
 # Build the image (replace with your Docker Hub username)
-DOCKER_USERNAME=theaisocietyasu ./build.sh
-
-# The build script will create: theaisocietyasu/godfather-base:latest
+docker build -t theaisocietyasu/godfather-base:latest .
 
 # Login to Docker Hub
 docker login
-# Enter your Docker Hub username and password
 
 # Push the image to Docker Hub
 docker push theaisocietyasu/godfather-base:latest
@@ -372,54 +401,20 @@ docker push theaisocietyasu/godfather-base:v1.0.0
 
 ### Publishing CLI to PyPI
 
-The CLI tool is automatically published to PyPI via GitHub Actions workflow when you push a version tag.
-
-**Automated Publishing Process:**
+**Using the deployment script (recommended):**
 
 ```bash
-# Navigate to CLI directory
-cd cli
+# Run the interactive deployment script
+./deploy-cli.sh
 
-# 1. Update version in pyproject.toml
-# Edit pyproject.toml and increment version number:
-# version = "1.0.1"  # Change this
-
-# 2. Update CHANGELOG or README with changes (optional)
-
-# 3. Commit your changes
-git add .
-git commit -m "Release CLI v1.0.1"
-
-# 4. Create and push a version tag
-git tag cli-v1.0.1
-git push origin cli-v1.0.1
-
-# 5. GitHub Actions will automatically:
-#    - Build the package
-#    - Publish to TestPyPI (for testing)
-#    - Publish to PyPI (production)
-#    - Users can install with: pip install godfather-cli
+# The script provides options to:
+# 1. Build & Publish to PyPI (Test or Production)
+# 2. Test locally before publishing
+# 3. Build only without publishing
+# 4. Update version numbers interactively
 ```
 
-**The GitHub workflow does:**
-
-1. Checks out the code
-2. Sets up Python environment
-3. Installs build dependencies (`build`, `twine`)
-4. Builds the package in `cli/dist/`
-5. Publishes to TestPyPI first
-6. Publishes to PyPI (production)
-
-**After the workflow completes:**
-
-- Check the [Actions tab](https://github.com/theaisocietyasu/godfather/actions) for build status
-- Verify the package on [PyPI](https://pypi.org/project/godfather-cli/)
-- Users can install with: `pip install godfather-cli`
-- Create a GitHub release with release notes
-
-**Manual Publishing (Not Recommended):**
-
-If you absolutely need to publish manually (e.g., workflow issues):
+**Manual Publishing:**
 
 ```bash
 cd cli
@@ -427,12 +422,36 @@ cd cli
 # Install publishing tools
 pip install build twine
 
+# Update version in pyproject.toml
+# Edit the version field: version = "1.0.3"
+
 # Build the package
 python -m build
 
-# Upload to PyPI (requires PyPI API token)
+# Test locally (optional)
+pip install --force-reinstall dist/godfather_cli-*.whl
+
+# Upload to Test PyPI (recommended for testing)
+twine upload --repository testpypi dist/*
+
+# Upload to Production PyPI
 twine upload dist/*
 # Use __token__ as username and your API token as password
+```
+
+**Via GitHub Actions (Alternative):**
+
+```bash
+# 1. Update version in pyproject.toml
+# 2. Commit your changes
+git add .
+git commit -m "Release CLI v1.0.3"
+
+# 3. Create and push a version tag
+git tag cli-v1.0.3
+git push origin cli-v1.0.3
+
+# GitHub Actions will automatically build and publish
 ```
 
 **Setting up PyPI credentials for GitHub Actions:**
@@ -450,24 +469,20 @@ twine upload dist/*
 - [ ] Verify themed welcome messages display correctly
 - [ ] Check user isolation and workspace creation
 - [ ] Test with both admin and regular users
-- [ ] Update version/tag in build script
-- [ ] Build: `DOCKER_USERNAME=theaisocietyasu ./build.sh`
-- [ ] Push: `docker push theaisocietyasu/godfather-base:latest`
+- [ ] Run: `./deploy-docker.sh` and follow the prompts
 - [ ] Update default image in `frontend/app/dashboard/create-pod/page.tsx`
 
-**Before CLI Release (via GitHub Actions):**
+**Before CLI Release:**
 
 - [ ] Update version number in `cli/pyproject.toml`
 - [ ] Update `cli/README.md` or CHANGELOG with changes
 - [ ] Test CLI commands locally: `cd cli && pip install -e .`
 - [ ] Verify authentication flow works
 - [ ] Test SSH connection to pods
-- [ ] Commit changes: `git commit -m "Release CLI vX.X.X"`
-- [ ] Create tag: `git tag cli-vX.X.X`
-- [ ] Push tag: `git push origin cli-vX.X.X`
-- [ ] Monitor GitHub Actions workflow
+- [ ] Run: `./deploy-cli.sh` and choose "Test CLI locally"
+- [ ] Run: `./deploy-cli.sh` and choose "Build & Publish to PyPI"
 - [ ] Verify package on PyPI
-- [ ] Create GitHub release with notes
+- [ ] Create GitHub release with notes (optional)
 
 **Before Web App Deployment:**
 
