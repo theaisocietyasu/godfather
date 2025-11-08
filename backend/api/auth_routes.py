@@ -10,7 +10,7 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 @auth_bp.route('/verify', methods=['POST'])
 def verify_auth():
-    """Verify user has godfather role in Discord - Discord is source of truth"""
+    """Verify user authentication and check their role level"""
     logger.info('Auth verification request')
     
     data = request.get_json() or {}
@@ -20,18 +20,19 @@ def verify_auth():
         logger.warning('No Discord user ID provided')
         return jsonify({'error': 'Discord user ID required'}), 400
     
-    # Check godfather role directly from Discord (source of truth)
+    # Check if user is in the Discord server and get their admin status
     is_admin = AuthService.verify_discord_admin(discord_user_id)
+    is_member = AuthService.verify_discord_member(discord_user_id)
     
-    if not is_admin:
-        logger.warning(f'User {discord_user_id} does not have godfather role')
-        return jsonify({'error': 'Godfather role required'}), 403
+    if not is_member:
+        logger.warning(f'User {discord_user_id} is not a member of the Discord server')
+        return jsonify({'error': 'Must be a member of the AI Society Discord server'}), 403
     
-    logger.info(f'User {discord_user_id} successfully verified as admin')
+    logger.info(f'User {discord_user_id} authenticated - Admin: {is_admin}')
     return jsonify({
         'success': True,
         'discord_user_id': discord_user_id,
-        'is_admin': True
+        'is_admin': is_admin
     })
 
 

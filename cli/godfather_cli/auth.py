@@ -80,10 +80,19 @@ class CLIAuthenticator:
             )
             
             if response.status_code == 200:
+                data = response.json()
+                is_admin = data.get('is_admin', False)
+                
                 self.config['token'] = token
                 self.config['discord_user_id'] = discord_user_id
+                self.config['is_admin'] = is_admin
                 self.save_config()
-                console.print("[green]✓[/green] Authentication successful!")
+                
+                if is_admin:
+                    console.print("[green]✓[/green] Authentication successful! [bold cyan](Admin)[/bold cyan]")
+                else:
+                    console.print("[green]✓[/green] Authentication successful! [bold yellow](Member)[/bold yellow]")
+                
                 return True
             else:
                 error = response.json().get('error', 'Authentication failed')
@@ -101,6 +110,10 @@ class CLIAuthenticator:
     def get_discord_user_id(self) -> Optional[str]:
         """Get Discord user ID"""
         return self.config.get('discord_user_id')
+    
+    def is_admin(self) -> bool:
+        """Check if user has admin privileges"""
+        return self.config.get('is_admin', False)
     
     def is_authenticated(self) -> bool:
         """Check if user is authenticated"""

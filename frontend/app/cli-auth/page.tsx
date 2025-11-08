@@ -12,6 +12,7 @@ export default function CLIAuth() {
   const [token, setToken] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -24,8 +25,19 @@ export default function CLIAuth() {
 
     const fetchToken = async () => {
       try {
-        // For NextAuth, we can use the session directly or generate a custom token
-        // In this case, we'll create a simple token based on the discord ID
+        // Verify user role with backend
+        const response = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ discord_user_id: session.user.discordId })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setIsAdmin(data.is_admin || false);
+        }
+
+        // Generate CLI token
         const customToken = `discord_${session.user.discordId}_${Date.now()}`;
         setToken(customToken);
       } catch (error) {

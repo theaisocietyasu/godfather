@@ -53,6 +53,7 @@ class AuthService:
             
             # Check if user has the Admin role by ID
             user_roles = member_data.get('roles', [])
+            logger.info(f'User {discord_user_id} roles: {user_roles}')
             has_admin = settings.ADMIN_ROLE_ID in user_roles
             
             logger.info(f'User {discord_user_id} admin check: {has_admin} (checking role ID: {settings.ADMIN_ROLE_ID})')
@@ -60,4 +61,27 @@ class AuthService:
             
         except Exception as e:
             logger.error(f'Discord verification error: {e}')
+            return False
+    
+    @staticmethod
+    def verify_discord_member(discord_user_id: str) -> bool:
+        """Verify if user is a member of the Discord server"""
+        try:
+            headers = {
+                'Authorization': f'Bot {settings.DISCORD_BOT_TOKEN}',
+                'Content-Type': 'application/json'
+            }
+            
+            url = f'https://discord.com/api/v10/guilds/{settings.DISCORD_GUILD_ID}/members/{discord_user_id}'
+            response = requests.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                logger.info(f'User {discord_user_id} is a member of the Discord server')
+                return True
+            else:
+                logger.warning(f'User {discord_user_id} is not a member of the Discord server')
+                return False
+            
+        except Exception as e:
+            logger.error(f'Discord member verification error: {e}')
             return False
