@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, redirect } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
@@ -122,6 +122,7 @@ export default function PodDetail() {
     } catch (error: unknown) {
       console.error('Error fetching pod details:', error);
       toast.error('Failed to fetch pod details');
+      redirect("/dashboard");
     } finally {
       setLoading(false);
     }
