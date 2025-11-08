@@ -93,12 +93,28 @@ class PodService:
             # Extract custom fields that shouldn't be sent to RunPod API
             is_public = config.pop('is_public', False)
             allowed_users = config.pop('allowed_users', [])
+            use_cpu_only = config.pop('use_cpu_only', False)
             
             # Add SSH public key as environment variable
             env = config.get('env', {})
             env['GODFATHER_SSH_PUBLIC_KEY'] = ssh_public_key
             env['GODFATHER_SETUP'] = 'true'
             config['env'] = env
+            
+            # Handle CPU vs GPU configuration
+            # For CPU-only pods, use instance_id instead of gpu_type_id
+            if use_cpu_only:
+                # Remove gpu_type_id if present
+                config.pop('gpu_type_id', None)
+                # Set instance_id for CPU if not already set
+                if 'instance_id' not in config:
+                    # Default CPU instance type
+                    config['instance_id'] = 'cpu3c-2-4'
+                logger.info(f'Creating CPU-only pod with instance_id: {config.get("instance_id")}')
+            else:
+                # For GPU pods, remove instance_id if present
+                config.pop('instance_id', None)
+                logger.info(f'Creating GPU pod with gpu_type_id: {config.get("gpu_type_id")}')
             
             # Create pod via RunPod API
             pod = runpod.create_pod(**config)

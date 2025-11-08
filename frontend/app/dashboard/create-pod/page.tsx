@@ -20,6 +20,7 @@ interface PodConfig {
   name: string;
   image_name: string;
   gpu_type_id: string;
+  instance_id?: string;
   use_cpu_only: boolean;
   cloud_type: string;
   support_public_ip: boolean;
@@ -41,6 +42,7 @@ const defaultConfig: PodConfig = {
   name: '',
   image_name: 'theaisocietyasu/godfather-base:latest',  // Default to Godfather custom image
   gpu_type_id: 'NVIDIA RTX A4000',
+  instance_id: 'cpu3c-2-4',  // Default CPU instance
   use_cpu_only: false,
   cloud_type: 'COMMUNITY',
   support_public_ip: false,
@@ -263,7 +265,26 @@ export default function CreatePod() {
                 </select>
               </div>
 
-              {!config.use_cpu_only && (
+              {config.use_cpu_only ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    CPU Instance Type
+                  </label>
+                  <select
+                    value={config.instance_id}
+                    onChange={(e) => setConfig({ ...config, instance_id: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="cpu3c-2-4">3 vCPU, 2 GB RAM (Minimal) 💰</option>
+                    <option value="cpu4c-4-8">4 vCPU, 4 GB RAM</option>
+                    <option value="cpu8c-8-16">8 vCPU, 8 GB RAM</option>
+                    <option value="cpu16c-16-32">16 vCPU, 16 GB RAM</option>
+                  </select>
+                  <p className="mt-2 text-xs text-blue-400">
+                    💡 CPU-only pods are much cheaper. Great for development and testing!
+                  </p>
+                </div>
+              ) : (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     GPU Type
