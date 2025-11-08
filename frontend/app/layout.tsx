@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Society Admin Portal",
+  title: "Godfather",
   description: "RunPod management dashboard for AI Society ASU",
 };
 
