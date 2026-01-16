@@ -87,7 +87,7 @@ cd /godfather/frontend
 
 # Auto-generate .env.local from root .env BACKEND_URL
 echo "📝 Auto-generating frontend/.env.local from BACKEND_URL..."
-BACKEND_URL=${BACKEND_URL:-https://8bzhwve1ri5cw2-80.proxy.runpod.net}
+BACKEND_URL=${BACKEND_URL:-https://admin.ais-asu.com}
 cat > .env.local << EOF
 # Auto-generated from BACKEND_URL in root .env
 # DO NOT EDIT MANUALLY - This file is regenerated on each deployment
