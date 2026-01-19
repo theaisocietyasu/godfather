@@ -36,7 +36,7 @@ class GodfatherCLI:
             os.getenv('BACKEND_URL') or 
             os.getenv('NEXT_PUBLIC_BACKEND_URL') or 
             (os.getenv('NEXT_PUBLIC_API_URL', '').replace('/api', '')) or
-            'https://8bzhwve1ri5cw2-80.proxy.runpod.net'  # Fallback to RunPod proxy
+            'https://admin.ais-asu.com'  # Fallback to RunPod proxy
         )
         
         # Initialize components
