@@ -2,6 +2,6 @@
 Godfather CLI package
 """
 
-__version__ = "1.0.9"
+__version__ = "1.0.10"
 __author__ = "AI Society ASU"
 __email__ = "admin@ais-asu.com"
