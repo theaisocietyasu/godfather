@@ -63,12 +63,11 @@ http {
         add_header Referrer-Policy "no-referrer-when-downgrade" always;
 
         # Determine the correct forwarded host
-        # Prioritize custom domain from Cloudflare X-Forwarded-Host header
+        # If request comes from RunPod proxy, use the proxy hostname
         set $forwarded_host $host;
-        if ($http_x_forwarded_host != "") {
-            set $forwarded_host $http_x_forwarded_host;
+        if ($http_host ~* "^(.+\.proxy\.runpod\.net)$") {
+            set $forwarded_host $1;
         }
-
 
         # NextAuth routes (handled by frontend) - MUST come before /api/
         location /api/auth/ {
