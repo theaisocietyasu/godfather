@@ -18,6 +18,8 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from .auth import CLIAuthenticator
 from .pod_manager import PodManager
 from .ssh_connector import SSHConnector
+from .update_checker import check_for_updates, show_update_warning, perform_update, force_update_check
+from . import __version__
 
 console = Console()
 
@@ -47,7 +49,7 @@ class GodfatherCLI:
         """Print CLI banner"""
         banner = Panel.fit(
             "[bold magenta]Godfather CLI[/bold magenta]\n"
-            "[dim]AI Society RunPod Environment Manager[/dim]",
+            f"[dim]AI Society RunPod Environment Manager v{__version__}[/dim]",
             border_style="magenta",
             box=box.DOUBLE
         )

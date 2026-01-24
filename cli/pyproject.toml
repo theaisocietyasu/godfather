@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "godfather-cli"
-version = "1.0.3"
+version = "1.0.4"
 description = "AI Society Godfather CLI - RunPod Environment Manager"
 authors = [
     {name = "AI Society ASU", email = "theaisocietyasu@gmail.com"}
@@ -26,6 +26,7 @@ classifiers = [
 dependencies = [
     "requests>=2.25.0",
     "rich>=13.0.0",
+    "packaging>=20.0",
 ]
 
 [project.scripts]
