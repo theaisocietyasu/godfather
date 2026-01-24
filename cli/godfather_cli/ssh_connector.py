@@ -9,16 +9,15 @@ from typing import Dict, Optional
 
 class SSHConnector:
     """Handle SSH connections to pods"""
-
-def __init__(self, api_base: str, config_dir: Path):
+    
+    def __init__(self, api_base: str, config_dir: Path):
         self.api_base = api_base
         self.ssh_key_dir = config_dir / 'ssh'
         self.ssh_key_file = self.ssh_key_dir / 'godfather_key'
     
     def fetch_ssh_key(self, discord_user_id: str) -> bool:
         """Fetch SSH private key from API and save it"""
-
-print(" Fetching SSH key...")
+        print("🔑 Fetching SSH key...")
         try:
             headers = {'X-Discord-User-ID': discord_user_id}
             response = requests.get(
@@ -65,8 +64,7 @@ print(" Fetching SSH key...")
     
     def connect(self, ssh_info: Dict) -> int:
         """Establish SSH connection to pod"""
-
-host = ssh_info.get('host')
+        host = ssh_info.get('host')
         port = ssh_info.get('port', 22)
         username = ssh_info.get('username', 'root')
         user_folder = ssh_info.get('user_folder', 'user')
@@ -77,11 +75,11 @@ host = ssh_info.get('host')
             return 1
         
         print("\n" + "━" * 78)
-        print(" � GODFATHER POD CONNECTION")
+        print(" 🔗 GODFATHER POD CONNECTION")
         print("━" * 78)
         print(f" 🌐 Host:        {host}:{port}")
         print(f" 👤 User:        {user_folder}")
-        print(f" Auth:        SSH Key")
+        print(f" 🔑 Auth:        SSH Key")
         
         if is_admin:
             print(f" 👑 Mode:        Administrator (Full Access)")
@@ -91,10 +89,13 @@ host = ssh_info.get('host')
         print("━" * 78)
         print()
         
-        print("� Establishing secure connection...")
+        print("🔐 Establishing secure connection...")
         
         # Setup user workspace and get the profile/script to source
-        admin_flag = "true" if is_admin else "false" setup_command = f"SCRIPT=$(/usr/local/bin/godfather-user-setup.sh {user_folder} {admin_flag}) && bash $SCRIPT" # Build SSH connection command
+        admin_flag = "true" if is_admin else "false"
+        setup_command = f"SCRIPT=$(/usr/local/bin/godfather-user-setup.sh {user_folder} {admin_flag}) && bash $SCRIPT"
+        
+        # Build SSH connection command
         ssh_command = [
             'ssh',
             '-t',
@@ -105,7 +106,9 @@ host = ssh_info.get('host')
             '-p', str(port),
             f'{username}@{host}',
             setup_command
-        ] try:
+        ]
+        
+        try:
             # Execute SSH connection
             result = subprocess.run(ssh_command)
             
@@ -144,7 +147,7 @@ host = ssh_info.get('host')
             
         except KeyboardInterrupt:
             print("\n\n" + "━" * 78)
-            print(" CONNECTION CANCELLED")
+            print(" ⚠️ CONNECTION CANCELLED")
             print("━" * 78 + "\n")
             return 1
         except FileNotFoundError:

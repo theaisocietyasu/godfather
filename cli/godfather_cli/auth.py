@@ -17,7 +17,7 @@ console = Console()
 class CLIAuthenticator:
     """Handle CLI authentication"""
 
-def __init__(self, api_base: str, config_dir: Path):
+    def __init__(self, api_base: str, config_dir: Path):
         self.api_base = api_base
         self.config_dir = config_dir
         self.config_file = config_dir / 'config.json'
@@ -25,8 +25,7 @@ def __init__(self, api_base: str, config_dir: Path):
     
     def load_config(self) -> Dict:
         """Load configuration from file"""
-
-if self.config_file.exists():
+        if self.config_file.exists():
             try:
                 with open(self.config_file, 'r') as f:
                     return json.load(f)
@@ -36,15 +35,13 @@ if self.config_file.exists():
     
     def save_config(self):
         """Save configuration to file"""
-
-self.config_dir.mkdir(exist_ok=True)
+        self.config_dir.mkdir(exist_ok=True)
         with open(self.config_file, 'w') as f:
             json.dump(self.config, f, indent=2)
     
     def authenticate(self) -> bool:
         """Authenticate user via CLI token"""
-
-panel = Panel(
+        panel = Panel(
             f"[cyan]Visit the admin portal to get your authentication token:[/cyan]\n" f"[bold white]{self.api_base}/cli-auth[/bold white]",
             title="[bold magenta]🔐 Authentication Required[/bold magenta]",
             border_style="magenta",
@@ -63,7 +60,8 @@ panel = Panel(
             if token.startswith('discord_'):
                 parts = token.split('_')
                 if len(parts) >= 2:
-                    discord_user_id = parts[1] else:
+                    discord_user_id = parts[1]
+                else:
                     console.print("[red][/red] Invalid token format")
                     return False
             else:
@@ -107,37 +105,32 @@ panel = Panel(
     
     def get_token(self) -> Optional[str]:
         """Get authentication token"""
-
-return self.config.get('token')
+        return self.config.get('token')
     
     def get_discord_user_id(self) -> Optional[str]:
         """Get Discord user ID"""
-
-return self.config.get('discord_user_id')
+        return self.config.get('discord_user_id')
     
     def is_admin(self) -> bool:
         """Check if user has admin privileges"""
-
-return self.config.get('is_admin', False)
+        return self.config.get('is_admin', False)
     
     def is_authenticated(self) -> bool:
         """Check if user is authenticated"""
-
-return 'token' in self.config
+        return 'token' in self.config
     
     def logout(self):
         """Clear authentication token"""
-
-if 'token' in self.config:
-            del self.config['token'] self.save_config()
+        if 'token' in self.config:
+            del self.config['token']
+            self.save_config()
             console.print("[green][/green] Logged out successfully")
         else:
             console.print("[yellow]ℹ[/yellow] You were not logged in")
     
     def verify_token(self) -> bool:
         """Verify current token is still valid"""
-
-if not self.is_authenticated():
+        if not self.is_authenticated():
             return False
         
         discord_user_id = self.config.get('discord_user_id')
