@@ -25,8 +25,9 @@ console = Console()
 
 
 class GodfatherCLI:
-    """Main CLI application""" 
-    def __init__(self):
+    """Main CLI application"""
+
+def __init__(self):
         self.config_dir = Path.home() / '.godfather'
         
         # Auto-detect API URL from multiple possible environment variables
@@ -45,7 +46,8 @@ class GodfatherCLI:
         self.ssh_connector = SSHConnector(self.api_base, self.config_dir)
     
     def print_banner(self):
-        """Print CLI banner""" banner = Panel.fit(
+        """Print CLI banner"""
+        banner = Panel.fit(
             "[bold magenta]Godfather CLI[/bold magenta]\n" f"[dim]AI Society RunPod Environment Manager v{__version__}[/dim]",
             border_style="magenta",
             box=box.DOUBLE
@@ -54,8 +56,9 @@ class GodfatherCLI:
         console.print()
     
     def ensure_authenticated(self) -> bool:
-        """Ensure user is authenticated""" 
-        if not self.authenticator.is_authenticated():
+        """Ensure user is authenticated"""
+
+if not self.authenticator.is_authenticated():
             return self.authenticator.authenticate()
         
         # Verify token is still valid
@@ -66,16 +69,18 @@ class GodfatherCLI:
         return True
     
     def list_pods(self):
-        """List available public pods""" 
-        if not self.ensure_authenticated():
+        """List available public pods"""
+
+if not self.ensure_authenticated():
             return
         
         discord_user_id = self.authenticator.get_discord_user_id()
         self.pod_manager.list_pods(discord_user_id)
     
     def connect_to_pod(self, pod_id: str = None):
-        """Connect to a specific pod""" 
-        if not self.ensure_authenticated():
+        """Connect to a specific pod"""
+
+if not self.ensure_authenticated():
             return
         
         discord_user_id = self.authenticator.get_discord_user_id()
@@ -101,8 +106,9 @@ class GodfatherCLI:
         self.ssh_connector.connect(ssh_info)
     
     def status(self):
-        """Show CLI status and configuration""" 
-        table = Table(title="[bold cyan]Godfather CLI Status[/bold cyan]", box=box.ROUNDED, border_style="cyan")
+        """Show CLI status and configuration"""
+
+table = Table(title="[bold cyan]Godfather CLI Status[/bold cyan]", box=box.ROUNDED, border_style="cyan")
         table.add_column("Setting", style="cyan bold", no_wrap=True)
         table.add_column("Value", style="white")
         
@@ -121,16 +127,19 @@ class GodfatherCLI:
         console.print(table)
     
     def logout(self):
-        """Clear authentication token""" 
-        self.authenticator.logout()
+        """Clear authentication token"""
+
+self.authenticator.logout()
     
     def authenticate(self):
-        """Trigger authentication""" 
-        self.authenticator.authenticate()
+        """Trigger authentication"""
+
+self.authenticator.authenticate()
     
     def interactive_menu(self):
-        """Show interactive menu""" 
-        self.print_banner()
+        """Show interactive menu"""
+
+self.print_banner()
         
         while True:
             console.print()
@@ -174,8 +183,9 @@ class GodfatherCLI:
 
 
 def main():
-    """Main CLI entry point""" 
-    parser = argparse.ArgumentParser(
+    """Main CLI entry point"""
+
+parser = argparse.ArgumentParser(
         description='AI Society Godfather CLI - RunPod Environment Manager',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""

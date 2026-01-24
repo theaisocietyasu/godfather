@@ -1,6 +1,8 @@
 """
 Update checker for Godfather CLI
-""" import requests
+"""
+
+import requests
 import sys
 import subprocess
 from packaging import version as version_lib
@@ -14,7 +16,9 @@ console = Console()
 def check_for_updates(force_check=False):
     """ Check if a new version is available on PyPI
     Returns: (has_update, latest_version)
-    """ try:
+    """
+
+try:
         response = requests.get(
             "https://pypi.org/pypi/godfather-cli/json",
             timeout=3
@@ -32,7 +36,9 @@ def check_for_updates(force_check=False):
     return False, __version__
 
 def show_update_warning(latest_version):
-    """Display update warning to user""" console.print()
+    """Display update warning to user"""
+
+console.print()
     console.print(Panel.fit(
         f"[bold yellow] Update Available![/bold yellow]\n\n" f"Current version: [red]{__version__}[/red]\n" f"Latest version: [green]{latest_version}[/green]\n\n" f"Update now with: [bold cyan]godfather update[/bold cyan]",
         border_style="yellow" ))
@@ -40,7 +46,9 @@ def show_update_warning(latest_version):
 
 def force_update_check():
     """ Check for updates and force user to update if outdated
-    """ has_update, latest_version = check_for_updates(force_check=True)
+    """
+
+has_update, latest_version = check_for_updates(force_check=True)
     
     if has_update:
         console.print()
@@ -52,7 +60,9 @@ def force_update_check():
 
 def perform_update():
     """ Perform the actual update using pip
-    """ console.print("[cyan]Checking for updates...[/cyan]")
+    """
+
+console.print("[cyan]Checking for updates...[/cyan]")
     
     has_update, latest_version = check_for_updates(force_check=True)
     

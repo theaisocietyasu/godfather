@@ -1,4 +1,5 @@
 """CLI Pod Operations module"""
+
 import requests
 from typing import List, Dict, Optional
 from rich.console import Console
@@ -10,11 +11,15 @@ console = Console()
 
 
 class PodManager:
-    """Handle pod operations""" def __init__(self, api_base: str):
+    """Handle pod operations"""
+
+def __init__(self, api_base: str):
         self.api_base = api_base
     
     def get_public_pods(self, discord_user_id: str) -> List[Dict]:
-        """Get list of public pods available for connection""" try:
+        """Get list of public pods available for connection"""
+
+try:
             headers = {'X-Discord-User-ID': discord_user_id}
             response = requests.get(
                 f'{self.api_base}/api/pods/public',
@@ -37,7 +42,9 @@ class PodManager:
             return []
     
     def get_connection_info(self, pod_id: str, discord_user_id: str) -> Optional[Dict]:
-        """Get SSH connection information for a pod""" try:
+        """Get SSH connection information for a pod"""
+
+try:
             headers = {'X-Discord-User-ID': discord_user_id}
             response = requests.post(
                 f'{self.api_base}/api/pods/{pod_id}/connect',
@@ -57,7 +64,9 @@ class PodManager:
             return None
     
     def list_pods(self, discord_user_id: str):
-        """List available public pods""" console.print("[cyan]📡 Fetching available pods...[/cyan]")
+        """List available public pods"""
+
+console.print("[cyan]📡 Fetching available pods...[/cyan]")
         pods = self.get_public_pods(discord_user_id)
         
         if not pods:
@@ -88,7 +97,9 @@ class PodManager:
         console.print(table)
     
     def select_pod(self, discord_user_id: str) -> Optional[str]:
-        """Interactive pod selection""" pods = self.get_public_pods(discord_user_id)
+        """Interactive pod selection"""
+
+pods = self.get_public_pods(discord_user_id)
         
         if not pods:
             console.print("[yellow]😔 No public pods available.[/yellow]")

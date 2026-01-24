@@ -1,4 +1,5 @@
 """CLI SSH Connection module"""
+
 import os
 import subprocess
 import requests
@@ -7,13 +8,17 @@ from typing import Dict, Optional
 
 
 class SSHConnector:
-    """Handle SSH connections to pods""" def __init__(self, api_base: str, config_dir: Path):
+    """Handle SSH connections to pods"""
+
+def __init__(self, api_base: str, config_dir: Path):
         self.api_base = api_base
         self.ssh_key_dir = config_dir / 'ssh'
         self.ssh_key_file = self.ssh_key_dir / 'godfather_key'
     
     def fetch_ssh_key(self, discord_user_id: str) -> bool:
-        """Fetch SSH private key from API and save it""" print(" Fetching SSH key...")
+        """Fetch SSH private key from API and save it"""
+
+print(" Fetching SSH key...")
         try:
             headers = {'X-Discord-User-ID': discord_user_id}
             response = requests.get(
@@ -59,7 +64,9 @@ class SSHConnector:
             return False
     
     def connect(self, ssh_info: Dict) -> int:
-        """Establish SSH connection to pod""" host = ssh_info.get('host')
+        """Establish SSH connection to pod"""
+
+host = ssh_info.get('host')
         port = ssh_info.get('port', 22)
         username = ssh_info.get('username', 'root')
         user_folder = ssh_info.get('user_folder', 'user')
