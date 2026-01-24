@@ -2,9 +2,7 @@
 """
 AI Society Godfather CLI - Modular version
 Command line interface for connecting to RunPod environments
-"""
-
-import os
+""" import os
 import sys
 import argparse
 from pathlib import Path
@@ -25,9 +23,7 @@ console = Console()
 
 
 class GodfatherCLI:
-    """Main CLI application"""
-    
-    def __init__(self):
+    """Main CLI application""" def __init__(self):
         self.config_dir = Path.home() / '.godfather'
         
         # Auto-detect API URL from multiple possible environment variables
@@ -46,10 +42,8 @@ class GodfatherCLI:
         self.ssh_connector = SSHConnector(self.api_base, self.config_dir)
     
     def print_banner(self):
-        """Print CLI banner"""
-        banner = Panel.fit(
-            "[bold magenta]Godfather CLI[/bold magenta]\n"
-            f"[dim]AI Society RunPod Environment Manager v{__version__}[/dim]",
+        """Print CLI banner""" banner = Panel.fit(
+            "[bold magenta]Godfather CLI[/bold magenta]\n" f"[dim]AI Society RunPod Environment Manager v{__version__}[/dim]",
             border_style="magenta",
             box=box.DOUBLE
         )
@@ -57,28 +51,25 @@ class GodfatherCLI:
         console.print()
     
     def ensure_authenticated(self) -> bool:
-        """Ensure user is authenticated"""
-        if not self.authenticator.is_authenticated():
+        """Ensure user is authenticated""" if not self.authenticator.is_authenticated():
             return self.authenticator.authenticate()
         
         # Verify token is still valid
         if not self.authenticator.verify_token():
-            console.print("[yellow]⚠[/yellow]  Token expired. Please re-authenticate.")
+            console.print("[yellow][/yellow] Token expired. Please re-authenticate.")
             return self.authenticator.authenticate()
         
         return True
     
     def list_pods(self):
-        """List available public pods"""
-        if not self.ensure_authenticated():
+        """List available public pods""" if not self.ensure_authenticated():
             return
         
         discord_user_id = self.authenticator.get_discord_user_id()
         self.pod_manager.list_pods(discord_user_id)
     
     def connect_to_pod(self, pod_id: str = None):
-        """Connect to a specific pod"""
-        if not self.ensure_authenticated():
+        """Connect to a specific pod""" if not self.ensure_authenticated():
             return
         
         discord_user_id = self.authenticator.get_discord_user_id()
@@ -89,7 +80,7 @@ class GodfatherCLI:
             if not pod_id:
                 return
         
-        console.print(f"[cyan]🔌 Connecting to pod {pod_id[:8]}...[/cyan]")
+        console.print(f"[cyan] Connecting to pod {pod_id[:8]}...[/cyan]")
         
         # Get connection details
         ssh_info = self.pod_manager.get_connection_info(pod_id, discord_user_id)
@@ -104,19 +95,18 @@ class GodfatherCLI:
         self.ssh_connector.connect(ssh_info)
     
     def status(self):
-        """Show CLI status and configuration"""
-        table = Table(title="[bold cyan]Godfather CLI Status[/bold cyan]", box=box.ROUNDED, border_style="cyan")
+        """Show CLI status and configuration""" table = Table(title="[bold cyan]Godfather CLI Status[/bold cyan]", box=box.ROUNDED, border_style="cyan")
         table.add_column("Setting", style="cyan bold", no_wrap=True)
         table.add_column("Value", style="white")
         
         if self.authenticator.is_authenticated():
-            table.add_row("🔐 Authentication", "[green]✓ Authenticated[/green]")
+            table.add_row("🔐 Authentication", "[green] Authenticated[/green]")
             if self.authenticator.verify_token():
-                table.add_row("🌐 API Connection", "[green]✓ Connected[/green]")
+                table.add_row("🌐 API Connection", "[green] Connected[/green]")
             else:
-                table.add_row("🌐 API Connection", "[yellow]⚠ Token expired[/yellow]")
+                table.add_row("🌐 API Connection", "[yellow] Token expired[/yellow]")
         else:
-            table.add_row("🔐 Authentication", "[red]✗ Not authenticated[/red]")
+            table.add_row("🔐 Authentication", "[red] Not authenticated[/red]")
         
         table.add_row("🏠 Config Directory", str(self.config_dir))
         table.add_row("🔗 API Endpoint", self.api_base)
@@ -124,16 +114,13 @@ class GodfatherCLI:
         console.print(table)
     
     def logout(self):
-        """Clear authentication token"""
-        self.authenticator.logout()
+        """Clear authentication token""" self.authenticator.logout()
     
     def authenticate(self):
-        """Trigger authentication"""
-        self.authenticator.authenticate()
+        """Trigger authentication""" self.authenticator.authenticate()
     
     def interactive_menu(self):
-        """Show interactive menu"""
-        self.print_banner()
+        """Show interactive menu""" self.print_banner()
         
         while True:
             console.print()
@@ -141,8 +128,8 @@ class GodfatherCLI:
             menu.add_column(style="cyan bold", justify="right")
             menu.add_column(style="white")
             
-            menu.add_row("1.", "📋 List available pods")
-            menu.add_row("2.", "🔌 Connect to a pod")
+            menu.add_row("1.", " List available pods")
+            menu.add_row("2.", " Connect to a pod")
             menu.add_row("3.", "📊 Show status")
             menu.add_row("4.", "🚪 Logout")
             menu.add_row("5.", "👋 Exit")
@@ -177,8 +164,7 @@ class GodfatherCLI:
 
 
 def main():
-    """Main CLI entry point"""
-    parser = argparse.ArgumentParser(
+    """Main CLI entry point""" parser = argparse.ArgumentParser(
         description='AI Society Godfather CLI - RunPod Environment Manager',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -190,8 +176,7 @@ Examples:
   godfather logout                  # Clear authentication
 
 For support, contact AI Society administrators.
-        """
-    )
+        """ )
     
     parser.add_argument(
         'command',
