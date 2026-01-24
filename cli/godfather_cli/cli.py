@@ -2,7 +2,9 @@
 """
 AI Society Godfather CLI - Modular version
 Command line interface for connecting to RunPod environments
-""" import os
+"""
+
+import os
 import sys
 import argparse
 from pathlib import Path
