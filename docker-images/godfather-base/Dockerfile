@@ -1,5 +1,5 @@
 # Godfather Base Image - RunPod compatible with auto SSH setup and user isolation
-FROM runpod/base:0.4.0-cuda11.8.0
+FROM runpod/base:0.6.3-cuda11.8.0
 
 # Install additional tools
 RUN apt-get update && apt-get install -y \
