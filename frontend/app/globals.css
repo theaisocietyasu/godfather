@@ -1,21 +1,101 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --background: #08080a;
+  --foreground: #f5f5f7;
+
+  /* Surfaces */
+  --color-bg: #08080a;
+  --color-bg-elevated: #0c0c10;
+  --color-surface: #131318;
+  --color-surface-hover: #1a1a21;
+  --color-border: #24242c;
+  --color-border-strong: #34343f;
+
+  /* Text */
+  --color-text: #f5f5f7;
+  --color-text-secondary: #a8a8b3;
+  --color-text-muted: #6f6f7a;
+
+  /* Accent (purple) */
+  --color-accent: #a855f7;
+  --color-accent-hover: #9333ea;
+  --color-accent-soft: #a855f726;
+  --color-accent-border: #a855f74d;
+
+  /* Status */
+  --color-success: #22c55e;
+  --color-success-soft: #22c55e1f;
+  --color-danger: #ef4444;
+  --color-danger-soft: #ef44441f;
+  --color-warning: #eab308;
+  --color-warning-soft: #eab3081f;
+  --color-info: #38bdf8;
+  --color-info-soft: #38bdf81f;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-bg: var(--color-bg);
+  --color-bg-elevated: var(--color-bg-elevated);
+  --color-surface: var(--color-surface);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+
+  --color-text: var(--color-text);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-accent-border: var(--color-accent-border);
+
+  --color-success: var(--color-success);
+  --color-success-soft: var(--color-success-soft);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+  --color-warning: var(--color-warning);
+  --color-warning-soft: var(--color-warning-soft);
+  --color-info: var(--color-info);
+  --color-info-soft: var(--color-info-soft);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+
+/* Scrollbars kept subtle and on-theme */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
 }
 
 @keyframes blob {
@@ -34,7 +114,7 @@ body {
 }
 
 .animate-blob {
-  animation: blob 7s infinite;
+  animation: blob 10s infinite;
 }
 
 .animation-delay-2000 {

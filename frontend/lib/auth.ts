@@ -18,7 +18,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, account, profile }: { token: JWT; account?: Account | null; profile?: Profile }) {
-      // Store Discord info in JWT token
       if (account && profile) {
         token.discordId = (profile as any).id;
         token.discordUsername = (profile as any).username;
@@ -27,7 +26,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token;
     },
     async session({ session, token }: { session: any; token: any }) {
-      // Make Discord info available in session
       if (session.user && token.discordId) {
         session.user.discordId = token.discordId;
         session.user.discordUsername = token.discordUsername || "";

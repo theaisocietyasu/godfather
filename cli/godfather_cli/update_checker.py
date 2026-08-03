@@ -1,21 +1,22 @@
-"""
-Update checker for Godfather CLI
-"""
+"""Check PyPI for newer releases and handle self-update via pip."""
+
+import subprocess
+import sys
 
 import requests
-import sys
-import subprocess
 from packaging import version as version_lib
-from rich.console import Console
 from rich.panel import Panel
 
 from . import __version__
+from .ui import console, success, error, spinner, BORDER
 
-console = Console()
 
 def check_for_updates(force_check=False):
-    """Check if a new version is available on PyPI
-    Returns: (has_update, latest_version)
+    """Check PyPI for a newer release.
+
+    Returns (has_update, latest_version). Fails silently (returns
+    False, current version) on any network error - update checks
+    should never block normal CLI use.
     """
     try:
         response = requests.get(
@@ -25,77 +26,76 @@ def check_for_updates(force_check=False):
         if response.status_code == 200:
             data = response.json()
             latest_version = data['info']['version']
-            current_version = __version__
-            
-            if version_lib.parse(latest_version) > version_lib.parse(current_version):
+            if version_lib.parse(latest_version) > version_lib.parse(__version__):
                 return True, latest_version
-            return False, current_version
-    except Exception:
-        # Silently fail if we can't check for updates
+            return False, __version__
+    except requests.RequestException:
         pass
     return False, __version__
 
+
 def show_update_warning(latest_version):
-    """Display update warning to user"""
+    """Print a non-blocking notice that a newer version is available."""
     console.print()
     console.print(Panel.fit(
-        f"[bold yellow]⚠️ Update Available![/bold yellow]\n\n"
-        f"Current version: [red]{__version__}[/red]\n"
-        f"Latest version: [green]{latest_version}[/green]\n\n"
-        f"Update now with: [bold cyan]godfather update[/bold cyan]",
-        border_style="yellow"
+        f"Update available: [dim]{__version__}[/dim] -> [bold]{latest_version}[/bold]\n"
+        f"Run [bold]godfather update[/bold] to install it.",
+        border_style="yellow",
+        title="[bold yellow]Update available[/bold yellow]",
     ))
     console.print()
 
+
 def force_update_check():
-    """Check for updates and force user to update if outdated"""
+    """Check for updates and exit if the installed version is out of date.
+
+    Used to gate commands that require a minimum CLI version.
+    """
     has_update, latest_version = check_for_updates(force_check=True)
-    
+
     if has_update:
         console.print()
         console.print(Panel.fit(
-            f"[bold red]🚨 Update Required![/bold red]\n\n"
-            f"Current version: [red]{__version__}[/red]\n"
-            f"Latest version: [green]{latest_version}[/green]\n\n"
-            f"Please update to continue using Godfather CLI.\n"
-            f"Run: [bold cyan]godfather update[/bold cyan]",
-            border_style="red"
+            f"This version of Godfather CLI ({__version__}) is out of date.\n"
+            f"Latest version: [bold]{latest_version}[/bold]\n\n"
+            f"Run [bold]godfather update[/bold] before continuing.",
+            border_style="red",
+            title="[bold red]Update required[/bold red]",
         ))
         console.print()
         sys.exit(1)
 
+
 def perform_update():
-    """Perform the actual update using pip"""
-    console.print("[cyan]Checking for updates...[/cyan]")
-    
-    has_update, latest_version = check_for_updates(force_check=True)
-    
+    """Update the installed package to the latest version via pip."""
+    with spinner("Checking for updates..."):
+        has_update, latest_version = check_for_updates(force_check=True)
+
     if not has_update:
-        console.print(f"[green][/green] You're already on the latest version ({__version__})")
+        success(f"Already on the latest version ({__version__})")
         return
-    
-    console.print(f"[yellow]Updating from {__version__} to {latest_version}...[/yellow]")
-    
-    try:
-        # Try to update using pip
-        result = subprocess.run(
-            [sys.executable, "-m", "pip", "install", "--upgrade", "godfather-cli"],
-            capture_output=True,
-            text=True
-        )
-        
-        if result.returncode == 0:
-            console.print()
-            console.print(Panel.fit(
-                f"[bold green]✅ Successfully updated![/bold green]\n\n"
-                f"Godfather CLI has been updated to version [green]{latest_version}[/green]\n\n"
-                f"Please restart your terminal or run the command again.",
-                border_style="green"
-            ))
-            console.print()
-        else:
-            console.print(f"[red]❌ Update failed:[/red] {result.stderr}")
-            console.print(f"\n[yellow]Try manually:[/yellow] pip install --upgrade godfather-cli")
-    except Exception as e:
-        console.print(f"[red]❌ Update failed:[/red] {str(e)}")
-        console.print(f"\n[yellow]Try manually:[/yellow] pip install --upgrade godfather-cli")
+
+    with spinner(f"Updating from {__version__} to {latest_version}..."):
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--upgrade", "godfather-cli"],
+                capture_output=True,
+                text=True
+            )
+        except OSError as e:
+            error(f"Update failed: {e}")
+            console.print("[dim]Try manually: pip install --upgrade godfather-cli[/dim]")
+            return
+
+    if result.returncode == 0:
+        console.print()
+        console.print(Panel.fit(
+            f"Updated to version [bold]{latest_version}[/bold].\n"
+            f"Restart your terminal or run the command again.",
+            border_style=BORDER,
+            title="[bold]Update complete[/bold]",
+        ))
+        console.print()
+    else:
+        error(f"Update failed: {result.stderr.strip()}")
+        console.print("[dim]Try manually: pip install --upgrade godfather-cli[/dim]")

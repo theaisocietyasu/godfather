@@ -1,21 +1,17 @@
-"""
-Main Flask application
-"""
+"""Main Flask application"""
 import logging
 from datetime import datetime
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-# Import configuration
-from config.settings import settings
-from utils.logger import setup_logging, get_logger
+from shared.config import settings
+from shared.logger import setup_logging, get_logger
 
-# Import blueprints
-from api.auth_routes import auth_bp
-from api.pod_routes import pods_bp
-from api.discord_routes import discord_bp
-from api.ssh_routes import ssh_bp
-from api.file_routes import files_bp
+from domains.auth.routes import auth_bp
+from domains.pods.routes import pods_bp
+from domains.discord.routes import discord_bp
+from domains.ssh.routes import ssh_bp
+from domains.files.routes import files_bp
 
 # Setup logging
 setup_logging()
@@ -41,7 +37,6 @@ app.register_blueprint(files_bp)
 # Health check endpoint
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
         'service': 'godfather-backend',

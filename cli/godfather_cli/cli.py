@@ -1,163 +1,151 @@
 #!/usr/bin/env python3
-"""
-AI Society Godfather CLI - Modular version
-Command line interface for connecting to RunPod environments
-"""
+"""Godfather CLI entry point: argument parsing and the interactive menu."""
 
 import os
-import sys
 import argparse
 from pathlib import Path
-from rich.console import Console
+
 from rich.panel import Panel
 from rich.table import Table
-from rich import box
-from rich.prompt import Prompt, Confirm
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.prompt import Prompt
 
 from .auth import CLIAuthenticator
 from .pod_manager import PodManager
 from .ssh_connector import SSHConnector
-from .update_checker import check_for_updates, show_update_warning, perform_update, force_update_check
+from .update_checker import check_for_updates, show_update_warning, perform_update
+from .ui import console, warning, info, BOX, BORDER, PURPLE
 from . import __version__
-
-console = Console()
 
 
 class GodfatherCLI:
-    """Main CLI application"""
-    
+    """Wires together auth, pod listing, and SSH connection for the CLI commands."""
+
     def __init__(self):
         self.config_dir = Path.home() / '.godfather'
-        
-        # Auto-detect API URL from multiple possible environment variables
-        # Priority: GODFATHER_API_URL > BACKEND_URL > NEXT_PUBLIC_BACKEND_URL > NEXT_PUBLIC_API_URL
+
+        # Resolve the API base URL, in priority order. GODFATHER_API_URL is
+        # the CLI-specific override; the others let us reuse whatever the
+        # web app already has configured in the environment.
         self.api_base = (
-            os.getenv('GODFATHER_API_URL') or 
-            os.getenv('BACKEND_URL') or 
-            os.getenv('NEXT_PUBLIC_BACKEND_URL') or 
+            os.getenv('GODFATHER_API_URL') or
+            os.getenv('BACKEND_URL') or
+            os.getenv('NEXT_PUBLIC_BACKEND_URL') or
             (os.getenv('NEXT_PUBLIC_API_URL', '').replace('/api', '')) or
-            'https://admin.ais-asu.com'  # Fallback to RunPod proxy
+            'https://admin.ais-asu.com'
         )
-        
-        # Initialize components
+
         self.authenticator = CLIAuthenticator(self.api_base, self.config_dir)
         self.pod_manager = PodManager(self.api_base)
         self.ssh_connector = SSHConnector(self.api_base, self.config_dir)
-    
+
     def print_banner(self):
-        """Print CLI banner"""
         banner = Panel.fit(
-            "[bold magenta]Godfather CLI[/bold magenta]\n" f"[dim]AI Society RunPod Environment Manager v{__version__}[/dim]",
-            border_style="magenta",
-            box=box.DOUBLE
+            f"[bold {PURPLE}]Godfather CLI[/bold {PURPLE}]\n[dim]AI Society RunPod Environment Manager v{__version__}[/dim]",
+            border_style=BORDER,
+            box=BOX,
         )
         console.print(banner)
         console.print()
-    
+
     def ensure_authenticated(self) -> bool:
-        """Ensure user is authenticated"""
+        """Make sure the user has a valid token, prompting to log in if needed."""
         if not self.authenticator.is_authenticated():
+            info("You're not logged in yet.")
             return self.authenticator.authenticate()
-        
-        # Verify token is still valid
+
         if not self.authenticator.verify_token():
-            console.print("[yellow][/yellow] Token expired. Please re-authenticate.")
+            warning("Your session has expired. Please log in again.")
             return self.authenticator.authenticate()
-        
+
         return True
-    
+
     def list_pods(self):
-        """List available public pods"""
         if not self.ensure_authenticated():
             return
-        
+
         discord_user_id = self.authenticator.get_discord_user_id()
         self.pod_manager.list_pods(discord_user_id)
-    
+
     def connect_to_pod(self, pod_id: str = None):
-        """Connect to a specific pod"""
         if not self.ensure_authenticated():
             return
-        
+
         discord_user_id = self.authenticator.get_discord_user_id()
-        
-        # Select pod if not provided
+
         if not pod_id:
             pod_id = self.pod_manager.select_pod(discord_user_id)
             if not pod_id:
                 return
-        
-        console.print(f"[cyan] Connecting to pod {pod_id[:8]}...[/cyan]")
-        
-        # Get connection details
+
+        console.print(f"Connecting to pod [bold]{pod_id[:8]}[/bold]...")
+
         ssh_info = self.pod_manager.get_connection_info(pod_id, discord_user_id)
         if not ssh_info:
             return
-        
-        # Fetch SSH key
+
         if not self.ssh_connector.fetch_ssh_key(discord_user_id):
             return
-        
-        # Establish SSH connection
+
         self.ssh_connector.connect(ssh_info)
-    
+
     def status(self):
-        """Show CLI status and configuration"""
-        table = Table(title="[bold cyan]Godfather CLI Status[/bold cyan]", box=box.ROUNDED, border_style="cyan")
-        table.add_column("Setting", style="cyan bold", no_wrap=True)
-        table.add_column("Value", style="white")
-        
+        """Print current authentication and configuration state."""
+        table = Table(title="Godfather CLI Status", box=BOX, border_style=BORDER)
+        table.add_column("Setting", style=f"bold {PURPLE}", no_wrap=True)
+        table.add_column("Value")
+
         if self.authenticator.is_authenticated():
-            table.add_row("🔐 Authentication", "[green] Authenticated[/green]")
             if self.authenticator.verify_token():
-                table.add_row("🌐 API Connection", "[green] Connected[/green]")
+                table.add_row("Authentication", "[green]Logged in[/green]")
+                table.add_row("API Connection", "[green]Connected[/green]")
             else:
-                table.add_row("🌐 API Connection", "[yellow] Token expired[/yellow]")
+                table.add_row("Authentication", "[yellow]Session expired[/yellow]")
+                table.add_row("API Connection", f"[dim]{self.api_base}[/dim]")
         else:
-            table.add_row("🔐 Authentication", "[red] Not authenticated[/red]")
-        
-        table.add_row("🏠 Config Directory", str(self.config_dir))
-        table.add_row("🔗 API Endpoint", self.api_base)
-        
+            table.add_row("Authentication", "[red]Not logged in[/red]")
+
+        table.add_row("Config Directory", str(self.config_dir))
+        table.add_row("API Endpoint", self.api_base)
+        table.add_row("CLI Version", __version__)
+
         console.print(table)
-    
+
     def logout(self):
-        """Clear authentication token"""
         self.authenticator.logout()
-    
+
     def authenticate(self):
-        """Trigger authentication"""
         self.authenticator.authenticate()
-    
+
+    def update(self):
+        perform_update()
+
     def interactive_menu(self):
-        """Show interactive menu"""
         self.print_banner()
-        
+
         while True:
             console.print()
             menu = Table.grid(padding=(0, 2))
-            menu.add_column(style="cyan bold", justify="right")
-            menu.add_column(style="white")
-            
-            menu.add_row("1.", " List available pods")
-            menu.add_row("2.", " Connect to a pod")
-            menu.add_row("3.", "📊 Show status")
-            menu.add_row("4.", "🚪 Logout")
-            menu.add_row("5.", "👋 Exit")
-            
+            menu.add_column(style=f"bold {PURPLE}", justify="right")
+            menu.add_column()
+
+            menu.add_row("1.", "List available pods")
+            menu.add_row("2.", "Connect to a pod")
+            menu.add_row("3.", "Show status")
+            menu.add_row("4.", "Log out")
+            menu.add_row("5.", "Exit")
+
             panel = Panel(
                 menu,
-                title="[bold cyan]What would you like to do?[/bold cyan]",
-                border_style="cyan",
-                box=box.ROUNDED
+                title="What would you like to do?",
+                border_style=BORDER,
+                box=BOX,
             )
             console.print(panel)
-            
+
             try:
-                choice = Prompt.ask("\n[cyan]Enter your choice[/cyan]", choices=["1", "2", "3", "4", "5"], default="1")
+                choice = Prompt.ask("\nEnter your choice", choices=["1", "2", "3", "4", "5"], default="1")
                 console.print()
-                
+
                 if choice == '1':
                     self.list_pods()
                 elif choice == '2':
@@ -167,61 +155,68 @@ class GodfatherCLI:
                 elif choice == '4':
                     self.logout()
                 elif choice == '5':
-                    console.print("[bold magenta]👋 Goodbye![/bold magenta]")
+                    console.print("Goodbye.")
                     break
-                    
+
             except KeyboardInterrupt:
-                console.print("\n[bold magenta]👋 Goodbye![/bold magenta]")
+                console.print("\nGoodbye.")
                 break
 
 
 def main():
-    """Main CLI entry point"""
+    """Parse arguments and dispatch to the requested command."""
     parser = argparse.ArgumentParser(
-        description='AI Society Godfather CLI - RunPod Environment Manager',
+        prog='godfather',
+        description='Godfather CLI - manage and connect to AI Society RunPod environments',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  godfather list                    # List available pods
-  godfather connect                 # Interactive pod connection
-  godfather connect <pod-id>        # Connect to specific pod
-  godfather status                  # Show CLI status
-  godfather logout                  # Clear authentication
+  godfather                     Open the interactive menu
+  godfather list                List available pods
+  godfather connect             Connect to a pod, picking from a list
+  godfather connect <pod-id>    Connect to a specific pod
+  godfather status              Show login and configuration status
+  godfather auth                Log in or refresh your session
+  godfather logout              Clear the stored session
+  godfather update              Update the CLI to the latest version
 
-For support, contact AI Society administrators.
+Questions or issues: https://discord.gg/fXWXwz6fEG
         """
     )
-    
+
     parser.add_argument(
         'command',
         nargs='?',
-        choices=['list', 'connect', 'status', 'logout', 'auth'],
-        help='Command to execute'
+        choices=['list', 'connect', 'status', 'logout', 'auth', 'update'],
+        help='Command to run (omit to open the interactive menu)'
     )
     parser.add_argument(
         'pod_id',
         nargs='?',
-        help='Pod ID for connect command'
+        help='Pod ID to connect to (only used with "connect")'
     )
     parser.add_argument(
         '--api-url',
-        help='Override API base URL'
+        help='Use a specific API base URL instead of the default'
     )
-    
+
     args = parser.parse_args()
-    
-    # Override API URL if provided
+
     if args.api_url:
         os.environ['GODFATHER_API_URL'] = args.api_url
-    
+
     cli = GodfatherCLI()
-    
-    # If no command provided, show interactive menu
+
     if not args.command:
+        # Only check for updates on the interactive menu, not on every
+        # scripted invocation - a 'godfather list' shouldn't wait on a
+        # PyPI round trip.
+        has_update, latest_version = check_for_updates()
+        if has_update:
+            show_update_warning(latest_version)
         cli.interactive_menu()
         return
-    
-    # Execute command
+
     if args.command == 'list':
         cli.list_pods()
     elif args.command == 'connect':
@@ -232,6 +227,8 @@ For support, contact AI Society administrators.
         cli.logout()
     elif args.command == 'auth':
         cli.authenticate()
+    elif args.command == 'update':
+        cli.update()
 
 
 if __name__ == '__main__':

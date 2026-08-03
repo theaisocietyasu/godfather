@@ -20,8 +20,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // For protected routes, let the client handle the redirect
-  // BetterAuth uses session cookies automatically
+  // For protected routes, let the client handle the redirect via NextAuth session cookies.
   return NextResponse.next();
 }
 
