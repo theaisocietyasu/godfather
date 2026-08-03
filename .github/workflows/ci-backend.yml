@@ -1,0 +1,47 @@
+name: CI Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements-dev.txt
+
+      - name: Compile check
+        run: python -m compileall -q backend
+
+      - name: Import check
+        # settings.validate() only runs under `if __name__ == "__main__"` in app.py,
+        # so importing the app module does not require real secrets.
+        working-directory: backend
+        run: python -c "import app"
+
+      - name: Lint (ruff)
+        # Reports pre-existing style issues without failing the build; this is not
+        # a gate on code we haven't touched.
+        continue-on-error: true
+        run: ruff check backend/

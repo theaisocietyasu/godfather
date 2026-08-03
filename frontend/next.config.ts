@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Produces a self-contained .next/standalone build for the production Docker image
+  output: 'standalone',
+
   // Allow Server Actions from RunPod proxy
   experimental: {
     serverActions: {

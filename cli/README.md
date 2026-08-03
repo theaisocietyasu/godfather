@@ -1,33 +1,27 @@
 # Godfather CLI
 
-Beautiful command-line interface for managing AI Society ASU RunPod environments.
+Command-line client for AI Society ASU's Godfather platform. Lets members log
+in with their Discord account and SSH into shared RunPod GPU pods without
+touching the RunPod dashboard.
 
-![CLI Demo](https://img.shields.io/badge/python-3.7+-blue.svg)
+![Python](https://img.shields.io/badge/python-3.7+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-## ✨ Features
+## Installation
 
-- 🎨 **Beautiful Interface** - Rich terminal UI with colors, tables, and panels
-- 🔐 **Secure Authentication** - Discord-based authentication
-- 🚀 **Pod Management** - List and connect to available RunPod environments
-- 🔌 **SSH Integration** - Automatic SSH key setup and connection
-- 📊 **Status Monitoring** - Check authentication and configuration status
-
-## 📦 Installation
-
-### Option 1: Install from PyPI (Recommended)
+Install from PyPI:
 
 ```bash
 pip install godfather-cli
 ```
 
-### Option 2: Install from GitHub
+Or install straight from GitHub:
 
 ```bash
 pip install git+https://github.com/theaisocietyasu/godfather.git#subdirectory=cli
 ```
 
-### Option 3: Install for Development
+For local development:
 
 ```bash
 git clone https://github.com/theaisocietyasu/godfather.git
@@ -35,139 +29,88 @@ cd godfather/cli
 pip install -e .
 ```
 
-## 🚀 Quick Start
+## Getting started
 
-1. **Run the CLI**:
+1. Run `godfather` with no arguments. On first run you won't be logged in
+   yet, so it'll walk you into the login flow.
+2. It prints a link to the admin portal's `/cli-auth` page. Open it, sign in
+   with Discord, and copy the token shown there.
+3. Paste the token back into the terminal. The CLI verifies it with the
+   backend and stores it in `~/.godfather/config.json`.
+4. From the menu (or `godfather connect`), pick a pod. The CLI fetches your
+   SSH key and opens the connection for you.
 
-   ```bash
-   godfather
-   ```
-2. **Authenticate**:
+You only need to log in once — the CLI reuses the stored token until it
+expires, at which point it'll prompt you to log in again automatically.
 
-   - Visit the admin portal to get your authentication token
-   - Paste the token when prompted
-3. **Connect to a Pod**:
+## Usage
 
-   - Select option `2` to connect to a pod
-   - Choose from available pods
-   - Automatically SSH into your isolated workspace
+### Interactive menu
 
-## 📖 Usage
+Running `godfather` with no arguments opens a menu to list pods, connect,
+check status, or log out.
 
-### Interactive Menu
-
-Simply run:
-
-```bash
-godfather
-```
-
-You'll see a beautiful menu:
-
-```
-╔═══════════════════════════════════════╗
-║ Godfather CLI                         ║
-║ AI Society RunPod Environment Manager ║
-╚═══════════════════════════════════════╝
-
-╭──────── What would you like to do? ──────────╮
-│ 1.  📋 List available pods                   │
-│ 2.  🔌 Connect to a pod                      │
-│ 3.  📊 Show status                           │
-│ 4.  🚪 Logout                                │
-│ 5.  👋 Exit                                  │
-╰──────────────────────────────────────────────╯
-```
-
-### Command-Line Interface
+### Commands
 
 ```bash
-# List available pods
-godfather list
+godfather list                    # List pods you can connect to
+godfather connect                 # Connect to a pod, picking from a list
+godfather connect <pod-id>        # Connect to a specific pod
+godfather status                  # Show login and configuration status
+godfather auth                    # Log in, or refresh an expired session
+godfather logout                  # Clear the stored session
+godfather update                  # Update the CLI to the latest version
 
-# Connect to a specific pod
-godfather connect <pod-id>
-
-# Connect interactively
-godfather connect
-
-# Show CLI status
-godfather status
-
-# Logout
-godfather logout
-
-# Re-authenticate
-godfather auth
-
-# Use custom API URL
-godfather --api-url https://your-api.com list
+# Point the CLI at a non-default backend (mainly for local development)
+godfather --api-url https://your-backend.example.com list
 ```
 
-## 🔑 Authentication
+## Configuration
 
-1. Get your authentication token from: `https://your-godfather-instance.com/cli-auth`
-2. Run `godfather` or `godfather auth`
-3. Paste your token when prompted
-4. Token is securely stored in `~/.godfather/config.json`
-
-## 🛠️ Configuration
-
-Configuration is stored in `~/.godfather/config.json`:
+The CLI stores its config in `~/.godfather/config.json`:
 
 ```json
 {
-  "token": "discord_<user_id>_<timestamp>",
+  "token": "discord_<your_discord_id>_<timestamp>",
   "discord_user_id": "<your_discord_id>"
 }
 ```
 
-## 🎨 Features in Detail
+Your fetched SSH private key is written to `~/.godfather/ssh/godfather_key`
+with `0600` permissions and reused for future connections.
 
-### Beautiful Tables
+### Backend URL
 
-Pod listings display in rich, colorful tables:
+By default the CLI talks to `https://admin.ais-asu.com`. You can override
+this with, in order of priority: `GODFATHER_API_URL`, `BACKEND_URL`,
+`NEXT_PUBLIC_BACKEND_URL`, `NEXT_PUBLIC_API_URL`, or the `--api-url` flag.
+This mainly matters if you're running the backend locally.
 
-```
-           🚀 Available Pods (3)
-╭───┬────────┬─────────────┬──────────────┬───────────╮
-│ # │ Status │ Name        │ ID           │ Created   │
-├───┼────────┼─────────────┼──────────────┼───────────┤
-│ 1 │ 🟢 RUN │ ml-training │ abc123def... │ 2 days ago│
-│ 2 │ 🟢 RUN │ gpu-dev     │ xyz789ghi... │ 1 week ago│
-│ 3 │ 🔴 OFF │ testing     │ jkl456mno... │ 3 days ago│
-╰───┴────────┴─────────────┴──────────────┴───────────╯
-```
+## Troubleshooting
 
-### Status Dashboard
+- **"Couldn't reach \<url\>"** — check your internet connection and that the
+  API URL is correct (`godfather status` shows what's currently configured).
+- **"That token is invalid or expired"** — get a fresh token from the admin
+  portal's `/cli-auth` page and try again.
+- **SSH connection fails with "SSH key not set up on this pod"** — the pod
+  needs the Godfather SSH key added to `authorized_keys`. Pods built from the
+  `godfather-base` image do this automatically; otherwise the CLI prints the
+  manual fix to run from the RunPod web terminal.
+- **`ssh: command not found`** — install OpenSSH; the CLI shells out to your
+  system's `ssh` client to connect.
 
-```
-        Godfather CLI Status
-╭─────────────────────┬─────────────────────────────╮
-│ 🔐 Authentication   │ ✓ Authenticated             │
-│ 🌐 API Connection   │ ✓ Connected                 │
-│ 🏠 Config Directory │ /home/user/.godfather       │
-│ 🔗 API Endpoint     │ https://api.example.com     │
-╰─────────────────────┴─────────────────────────────╯
-```
+## Contributing
 
-## 🤝 Contributing
+1. Fork the repository.
+2. Create a feature branch (`git checkout -b feature/your-feature`).
+3. Commit your changes and open a Pull Request.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## License
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+MIT — see the LICENSE file for details.
 
-## 📝 License
+## Support
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+- [Discord](https://discord.gg/fXWXwz6fEG)
 
-## 🆘 Support
-
-- [**Discord**](https://discord.gg/fXWXwz6fEG)
-## 🎓 About
-
-Built with ❤️ by [AI Society at Arizona State University](https://ais-asu.com/)
+Built by [AI Society at Arizona State University](https://ais-asu.com/).
