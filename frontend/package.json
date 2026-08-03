@@ -9,14 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@headlessui/react": "^2.2.9",
+    "@headlessui/react": "^2.2.10",
     "clsx": "^2.0.0",
     "lucide-react": "^0.548.0",
     "moment": "^2.29.4",
     "next": "15.5.4",
     "next-auth": "5.0.0-beta.30",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "react-hot-toast": "^2.4.1"
   },
   "devDependencies": {
