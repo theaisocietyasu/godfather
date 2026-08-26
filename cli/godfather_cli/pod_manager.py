@@ -33,12 +33,19 @@ class PodManager:
             )
 
             if response.status_code == 200:
-                return response.json().get('pods', [])
+                try:
+                    return response.json().get('pods', [])
+                except ValueError:
+                    error("Received an unreadable response from the server")
+                    return []
             elif response.status_code == 401:
                 error("Authentication failed. Run 'godfather auth' to log in again.")
                 return []
             else:
-                message = response.json().get('error', 'Failed to fetch pods')
+                try:
+                    message = response.json().get('error', 'Failed to fetch pods')
+                except ValueError:
+                    message = 'Failed to fetch pods'
                 error(message)
                 return []
 
@@ -60,9 +67,16 @@ class PodManager:
             )
 
             if response.status_code == 200:
-                return response.json().get('ssh_info')
+                try:
+                    return response.json().get('ssh_info')
+                except ValueError:
+                    error("Received an unreadable response from the server")
+                    return None
             else:
-                message = response.json().get('error', 'Connection failed')
+                try:
+                    message = response.json().get('error', 'Connection failed')
+                except ValueError:
+                    message = 'Connection failed'
                 error(message)
                 return None
 

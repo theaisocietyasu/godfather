@@ -17,6 +17,19 @@ from domains.files.routes import files_bp
 setup_logging()
 logger = get_logger(__name__)
 
+# Validate required configuration up front. This must run at import time,
+# not just under `if __name__ == '__main__'`, since the production
+# deployment imports this module as `app:app` under gunicorn and never
+# executes that block - without this, a missing RUNPOD_API_KEY /
+# DISCORD_BOT_TOKEN / DISCORD_GUILD_ID would silently pass startup and only
+# surface later as a confusing failure on first use.
+try:
+    settings.validate()
+    logger.info('Configuration validated successfully')
+except ValueError as e:
+    logger.error(f'Configuration error: {e}')
+    raise
+
 # Create Flask app
 app = Flask(__name__)
 CORS(app)
@@ -54,14 +67,6 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
-    # Validate settings
-    try:
-        settings.validate()
-        logger.info('Configuration validated successfully')
-    except ValueError as e:
-        logger.error(f'Configuration error: {e}')
-        exit(1)
-    
-    # Run app
+    # Run app (configuration is already validated above at import time)
     logger.info('Starting Godfather Backend')
     app.run(host='0.0.0.0', port=5000, debug=False)

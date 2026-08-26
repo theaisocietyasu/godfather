@@ -96,8 +96,8 @@ class GodfatherCLI:
 
         if self.authenticator.is_authenticated():
             if self.authenticator.verify_token():
-                table.add_row("Authentication", "[green]Logged in[/green]")
-                table.add_row("API Connection", "[green]Connected[/green]")
+                table.add_row("Authentication", f"[bold {PURPLE}]Logged in[/bold {PURPLE}]")
+                table.add_row("API Connection", f"[bold {PURPLE}]Connected[/bold {PURPLE}]")
             else:
                 table.add_row("Authentication", "[yellow]Session expired[/yellow]")
                 table.add_row("API Connection", f"[dim]{self.api_base}[/dim]")

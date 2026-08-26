@@ -3,6 +3,9 @@ import paramiko
 import os
 import stat
 from typing import List, Dict, Optional
+from shared.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class PodFileManager:
@@ -53,7 +56,7 @@ class PodFileManager:
             return True
 
         except Exception as e:
-            print(f"SSH connection failed: {e}")
+            logger.error(f"SSH connection failed: {e}")
             return False
 
     def disconnect(self):
@@ -83,7 +86,7 @@ class PodFileManager:
             return sorted(items, key=lambda x: (x['type'] == 'file', x['name']))
 
         except Exception as e:
-            print(f"Failed to list directory {path}: {e}")
+            logger.error(f"Failed to list directory {path}: {e}")
             return []
 
     def _is_directory(self, item) -> bool:
@@ -97,7 +100,7 @@ class PodFileManager:
             self.sftp.mkdir(path)
             return True
         except Exception as e:
-            print(f"Failed to create directory {path}: {e}")
+            logger.error(f"Failed to create directory {path}: {e}")
             return False
 
     def upload_file(self, local_path: str, remote_path: str) -> bool:
@@ -108,7 +111,7 @@ class PodFileManager:
             self.sftp.put(local_path, remote_path)
             return True
         except Exception as e:
-            print(f"Failed to upload file {local_path} to {remote_path}: {e}")
+            logger.error(f"Failed to upload file {local_path} to {remote_path}: {e}")
             return False
 
     def download_file(self, remote_path: str, local_path: str) -> bool:
@@ -119,7 +122,7 @@ class PodFileManager:
             self.sftp.get(remote_path, local_path)
             return True
         except Exception as e:
-            print(f"Failed to download file {remote_path} to {local_path}: {e}")
+            logger.error(f"Failed to download file {remote_path} to {local_path}: {e}")
             return False
 
     def delete_file(self, path: str) -> bool:
@@ -130,7 +133,7 @@ class PodFileManager:
             self.sftp.remove(path)
             return True
         except Exception as e:
-            print(f"Failed to delete file {path}: {e}")
+            logger.error(f"Failed to delete file {path}: {e}")
             return False
 
     def delete_directory(self, path: str) -> bool:
@@ -142,7 +145,7 @@ class PodFileManager:
             self.sftp.rmdir(path)
             return True
         except Exception as e:
-            print(f"Failed to delete directory {path}: {e}")
+            logger.error(f"Failed to delete directory {path}: {e}")
             return False
 
     def execute_command(self, command: str) -> tuple:
@@ -183,7 +186,7 @@ class PodFileManager:
             with self.sftp.open(remote_path, 'r') as f:
                 return f.read().decode('utf-8', errors='ignore')
         except Exception as e:
-            print(f"Failed to read file {remote_path}: {e}")
+            logger.error(f"Failed to read file {remote_path}: {e}")
             return None
 
     def write_file(self, remote_path: str, content: str) -> bool:
@@ -195,7 +198,7 @@ class PodFileManager:
                 f.write(content.encode('utf-8'))
             return True
         except Exception as e:
-            print(f"Failed to write file {remote_path}: {e}")
+            logger.error(f"Failed to write file {remote_path}: {e}")
             return False
 
     def rename(self, old_path: str, new_path: str) -> bool:
@@ -206,7 +209,7 @@ class PodFileManager:
             self.sftp.rename(old_path, new_path)
             return True
         except Exception as e:
-            print(f"Failed to rename {old_path} to {new_path}: {e}")
+            logger.error(f"Failed to rename {old_path} to {new_path}: {e}")
             return False
 
     def copy(self, source_path: str, dest_path: str) -> bool:
@@ -219,7 +222,7 @@ class PodFileManager:
             stdout, stderr, exit_code = self.execute_command(command)
             return exit_code == 0
         except Exception as e:
-            print(f"Failed to copy {source_path} to {dest_path}: {e}")
+            logger.error(f"Failed to copy {source_path} to {dest_path}: {e}")
             return False
 
     def search_files(self, base_path: str, query: str) -> List[Dict]:
@@ -253,7 +256,7 @@ class PodFileManager:
 
             return results
         except Exception as e:
-            print(f"Failed to search files: {e}")
+            logger.error(f"Failed to search files: {e}")
             return []
 
     def bulk_delete(self, paths: List[str]) -> tuple:
@@ -274,7 +277,7 @@ class PodFileManager:
                 else:
                     failed_count += 1
             except Exception as e:
-                print(f"Failed to delete {path}: {e}")
+                logger.error(f"Failed to delete {path}: {e}")
                 failed_count += 1
 
         return (success_count, failed_count)

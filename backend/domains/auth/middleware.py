@@ -42,12 +42,23 @@ def require_auth(f):
 
 
 def require_token(f):
-    """Require a Discord user ID header, without the admin role check"""
+    """Require a Discord user ID header, verified live against Discord guild
+    membership (source of truth), without the admin role check.
+
+    The header is client-supplied and must not be trusted at face value -
+    without the membership check below, anyone could set an arbitrary
+    X-Discord-User-ID and reach endpoints that hand out pod access or the
+    organization SSH key.
+    """
     @wraps(f)
     def decorated(*args, **kwargs):
         discord_user_id = request.headers.get('X-Discord-User-ID')
 
         if not discord_user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        if not AuthService.verify_discord_member(discord_user_id):
+            logger.warning(f'Rejected request: {discord_user_id} is not a verified Discord member')
             return jsonify({'error': 'Authentication required'}), 401
 
         request.discord_user_id = discord_user_id

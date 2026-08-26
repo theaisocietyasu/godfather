@@ -4,8 +4,5 @@ pymongo
 python-dotenv
 runpod
 requests
-PyJWT
-cryptography
 paramiko
 gunicorn
-python-clerk

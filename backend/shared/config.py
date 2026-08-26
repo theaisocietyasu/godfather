@@ -22,9 +22,6 @@ class Settings:
     DISCORD_GUILD_ID: Optional[str] = os.getenv('DISCORD_GUILD_ID')
     ADMIN_ROLE_ID: Optional[str] = os.getenv('ADMIN_ROLE_ID')
 
-    # JWT
-    JWT_SECRET: str = os.getenv('JWT_SECRET', 'your-secret-key')
-
     # Logging
     LOG_LEVEL: str = os.getenv('LOG_LEVEL', 'INFO')
 

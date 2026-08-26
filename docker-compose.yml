@@ -22,7 +22,6 @@ services:
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
       DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
       ADMIN_ROLE_ID: ${ADMIN_ROLE_ID}
-      JWT_SECRET: ${JWT_SECRET}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       mongo:
@@ -51,7 +50,6 @@ services:
       DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
       ADMIN_ROLE_ID: ${ADMIN_ROLE_ID}
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/Godfather}
-      JWT_SECRET: ${JWT_SECRET}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
     depends_on:
       backend:

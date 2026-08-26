@@ -15,8 +15,9 @@ def check_for_updates(force_check=False):
     """Check PyPI for a newer release.
 
     Returns (has_update, latest_version). Fails silently (returns
-    False, current version) on any network error - update checks
-    should never block normal CLI use.
+    False, current version) on any network error or unexpected
+    response from PyPI - update checks should never block normal
+    CLI use.
     """
     try:
         response = requests.get(
@@ -29,7 +30,7 @@ def check_for_updates(force_check=False):
             if version_lib.parse(latest_version) > version_lib.parse(__version__):
                 return True, latest_version
             return False, __version__
-    except requests.RequestException:
+    except (requests.RequestException, ValueError, KeyError):
         pass
     return False, __version__
 
@@ -44,26 +45,6 @@ def show_update_warning(latest_version):
         title="[bold yellow]Update available[/bold yellow]",
     ))
     console.print()
-
-
-def force_update_check():
-    """Check for updates and exit if the installed version is out of date.
-
-    Used to gate commands that require a minimum CLI version.
-    """
-    has_update, latest_version = check_for_updates(force_check=True)
-
-    if has_update:
-        console.print()
-        console.print(Panel.fit(
-            f"This version of Godfather CLI ({__version__}) is out of date.\n"
-            f"Latest version: [bold]{latest_version}[/bold]\n\n"
-            f"Run [bold]godfather update[/bold] before continuing.",
-            border_style="red",
-            title="[bold red]Update required[/bold red]",
-        ))
-        console.print()
-        sys.exit(1)
 
 
 def perform_update():

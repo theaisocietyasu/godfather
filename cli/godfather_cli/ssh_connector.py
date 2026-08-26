@@ -32,11 +32,19 @@ class SSHConnector:
                 )
 
             if response.status_code != 200:
-                message = response.json().get('error', 'Unknown error')
+                try:
+                    message = response.json().get('error', 'Unknown error')
+                except ValueError:
+                    message = 'Unknown error'
                 error(f"Failed to fetch SSH key: {message}")
                 return False
 
-            private_key = response.json().get('private_key')
+            try:
+                private_key = response.json().get('private_key')
+            except ValueError:
+                error("Received an unreadable response from the server")
+                return False
+
             if not private_key:
                 error("No SSH key returned from the API")
                 return False

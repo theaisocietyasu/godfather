@@ -120,7 +120,6 @@ See [`cli/README.md`](cli/README.md) for CLI usage and commands.
 | `DISCORD_GUILD_ID` | yes | Discord server (guild) ID |
 | `ADMIN_ROLE_ID` | no | Discord role ID that grants admin access |
 | `MONGODB_URI` | no | MongoDB connection string (defaults to `mongodb://localhost:27017/godfather`) |
-| `JWT_SECRET` | no | Secret used to sign JWTs (defaults to an insecure placeholder - set this in any real deployment) |
 | `LOG_LEVEL` | no | Logging level (defaults to `INFO`) |
 
 ### Frontend (`frontend/.env.local`)

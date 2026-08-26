@@ -28,7 +28,7 @@ Godfather runs as four containers behind nginx: `backend` (Flask/gunicorn),
 
    Fill in `RUNPOD_API_KEY`, `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`,
    `ADMIN_ROLE_ID`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`,
-   `JWT_SECRET`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and
+   `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and
    `NEXT_PUBLIC_APP_URL`. Leave `MONGODB_URI` as-is unless you're using an
    external database.
 
