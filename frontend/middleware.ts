@@ -1,28 +1,29 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { auth } from '@/lib/auth';
 
-export function middleware(request: NextRequest) {
+const PUBLIC_ROUTES = [
+  '/',
+  '/cli-auth',
+  '/api/auth',
+  '/api/pods/public',
+  '/api/health',
+];
+
+export default auth((request) => {
   const { pathname } = request.nextUrl;
-  
-  // Public routes that don't require authentication
-  const publicRoutes = [
-    '/',
-    '/cli-auth',
-    '/api/auth',
-    '/api/pods/public',
-    '/api/health',
-  ];
-  
-  // Check if the route is public
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
-  
+
+  const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
   if (isPublicRoute) {
     return NextResponse.next();
   }
-  
-  // For protected routes, let the client handle the redirect via NextAuth session cookies.
+
+  if (!request.auth) {
+    const signInUrl = new URL('/', request.nextUrl.origin);
+    return NextResponse.redirect(signInUrl);
+  }
+
   return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: [

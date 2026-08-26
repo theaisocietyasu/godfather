@@ -74,7 +74,7 @@ export default function LandingPage() {
   if (session && hasAttemptedVerification && !isAuthorized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg p-4">
-        <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-8 text-center shadow-xl shadow-black/40">
+        <div className="glass w-full max-w-md rounded-2xl p-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-danger-soft">
             <TriangleAlert className="h-7 w-7 text-danger" />
           </div>
@@ -94,13 +94,8 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-bg">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-80 w-80 animate-blob rounded-full bg-accent/20 blur-3xl" />
-        <div className="animation-delay-2000 absolute -bottom-40 -left-40 h-80 w-80 animate-blob rounded-full bg-accent/10 blur-3xl" />
-      </div>
-
-      <div className="relative flex min-h-screen items-center justify-center p-4">
+    <div className="min-h-screen bg-bg">
+      <div className="flex min-h-screen items-center justify-center p-4">
         <div className="w-full max-w-4xl">
           <div className="mb-12 text-center">
             <div className="mb-6 flex items-center justify-center gap-3">
@@ -117,7 +112,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mb-12 grid gap-6 md:grid-cols-3">
-            <div className="rounded-xl border border-border bg-surface p-6 transition-colors hover:border-accent-border">
+            <div className="glass rounded-xl p-6 transition-colors hover:border-accent-border">
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-accent-soft">
                 <Cpu className="h-5 w-5 text-accent" />
               </div>
@@ -125,7 +120,7 @@ export default function LandingPage() {
               <p className="text-sm text-text-muted">Access NVIDIA GPUs for training and inference</p>
             </div>
 
-            <div className="rounded-xl border border-border bg-surface p-6 transition-colors hover:border-accent-border">
+            <div className="glass rounded-xl p-6 transition-colors hover:border-accent-border">
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-accent-soft">
                 <ShieldCheck className="h-5 w-5 text-accent" />
               </div>
@@ -133,7 +128,7 @@ export default function LandingPage() {
               <p className="text-sm text-text-muted">Discord-based authentication for team members</p>
             </div>
 
-            <div className="rounded-xl border border-border bg-surface p-6 transition-colors hover:border-accent-border">
+            <div className="glass rounded-xl p-6 transition-colors hover:border-accent-border">
               <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-accent-soft">
                 <Terminal className="h-5 w-5 text-accent" />
               </div>
@@ -142,7 +137,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-surface p-8 shadow-xl shadow-black/30">
+          <div className="glass rounded-2xl p-8">
             <div className="mb-6 text-center">
               <h2 className="mb-1 text-xl font-semibold text-text">Get started</h2>
               <p className="text-sm text-text-muted">Sign in with your Discord account to access the platform</p>

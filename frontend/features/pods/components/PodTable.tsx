@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Play, Square, RotateCw, Trash2, Eye, Plus, Server } from 'lucide-react';
 import moment from 'moment';
@@ -7,6 +8,7 @@ import { StatusPill, Badge } from '@/components/Badge';
 import EmptyState from '@/components/EmptyState';
 import Button from '@/components/Button';
 import { Card, CardHeader, CardTitle } from '@/components/Card';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import type { Pod, PodAction } from '../types';
 
 interface PodTableProps {
@@ -21,8 +23,10 @@ const isProtected = (pod: Pod) => pod.name.toLowerCase() === 'godfather';
 
 export default function PodTable({ pods, actionLoading, onAction }: PodTableProps) {
   const router = useRouter();
+  const [terminateTarget, setTerminateTarget] = useState<Pod | null>(null);
 
   return (
+    <>
     <Card className="overflow-hidden">
       <CardHeader>
         <CardTitle>RunPod instances</CardTitle>
@@ -118,7 +122,7 @@ export default function PodTable({ pods, actionLoading, onAction }: PodTableProp
                         )}
 
                         <button
-                          onClick={() => onAction(pod.id, 'terminate')}
+                          onClick={() => setTerminateTarget(pod)}
                           disabled={actionLoading === pod.id || protectedPod}
                           className="rounded p-1.5 text-danger transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
                           title={protectedPod ? 'Protected pod, cannot terminate' : 'Terminate pod'}
@@ -135,5 +139,23 @@ export default function PodTable({ pods, actionLoading, onAction }: PodTableProp
         </div>
       )}
     </Card>
+
+    <ConfirmDialog
+      open={terminateTarget !== null}
+      onClose={() => setTerminateTarget(null)}
+      onConfirm={() => {
+        if (terminateTarget) onAction(terminateTarget.id, 'terminate');
+        setTerminateTarget(null);
+      }}
+      title="Terminate pod"
+      description={
+        terminateTarget
+          ? `This permanently destroys "${terminateTarget.name}" and its storage. This action cannot be undone.`
+          : ''
+      }
+      confirmLabel="Terminate"
+      loading={terminateTarget ? actionLoading === terminateTarget.id : false}
+    />
+    </>
   );
 }

@@ -25,6 +25,8 @@ import Button from '@/components/Button';
 import { Input } from '@/components/Input';
 import EmptyState from '@/components/EmptyState';
 import { Skeleton } from '@/components/Skeleton';
+import Modal from '@/components/Modal';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import {
   listFiles,
   uploadFile as apiUploadFile,
@@ -87,6 +89,9 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
   const [copySource, setCopySource] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ name: string; type: 'file' | 'directory' } | null>(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -173,29 +178,33 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     }
   };
 
-  const handleDelete = async (fileName: string, fileType: 'file' | 'directory') => {
-    const confirmMsg =
-      fileType === 'directory' ? `Delete directory "${fileName}"?` : `Delete "${fileName}"?`;
-    if (!confirm(confirmMsg)) return;
-
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      const filePath = `${currentPath}/${fileName}`.replace(/\/+/g, '/');
-      await deleteFile(podId, filePath, fileType, discordId);
-      toast.success(`${fileType === 'directory' ? 'Directory' : 'File'} deleted`);
+      const filePath = `${currentPath}/${deleteTarget.name}`.replace(/\/+/g, '/');
+      await deleteFile(podId, filePath, deleteTarget.type, discordId);
+      toast.success(`${deleteTarget.type === 'directory' ? 'Directory' : 'File'} deleted`);
       fetchFiles();
     } catch (error: unknown) {
       console.error('Error deleting item:', error);
       toast.error('Failed to delete item');
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDeleteClick = () => {
     if (selectedFiles.size === 0) {
       toast.error('No files selected');
       return;
     }
-    if (!confirm(`Delete ${selectedFiles.size} selected item(s)?`)) return;
+    setShowBulkDeleteConfirm(true);
+  };
 
+  const confirmBulkDelete = async () => {
+    setDeleting(true);
     try {
       const paths = Array.from(selectedFiles).map((name) => `${currentPath}/${name}`.replace(/\/+/g, '/'));
       const message = await bulkDeleteFiles(podId, paths, discordId);
@@ -205,6 +214,9 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     } catch (error: unknown) {
       console.error('Error deleting items:', error);
       toast.error('Failed to delete items');
+    } finally {
+      setDeleting(false);
+      setShowBulkDeleteConfirm(false);
     }
   };
 
@@ -323,9 +335,9 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-bg-elevated">
+    <div className="glass-elevated overflow-hidden rounded-lg">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-surface px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentPath('/workspace')}
@@ -367,7 +379,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
             </Button>
           )}
           {selectedFiles.size > 0 && (
-            <Button size="sm" variant="danger" onClick={handleBulkDelete}>
+            <Button size="sm" variant="danger" onClick={handleBulkDeleteClick}>
               <TrashIcon className="h-4 w-4" />
               Delete ({selectedFiles.size})
             </Button>
@@ -614,7 +626,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
                     <EditIcon className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(file.name, file.type)}
+                    onClick={() => setDeleteTarget({ name: file.name, type: file.type })}
                     className="rounded p-1.5 text-text-secondary hover:bg-danger-soft hover:text-danger"
                     title="Delete"
                   >
@@ -626,52 +638,60 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
           ))}
       </div>
 
-      {/* Preview modal */}
-      {previewFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="flex max-h-[80vh] w-full max-w-4xl flex-col rounded-lg border border-border bg-surface">
-            <div className="flex items-center justify-between border-b border-border p-4">
-              <h3 className="text-lg font-medium text-text">Preview: {previewFile.name}</h3>
-              <button onClick={() => setPreviewFile(null)} className="rounded p-1 hover:bg-surface-hover">
-                <XIcon className="h-5 w-5 text-text-secondary" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-auto p-4">
-              <pre className="whitespace-pre-wrap rounded bg-bg-elevated p-4 font-mono text-sm text-text">
-                {previewFile.content}
-              </pre>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={previewFile !== null}
+        onClose={() => setPreviewFile(null)}
+        title={previewFile ? `Preview: ${previewFile.name}` : ''}
+        maxWidthClassName="max-w-4xl"
+      >
+        <pre className="whitespace-pre-wrap rounded bg-bg-elevated p-4 font-mono text-sm text-text">
+          {previewFile?.content}
+        </pre>
+      </Modal>
 
-      {/* Edit modal */}
-      {editingFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="flex max-h-[80vh] w-full max-w-4xl flex-col rounded-lg border border-border bg-surface">
-            <div className="flex items-center justify-between border-b border-border p-4">
-              <h3 className="text-lg font-medium text-text">Edit: {editingFile.name}</h3>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveEdit}>
-                  <SaveIcon className="h-4 w-4" />
-                  Save
-                </Button>
-                <button onClick={() => setEditingFile(null)} className="rounded p-1 hover:bg-surface-hover">
-                  <XIcon className="h-5 w-5 text-text-secondary" />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-auto p-4">
-              <textarea
-                value={editingFile.content}
-                onChange={(e) => setEditingFile({ ...editingFile, content: e.target.value })}
-                className="h-full w-full rounded border border-border bg-bg-elevated p-4 font-mono text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent"
-                style={{ minHeight: '400px' }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={editingFile !== null}
+        onClose={() => setEditingFile(null)}
+        title={editingFile ? `Edit: ${editingFile.name}` : ''}
+        maxWidthClassName="max-w-4xl"
+        footer={
+          <Button size="sm" onClick={handleSaveEdit}>
+            <SaveIcon className="h-4 w-4" />
+            Save
+          </Button>
+        }
+      >
+        <textarea
+          value={editingFile?.content ?? ''}
+          onChange={(e) => editingFile && setEditingFile({ ...editingFile, content: e.target.value })}
+          className="h-full w-full rounded border border-border bg-bg-elevated p-4 font-mono text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent"
+          style={{ minHeight: '400px' }}
+        />
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title={deleteTarget?.type === 'directory' ? 'Delete directory' : 'Delete file'}
+        description={
+          deleteTarget
+            ? `Delete "${deleteTarget.name}"? This action cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        loading={deleting}
+      />
+
+      <ConfirmDialog
+        open={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={confirmBulkDelete}
+        title="Delete selected items"
+        description={`Delete ${selectedFiles.size} selected item(s)? This action cannot be undone.`}
+        confirmLabel="Delete"
+        loading={deleting}
+      />
     </div>
   );
 }

@@ -1,11 +1,17 @@
 import { HTMLAttributes } from 'react';
 import clsx from 'clsx';
 
-export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  /** 'glass' (default) applies the frosted glass treatment; 'solid' opts out for surfaces stacked on top of other glass panels. */
+  variant?: 'glass' | 'solid';
+}
+
+export function Card({ className, variant = 'glass', ...props }: CardProps) {
   return (
     <div
       className={clsx(
-        'rounded-xl border border-border bg-surface shadow-sm shadow-black/20',
+        'rounded-xl',
+        variant === 'glass' ? 'glass' : 'border border-border bg-surface',
         className
       )}
       {...props}

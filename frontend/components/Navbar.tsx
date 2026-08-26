@@ -44,7 +44,7 @@ export default function Navbar() {
   );
 
   return (
-    <nav className="border-b border-border bg-bg-elevated/95 backdrop-blur">
+    <nav className="glass-elevated border-x-0 border-t-0 sticky top-0 z-40">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
@@ -118,7 +118,7 @@ export default function Navbar() {
       </div>
 
       {mobileMenuOpen && (
-        <div className="border-t border-border bg-bg-elevated md:hidden">
+        <div className="glass-elevated border-x-0 border-b-0 md:hidden">
           <div className="space-y-2 px-4 py-4">
             <div className="mb-4 flex items-center gap-3 rounded-lg bg-surface px-4 py-3">
               {userAvatar}
