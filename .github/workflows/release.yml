@@ -1,0 +1,28 @@
+name: GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          notes="docs/releases/${TAG}.md"
+          if [ -f "$notes" ]; then
+            gh release create "$TAG" --title "Godfather $TAG" --notes-file "$notes"
+          else
+            gh release create "$TAG" --title "Godfather $TAG" --generate-notes
+          fi

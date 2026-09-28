@@ -61,7 +61,7 @@ To cut a release:
    git push origin v1.1.0 cli-v1.1.0
    ```
 
-4. Create a GitHub release from the `v` tag with notes on what changed and any upgrade steps.
+4. The `release.yml` workflow creates the GitHub release for the `v` tag. It uses `docs/releases/<tag>.md` as the notes when that file exists, so write it before tagging; otherwise it generates notes from merged PRs.
 
 PyPI never accepts the same version twice. If a publish fails after upload, bump the version and tag again.
 
