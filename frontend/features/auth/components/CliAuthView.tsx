@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Copy, Check, Terminal, ShieldAlert, Crown, UserRound } from 'lucide-react';
-import { verifyDiscordUser } from '@/features/auth/api';
+import { fetchCliToken, fetchMe } from '@/features/auth/api';
 import { LoadingScreen } from '@/components/Skeleton';
 import { Card, CardBody } from '@/components/Card';
 import Button from '@/components/Button';
@@ -28,11 +28,10 @@ export default function CliAuthView() {
 
     const fetchToken = async () => {
       try {
-        const data = await verifyDiscordUser(session.user.discordId);
+        const data = await fetchMe();
         setIsAdmin(data.is_admin || false);
 
-        const customToken = `discord_${session.user.discordId}_${Date.now()}`;
-        setToken(customToken);
+        setToken(await fetchCliToken());
       } catch (error) {
         console.error('Error generating token:', error);
         toast.error('Failed to generate authentication token');
@@ -128,7 +127,7 @@ export default function CliAuthView() {
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-text-muted">
-                  This token expires after a period of time. If you get authentication errors, come back here for a
+                  This token is valid for 30 days. If the CLI reports an expired session, come back here for a
                   fresh one.
                 </p>
               </div>
@@ -175,7 +174,7 @@ export default function CliAuthView() {
                   <li>Keep this token secure, it grants access to your account</li>
                   <li>Do not share this token with anyone</li>
                   <li>Do not commit this token to version control</li>
-                  <li>Tokens expire automatically</li>
+                  <li>Tokens expire after 30 days, and stop working if you leave the Discord server</li>
                 </ul>
               </div>
             </div>

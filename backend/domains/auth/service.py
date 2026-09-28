@@ -1,85 +1,49 @@
 """Authentication and authorization service"""
 import requests
-from typing import Optional, Dict
+from typing import Dict, Optional
 from shared.config import settings
 from shared.logger import get_logger
 
 logger = get_logger(__name__)
 
+
 class AuthService:
     """Discord-backed authentication and authorization"""
 
     @staticmethod
-    def get_discord_user_from_token(access_token: str) -> Optional[Dict]:
-        """Get Discord user info from OAuth access token"""
-        try:
-            headers = {
-                'Authorization': f'Bearer {access_token}',
-            }
+    def get_guild_member(discord_user_id: str) -> Optional[Dict]:
+        """Fetch the guild member record from Discord (source of truth, not cached)"""
+        if not discord_user_id or not discord_user_id.isdigit():
+            return None
 
-            response = requests.get('https://discord.com/api/v10/users/@me', headers=headers)
+        try:
+            headers = {'Authorization': f'Bot {settings.DISCORD_BOT_TOKEN}'}
+            url = f'https://discord.com/api/v10/guilds/{settings.DISCORD_GUILD_ID}/members/{discord_user_id}'
+            response = requests.get(url, headers=headers, timeout=10)
 
             if response.status_code != 200:
-                logger.error(f'Discord API error: {response.status_code}')
+                logger.warning(f'User {discord_user_id} not found in guild ({response.status_code})')
                 return None
 
             return response.json()
         except Exception as e:
-            logger.error(f'Error fetching Discord user: {e}')
+            logger.error(f'Discord member lookup error: {e}')
             return None
 
     @staticmethod
     def verify_discord_admin(discord_user_id: str) -> bool:
-        """Verify admin role directly against Discord guild membership (source of truth, not cached)"""
-        try:
-            if not settings.ADMIN_ROLE_ID:
-                logger.error('ADMIN_ROLE_ID not configured in environment variables')
-                return False
-
-            headers = {
-                'Authorization': f'Bot {settings.DISCORD_BOT_TOKEN}',
-                'Content-Type': 'application/json'
-            }
-
-            url = f'https://discord.com/api/v10/guilds/{settings.DISCORD_GUILD_ID}/members/{discord_user_id}'
-            response = requests.get(url, headers=headers)
-
-            if response.status_code != 200:
-                logger.warning(f'User {discord_user_id} not found in guild')
-                return False
-
-            member_data = response.json()
-
-            user_roles = member_data.get('roles', [])
-            logger.info(f'User {discord_user_id} roles: {user_roles}')
-            has_admin = settings.ADMIN_ROLE_ID in user_roles
-
-            logger.info(f'User {discord_user_id} admin check: {has_admin} (checking role ID: {settings.ADMIN_ROLE_ID})')
-            return has_admin
-
-        except Exception as e:
-            logger.error(f'Discord verification error: {e}')
+        """Return True if the user holds ADMIN_ROLE_ID in the guild"""
+        if not settings.ADMIN_ROLE_ID:
+            logger.error('ADMIN_ROLE_ID not configured')
             return False
+
+        member = AuthService.get_guild_member(discord_user_id)
+        if not member:
+            return False
+
+        return settings.ADMIN_ROLE_ID in member.get('roles', [])
 
     @staticmethod
     def verify_discord_member(discord_user_id: str) -> bool:
-        """Verify if user is a member of the Discord server"""
-        try:
-            headers = {
-                'Authorization': f'Bot {settings.DISCORD_BOT_TOKEN}',
-                'Content-Type': 'application/json'
-            }
-
-            url = f'https://discord.com/api/v10/guilds/{settings.DISCORD_GUILD_ID}/members/{discord_user_id}'
-            response = requests.get(url, headers=headers)
-
-            if response.status_code == 200:
-                logger.info(f'User {discord_user_id} is a member of the Discord server')
-                return True
-            else:
-                logger.warning(f'User {discord_user_id} is not a member of the Discord server')
-                return False
-
-        except Exception as e:
-            logger.error(f'Discord member verification error: {e}')
-            return False
+        """Return True if the user is a member of the guild"""
+        return AuthService.get_guild_member(discord_user_id) is not None

@@ -11,7 +11,7 @@ import { LoadingScreen } from '@/components/Skeleton';
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/Card';
 import { Input, Select, Textarea, FieldLabel, FieldHint } from '@/components/Input';
 import Button from '@/components/Button';
-import { verifyDiscordUser } from '@/features/auth/api';
+import { fetchMe } from '@/features/auth/api';
 import { createPod, fetchDiscordMembers } from '../api';
 import type { DiscordMember, PodConfig } from '../types';
 
@@ -58,7 +58,7 @@ export default function CreatePodForm() {
     }
 
     try {
-      const data = await verifyDiscordUser(session.user.discordId);
+      const data = await fetchMe();
       if (!data.is_admin) {
         toast.error('Admin access required');
         router.push('/');
@@ -81,7 +81,7 @@ export default function CreatePodForm() {
 
     const loadMembers = async () => {
       try {
-        const members = await fetchDiscordMembers(session.user.discordId);
+        const members = await fetchDiscordMembers();
         setDiscordMembers(members);
       } catch (error) {
         console.error('Error fetching Discord members:', error);
@@ -104,7 +104,7 @@ export default function CreatePodForm() {
 
     setSubmitting(true);
     try {
-      await createPod(config, session.user.discordId);
+      await createPod(config);
       toast.success('Pod created');
       router.push('/dashboard');
     } catch (error) {

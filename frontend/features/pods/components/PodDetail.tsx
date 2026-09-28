@@ -26,7 +26,7 @@ import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import Toggle from '@/components/Toggle';
 import FileManager from '@/features/files/components/FileManager';
-import { verifyDiscordUser } from '@/features/auth/api';
+import { fetchMe } from '@/features/auth/api';
 import { fetchPod, runPodAction, updatePod, fetchDiscordMembers } from '../api';
 import type { DiscordMember, Pod, PodAction } from '../types';
 
@@ -61,7 +61,7 @@ export default function PodDetail() {
     }
 
     try {
-      const data = await verifyDiscordUser(session.user.discordId);
+      const data = await fetchMe();
       if (!data.is_admin) {
         toast.error('Admin access required');
         router.push('/');
@@ -82,7 +82,7 @@ export default function PodDetail() {
   const loadPod = useCallback(async () => {
     if (!session?.user?.discordId) return;
     try {
-      const data = await fetchPod(podId, session.user.discordId);
+      const data = await fetchPod(podId);
       setPod(data);
     } catch (error: unknown) {
       console.error('Error fetching pod details:', error);
@@ -103,7 +103,7 @@ export default function PodDetail() {
 
     const loadMembers = async () => {
       try {
-        const members = await fetchDiscordMembers(session.user.discordId);
+        const members = await fetchDiscordMembers();
         setDiscordMembers(members);
       } catch (error) {
         console.error('Error fetching Discord members:', error);
@@ -126,7 +126,7 @@ export default function PodDetail() {
     if (!session?.user?.discordId) return;
     setActionLoading(true);
     try {
-      await runPodAction(podId, action, session.user.discordId);
+      await runPodAction(podId, action);
       toast.success(`Pod ${action} successful`);
       loadPod();
     } catch (error: unknown) {
@@ -140,7 +140,7 @@ export default function PodDetail() {
   const togglePublicAccess = async () => {
     if (!pod || !session?.user?.discordId) return;
     try {
-      await updatePod(podId, { is_public: !pod.is_public }, session.user.discordId);
+      await updatePod(podId, { is_public: !pod.is_public });
       setPod({ ...pod, is_public: !pod.is_public });
       toast.success(`Pod is now ${!pod.is_public ? 'public' : 'private'}`);
     } catch (error: unknown) {
@@ -153,7 +153,7 @@ export default function PodDetail() {
     if (!pod || !session?.user?.discordId) return;
     setEditLoading(true);
     try {
-      await updatePod(podId, editForm, session.user.discordId);
+      await updatePod(podId, editForm);
       setPod({ ...pod, ...editForm });
       toast.success('Pod updated');
       setShowEditModal(false);

@@ -24,18 +24,13 @@ class PodFileManager:
             self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
             if self.ssh_key_path and os.path.exists(self.ssh_key_path):
-                # Key type isn't known ahead of time, so try each in turn
                 private_key = None
-                try:
-                    private_key = paramiko.Ed25519Key.from_private_key_file(self.ssh_key_path)
-                except paramiko.ssh_exception.SSHException:
+                for key_class in (paramiko.Ed25519Key, paramiko.ECDSAKey, paramiko.RSAKey):
                     try:
-                        private_key = paramiko.RSAKey.from_private_key_file(self.ssh_key_path)
+                        private_key = key_class.from_private_key_file(self.ssh_key_path)
+                        break
                     except paramiko.ssh_exception.SSHException:
-                        try:
-                            private_key = paramiko.ECDSAKey.from_private_key_file(self.ssh_key_path)
-                        except paramiko.ssh_exception.SSHException:
-                            private_key = paramiko.DSSKey.from_private_key_file(self.ssh_key_path)
+                        continue
 
                 if not private_key:
                     return False

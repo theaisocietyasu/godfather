@@ -20,7 +20,7 @@ class DiscordService:
             }
 
             url = f'https://discord.com/api/v10/guilds/{settings.DISCORD_GUILD_ID}/members/{discord_user_id}'
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=10)
 
             if response.status_code != 200:
                 logger.error(f'Failed to fetch Discord member: {response.status_code}')
@@ -41,7 +41,7 @@ class DiscordService:
             }
 
             url = f'https://discord.com/api/v10/guilds/{settings.DISCORD_GUILD_ID}/roles'
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=10)
 
             if response.status_code != 200:
                 logger.error(f'Failed to fetch guild roles: {response.status_code}')
@@ -84,7 +84,7 @@ class DiscordService:
             }
 
             url = f'https://discord.com/api/v10/guilds/{settings.DISCORD_GUILD_ID}/members?limit={limit}'
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, timeout=10)
 
             if response.status_code != 200:
                 logger.error(f'Failed to fetch members: {response.status_code}')

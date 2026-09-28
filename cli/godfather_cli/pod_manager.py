@@ -19,16 +19,16 @@ def _status_display(status: str) -> str:
 class PodManager:
     """Fetch and present the pods a user can connect to."""
 
-    def __init__(self, api_base: str):
+    def __init__(self, api_base: str, authenticator):
         self.api_base = api_base
+        self.authenticator = authenticator
 
-    def get_public_pods(self, discord_user_id: str) -> List[Dict]:
+    def get_public_pods(self) -> List[Dict]:
         """Get the pods available to this user for connection."""
         try:
-            headers = {'X-Discord-User-ID': discord_user_id}
             response = requests.get(
                 f'{self.api_base}/api/pods/public',
-                headers=headers,
+                headers=self.authenticator.auth_headers(),
                 timeout=10
             )
 
@@ -56,14 +56,14 @@ class PodManager:
             error(f"Connection error: {e}")
             return []
 
-    def get_connection_info(self, pod_id: str, discord_user_id: str) -> Optional[Dict]:
-        """Get SSH connection details for a pod."""
+    def get_connection_info(self, pod_id: str, public_key: str) -> Optional[Dict]:
+        """Get SSH connection details and a certificate for our public key."""
         try:
-            headers = {'X-Discord-User-ID': discord_user_id}
             response = requests.post(
                 f'{self.api_base}/api/pods/{pod_id}/connect',
-                headers=headers,
-                timeout=10
+                headers=self.authenticator.auth_headers(),
+                json={'public_key': public_key},
+                timeout=15
             )
 
             if response.status_code == 200:
@@ -87,10 +87,10 @@ class PodManager:
             error(f"Connection error: {e}")
             return None
 
-    def list_pods(self, discord_user_id: str):
+    def list_pods(self):
         """Print a table of pods available to the user."""
         with spinner("Fetching pods..."):
-            pods = self.get_public_pods(discord_user_id)
+            pods = self.get_public_pods()
 
         if not pods:
             warning("No pods available right now.")
@@ -116,10 +116,10 @@ class PodManager:
         console.print()
         console.print(table)
 
-    def select_pod(self, discord_user_id: str) -> Optional[str]:
+    def select_pod(self) -> Optional[str]:
         """Prompt the user to pick a pod from the list, return its ID."""
         with spinner("Fetching pods..."):
-            pods = self.get_public_pods(discord_user_id)
+            pods = self.get_public_pods()
 
         if not pods:
             warning("No pods available right now.")

@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { Cpu, ShieldCheck, Terminal, TriangleAlert, Zap } from 'lucide-react';
-import { verifyDiscordUser } from '@/features/auth/api';
+import { fetchMe } from '@/features/auth/api';
 import { LoadingScreen } from '@/components/Skeleton';
 import Button from '@/components/Button';
 
@@ -24,19 +24,15 @@ export default function LandingPage() {
     setHasAttemptedVerification(true);
 
     try {
-      const data = await verifyDiscordUser(session.user.discordId);
+      const data = await fetchMe();
 
-      if (data.success) {
-        setIsAuthorized(true);
-        if (data.is_admin) {
-          toast.success('Signed in to the Godfather admin portal');
-          router.push('/dashboard');
-        } else {
-          toast.success('Signed in. Redirecting to CLI authentication.');
-          router.push('/cli-auth');
-        }
+      setIsAuthorized(true);
+      if (data.is_admin) {
+        toast.success('Signed in to the Godfather admin portal');
+        router.push('/dashboard');
       } else {
-        throw new Error(data.error || 'Verification failed');
+        toast.success('Signed in. Redirecting to CLI authentication.');
+        router.push('/cli-auth');
       }
     } catch (error: unknown) {
       const errorMessage =

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import Navbar from '@/components/Navbar';
 import { LoadingScreen } from '@/components/Skeleton';
-import { verifyDiscordUser } from '@/features/auth/api';
+import { fetchMe } from '@/features/auth/api';
 import { fetchPods, runPodAction } from '../api';
 import type { Pod, PodAction } from '../types';
 import PodStats from './PodStats';
@@ -22,7 +22,7 @@ export default function DashboardView() {
   const loadPods = useCallback(async () => {
     if (!session?.user?.discordId) return;
     try {
-      const data = await fetchPods(session.user.discordId);
+      const data = await fetchPods();
       setPods(data);
     } catch (error: unknown) {
       console.error('Error fetching pods:', error);
@@ -39,7 +39,7 @@ export default function DashboardView() {
     }
 
     try {
-      const verifyData = await verifyDiscordUser(session.user.discordId);
+      const verifyData = await fetchMe();
 
       if (!verifyData.is_admin) {
         toast.error('Admin access required');
@@ -70,7 +70,7 @@ export default function DashboardView() {
     if (!session?.user?.discordId) return;
     setActionLoading(podId);
     try {
-      await runPodAction(podId, action, session.user.discordId);
+      await runPodAction(podId, action);
       toast.success(`Pod ${action} successful`);
       loadPods();
     } catch (error: unknown) {

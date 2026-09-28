@@ -1,0 +1,58 @@
+#!/bin/bash
+# Runs on every CLI connection.
+# Members reach it as the forced command in their SSH certificate:
+#   godfather-login <username>
+# Admins hold unrestricted root certificates and the CLI runs:
+#   godfather-login --admin <username>
+set -euo pipefail
+
+ADMIN=false
+if [ "${1:-}" = "--admin" ]; then
+    ADMIN=true
+    shift
+fi
+
+USERNAME="${1:-}"
+if ! [[ "$USERNAME" =~ ^[a-z0-9_][a-z0-9._-]{0,21}$ ]]; then
+    echo "godfather-login: invalid username" >&2
+    exit 1
+fi
+
+WORKSPACE="/workspace/users/$USERNAME"
+mkdir -p /workspace/users /workspace/shared
+chmod 755 /workspace/users
+chmod 1777 /workspace/shared
+mkdir -p "$WORKSPACE"
+
+if [ "$ADMIN" = "true" ]; then
+    cat <<BANNER
+
+  Godfather admin shell (root)
+  Workspace: $WORKSPACE
+  Shared:    /workspace/shared
+  Changes to system files affect every user of this pod.
+
+BANNER
+    cd "$WORKSPACE"
+    export GODFATHER_USER="$USERNAME"
+    exec bash --rcfile /etc/godfather/admin.bashrc -i
+fi
+
+ACCOUNT="godfather_$USERNAME"
+if ! id "$ACCOUNT" >/dev/null 2>&1; then
+    useradd -m -s /bin/bash "$ACCOUNT"
+    passwd -l "$ACCOUNT" >/dev/null
+fi
+chown "$ACCOUNT:$ACCOUNT" "$WORKSPACE"
+chmod 700 "$WORKSPACE"
+
+cat <<BANNER
+
+  Godfather pod
+  Workspace: $WORKSPACE  (private to you)
+  Shared:    /workspace/shared
+  You are $ACCOUNT, without sudo. Ask an admin if you need system packages.
+
+BANNER
+
+exec su - "$ACCOUNT" -c "cd '$WORKSPACE' && exec bash --rcfile /etc/godfather/user.bashrc -i"
