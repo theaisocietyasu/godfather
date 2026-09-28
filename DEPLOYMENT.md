@@ -47,21 +47,18 @@ There are three things that ship, each from its own workflow in `.github/workflo
 | What | Workflow | Trigger | Publishes to |
 | --- | --- | --- | --- |
 | Backend and frontend images | `build-and-push-images.yml` | push to `main` touching `backend/` or `frontend/`, or a `v*.*.*` tag | `ghcr.io/theaisocietyasu/godfather-backend` and `-frontend`, tagged `latest`, short sha, and the version |
-| CLI | `publish-cli.yml` | a `cli-v*.*.*` tag | PyPI `godfather-cli` (TestPyPI first) |
+| CLI | `publish-cli.yml` | a `v*.*.*` or `cli-v*.*.*` tag | PyPI `godfather-cli` (TestPyPI first) |
 | Pod image | `build-pod-base-image.yml` | push to `main` touching `docker-images/godfather-base/`, or run it by hand from the Actions tab | Docker Hub `theaisocietyasu/godfather-base:latest` |
 
 To cut a release:
 
 1. Merge the changes to `main` with CI green.
 2. Bump `version` in `cli/pyproject.toml` and `__version__` in `cli/godfather_cli/__init__.py` if the CLI changed. The publish workflow also overwrites both from the tag, so the tag is what counts.
-3. Tag and push:
+3. Create the release. Either way works:
+   - GitHub: Releases, Draft a new release, type a new tag such as `v1.1.0` on `main`, publish. Creating the tag starts the workflows.
+   - Command line: `git tag v1.1.0 origin/main && git push origin v1.1.0`
 
-   ```
-   git tag v1.1.0 && git tag cli-v1.1.0
-   git push origin v1.1.0 cli-v1.1.0
-   ```
-
-4. The `release.yml` workflow creates the GitHub release for the `v` tag. It uses `docs/releases/<tag>.md` as the notes when that file exists, so write it before tagging; otherwise it generates notes from merged PRs.
+   The `v` tag builds versioned portal images, publishes the CLI to PyPI with that version, and `release.yml` fills the release notes from `docs/releases/<tag>.md` if it exists (write it before tagging), otherwise from merged PRs. Use a `cli-v` tag only to publish the CLI alone.
 
 PyPI never accepts the same version twice. If a publish fails after upload, bump the version and tag again.
 
