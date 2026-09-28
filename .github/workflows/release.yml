@@ -21,7 +21,10 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           notes="docs/releases/${TAG}.md"
-          if [ -f "$notes" ]; then
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists (created in the GitHub UI)"
+            if [ -f "$notes" ]; then gh release edit "$TAG" --notes-file "$notes"; fi
+          elif [ -f "$notes" ]; then
             gh release create "$TAG" --title "Godfather $TAG" --notes-file "$notes"
           else
             gh release create "$TAG" --title "Godfather $TAG" --generate-notes
