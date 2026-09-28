@@ -1,9 +1,18 @@
 name: GitHub Release
 
+# A merge to main that changes the CLI version creates the release v<version>
+# and builds versioned images. publish-cli.yml publishes the CLI on the same push.
+
 on:
   push:
+    branches:
+      - main
+    paths:
+      - 'cli/pyproject.toml'
+      - 'docs/releases/**'
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,21 +20,44 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.release.outputs.created }}
+      version: ${{ steps.release.outputs.version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
 
       - name: Create release
+        id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.ref_name }}
         run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            TAG="$GITHUB_REF_NAME"
+          else
+            TAG="v$(sed -n 's/^version = "\(.*\)"/\1/p' cli/pyproject.toml)"
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           notes="docs/releases/${TAG}.md"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists (created in the GitHub UI)"
+            echo "Release $TAG already exists"
             if [ -f "$notes" ]; then gh release edit "$TAG" --notes-file "$notes"; fi
-          elif [ -f "$notes" ]; then
-            gh release create "$TAG" --title "Godfather $TAG" --notes-file "$notes"
-          else
-            gh release create "$TAG" --title "Godfather $TAG" --generate-notes
+            echo "created=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          if [ -f "$notes" ]; then
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "Godfather $TAG" --notes-file "$notes"
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "Godfather $TAG" --generate-notes
+          fi
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+  images:
+    needs: release
+    if: needs.release.outputs.created == 'true' && github.ref_type != 'tag'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-and-push-images.yml
+    with:
+      version: ${{ needs.release.outputs.version }}

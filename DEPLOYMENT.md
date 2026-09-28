@@ -42,23 +42,23 @@ Logs: `docker compose logs -f backend` (or frontend, nginx, mongo). Restart one 
 
 ## Releasing
 
-There are three things that ship, each from its own workflow in `.github/workflows/`:
+There are four things that ship, each from its own workflow in `.github/workflows/`:
 
 | What | Workflow | Trigger | Publishes to |
 | --- | --- | --- | --- |
-| Backend and frontend images | `build-and-push-images.yml` | push to `main` touching `backend/` or `frontend/`, or a `v*.*.*` tag | `ghcr.io/theaisocietyasu/godfather-backend` and `-frontend`, tagged `latest`, short sha, and the version |
-| CLI | `publish-cli.yml` | a `v*.*.*` or `cli-v*.*.*` tag | PyPI `godfather-cli` (TestPyPI first) |
+| Backend and frontend images | `build-and-push-images.yml` | push to `main` touching `backend/` or `frontend/`, a new release, or a `v*.*.*` tag | `ghcr.io/theaisocietyasu/godfather-backend` and `-frontend`, tagged `latest`, short sha, and the version |
+| CLI | `publish-cli.yml` | push to `main` changing `cli/pyproject.toml`, or a `v*.*.*` or `cli-v*.*.*` tag | PyPI `godfather-cli` (TestPyPI first) |
+| GitHub release | `release.yml` | push to `main` changing `cli/pyproject.toml` or `docs/releases/` | release `v<version>` with notes from `docs/releases/v<version>.md` |
 | Pod image | `build-pod-base-image.yml` | push to `main` touching `docker-images/godfather-base/`, or run it by hand from the Actions tab | Docker Hub `theaisocietyasu/godfather-base:latest` |
 
-To cut a release:
+To cut a release, open one PR that:
 
-1. Merge the changes to `main` with CI green.
-2. Bump `version` in `cli/pyproject.toml` and `__version__` in `cli/godfather_cli/__init__.py` if the CLI changed. The publish workflow also overwrites both from the tag, so the tag is what counts.
-3. Create the release. Either way works:
-   - GitHub: Releases, Draft a new release, type a new tag such as `v1.1.0` on `main`, publish. Creating the tag starts the workflows.
-   - Command line: `git tag v1.1.0 origin/main && git push origin v1.1.0`
+1. Bumps `version` in `cli/pyproject.toml` and `__version__` in `cli/godfather_cli/__init__.py`, for example to `1.2.0`.
+2. Adds `docs/releases/v1.2.0.md` with the release notes. Without it the notes are generated from merged PRs.
 
-   The `v` tag builds versioned portal images, publishes the CLI to PyPI with that version, and `release.yml` fills the release notes from `docs/releases/<tag>.md` if it exists (write it before tagging), otherwise from merged PRs. Use a `cli-v` tag only to publish the CLI alone.
+Merge it with CI green. The merge creates the `v1.2.0` tag and release, builds images tagged `1.2.0`, and publishes the CLI. If the release for the current version already exists, nothing new is created and the CLI publish skips the existing version. Any of the three workflows can also be run by hand from the Actions tab.
+
+Pushing a `v*.*.*` tag by hand still works and does the same. Use a `cli-v` tag only to publish the CLI alone.
 
 PyPI never accepts the same version twice. If a publish fails after upload, bump the version and tag again.
 
