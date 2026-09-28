@@ -1,6 +1,7 @@
 """CLI authentication: token storage, login flow, and token verification."""
 
 import json
+import os
 import requests
 from pathlib import Path
 from typing import Dict, Optional
@@ -33,6 +34,7 @@ class CLIAuthenticator:
         self.config_dir.mkdir(exist_ok=True)
         with open(self.config_file, 'w') as f:
             json.dump(self.config, f, indent=2)
+        os.chmod(self.config_file, 0o600)
 
     def authenticate(self) -> bool:
         """Walk the user through logging in with a token from the admin portal."""
@@ -52,17 +54,16 @@ class CLIAuthenticator:
             error("No token entered")
             return False
 
-        discord_user_id = self._extract_discord_id(token)
-        if not discord_user_id:
+        if not token.startswith('gf1.') or token.count('.') != 2:
             error("That doesn't look like a valid Godfather token")
-            console.print("[dim]Tokens look like discord_<id>_<timestamp>. Get a fresh one from the admin portal.[/dim]")
+            console.print("[dim]Tokens start with gf1. Get a fresh one from the admin portal.[/dim]")
             return False
 
         try:
             with spinner("Verifying token..."):
-                response = requests.post(
-                    f'{self.api_base}/api/auth/verify',
-                    json={'discord_user_id': discord_user_id},
+                response = requests.get(
+                    f'{self.api_base}/api/me',
+                    headers={'Authorization': f'Bearer {token}'},
                     timeout=10
                 )
         except requests.ConnectionError:
@@ -90,36 +91,29 @@ class CLIAuthenticator:
         data = response.json()
         is_admin = data.get('is_admin', False)
 
-        self.config['token'] = token
-        self.config['discord_user_id'] = discord_user_id
-        self.config['is_admin'] = is_admin
+        self.config = {
+            'token': token,
+            'discord_user_id': data.get('discord_user_id'),
+            'is_admin': is_admin,
+        }
         self.save_config()
 
         role = "Admin" if is_admin else "Member"
         success(f"Logged in as {role}")
         return True
 
-    @staticmethod
-    def _extract_discord_id(token: str) -> Optional[str]:
-        """Pull the Discord user ID out of a token (format: discord_<id>_<timestamp>)."""
-        if not token.startswith('discord_'):
-            return None
-        parts = token.split('_')
-        if len(parts) < 2 or not parts[1]:
-            return None
-        return parts[1]
-
     def get_token(self) -> Optional[str]:
         return self.config.get('token')
 
-    def get_discord_user_id(self) -> Optional[str]:
-        return self.config.get('discord_user_id')
+    def auth_headers(self) -> Dict[str, str]:
+        """Headers that authenticate an API request."""
+        return {'Authorization': f"Bearer {self.config.get('token', '')}"}
 
     def is_admin(self) -> bool:
         return self.config.get('is_admin', False)
 
     def is_authenticated(self) -> bool:
-        return 'token' in self.config
+        return str(self.config.get('token', '')).startswith('gf1.')
 
     def logout(self):
         if 'token' in self.config:
@@ -134,14 +128,10 @@ class CLIAuthenticator:
         if not self.is_authenticated():
             return False
 
-        discord_user_id = self.config.get('discord_user_id')
-        if not discord_user_id:
-            return False
-
         try:
-            response = requests.post(
-                f'{self.api_base}/api/auth/verify',
-                json={'discord_user_id': discord_user_id},
+            response = requests.get(
+                f'{self.api_base}/api/me',
+                headers=self.auth_headers(),
                 timeout=5
             )
             return response.status_code == 200

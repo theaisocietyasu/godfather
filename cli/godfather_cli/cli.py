@@ -35,8 +35,8 @@ class GodfatherCLI:
         )
 
         self.authenticator = CLIAuthenticator(self.api_base, self.config_dir)
-        self.pod_manager = PodManager(self.api_base)
-        self.ssh_connector = SSHConnector(self.api_base, self.config_dir)
+        self.pod_manager = PodManager(self.api_base, self.authenticator)
+        self.ssh_connector = SSHConnector(self.config_dir)
 
     def print_banner(self):
         banner = Panel.fit(
@@ -63,27 +63,28 @@ class GodfatherCLI:
         if not self.ensure_authenticated():
             return
 
-        discord_user_id = self.authenticator.get_discord_user_id()
-        self.pod_manager.list_pods(discord_user_id)
+        self.pod_manager.list_pods()
 
     def connect_to_pod(self, pod_id: str = None):
         if not self.ensure_authenticated():
             return
 
-        discord_user_id = self.authenticator.get_discord_user_id()
-
         if not pod_id:
-            pod_id = self.pod_manager.select_pod(discord_user_id)
+            pod_id = self.pod_manager.select_pod()
             if not pod_id:
                 return
 
+        public_key = self.ssh_connector.ensure_keypair()
+        if not public_key:
+            return
+
         console.print(f"Connecting to pod [bold]{pod_id[:8]}[/bold]...")
 
-        ssh_info = self.pod_manager.get_connection_info(pod_id, discord_user_id)
+        ssh_info = self.pod_manager.get_connection_info(pod_id, public_key)
         if not ssh_info:
             return
 
-        if not self.ssh_connector.fetch_ssh_key(discord_user_id):
+        if not self.ssh_connector.save_certificate(ssh_info.get('certificate', '')):
             return
 
         self.ssh_connector.connect(ssh_info)

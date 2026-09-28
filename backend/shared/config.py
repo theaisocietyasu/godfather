@@ -22,6 +22,9 @@ class Settings:
     DISCORD_GUILD_ID: Optional[str] = os.getenv('DISCORD_GUILD_ID')
     ADMIN_ROLE_ID: Optional[str] = os.getenv('ADMIN_ROLE_ID')
 
+    # Shared with the frontend, which mints the API tokens this backend verifies
+    GODFATHER_TOKEN_SECRET: Optional[str] = os.getenv('GODFATHER_TOKEN_SECRET')
+
     # Logging
     LOG_LEVEL: str = os.getenv('LOG_LEVEL', 'INFO')
 
@@ -32,10 +35,15 @@ class Settings:
             ('RUNPOD_API_KEY', cls.RUNPOD_API_KEY),
             ('DISCORD_BOT_TOKEN', cls.DISCORD_BOT_TOKEN),
             ('DISCORD_GUILD_ID', cls.DISCORD_GUILD_ID),
+            ('ADMIN_ROLE_ID', cls.ADMIN_ROLE_ID),
+            ('GODFATHER_TOKEN_SECRET', cls.GODFATHER_TOKEN_SECRET),
         ]
 
         missing = [name for name, value in required if not value]
         if missing:
             raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
+
+        if len(cls.GODFATHER_TOKEN_SECRET) < 32:
+            raise ValueError('GODFATHER_TOKEN_SECRET must be at least 32 characters')
 
 settings = Settings()

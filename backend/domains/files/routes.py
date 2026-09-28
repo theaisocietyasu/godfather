@@ -22,26 +22,25 @@ def get_file_manager_for_pod(pod_id: str):
     if not ssh_info:
         return None, (jsonify({'error': 'Pod network information not available'}), 503)
 
-    private_key = SSHService.get_private_key()
-    if not private_key:
-        return None, (jsonify({'error': 'SSH key not configured'}), 500)
+    for private_key in SSHService.get_file_manager_keys():
+        key_path = SSHService.save_key_to_temp_file(private_key)
+        if not key_path:
+            return None, (jsonify({'error': 'Failed to setup SSH key'}), 500)
 
-    key_path = SSHService.save_key_to_temp_file(private_key)
-    if not key_path:
-        return None, (jsonify({'error': 'Failed to setup SSH key'}), 500)
+        file_manager = PodFileManager(
+            host=ssh_info['host'],
+            port=ssh_info['port'],
+            username=ssh_info['username'],
+            ssh_key_path=key_path
+        )
 
-    file_manager = PodFileManager(
-        host=ssh_info['host'],
-        port=ssh_info['port'],
-        username=ssh_info['username'],
-        ssh_key_path=key_path
-    )
+        if file_manager.connect():
+            return file_manager, key_path
 
-    if not file_manager.connect():
+        file_manager.disconnect()
         SSHService.cleanup_temp_key(key_path)
-        return None, (jsonify({'error': 'Failed to connect to pod'}), 500)
 
-    return file_manager, key_path
+    return None, (jsonify({'error': 'Failed to connect to pod'}), 500)
 
 
 @files_bp.route('/<pod_id>/files', methods=['GET'])
@@ -96,7 +95,8 @@ def upload_file_to_pod(pod_id):
             local_path = temp_file.name
 
         try:
-            full_remote_path = f"{remote_path.rstrip('/')}/{file.filename}"
+            filename = os.path.basename(file.filename)
+            full_remote_path = f"{remote_path.rstrip('/')}/{filename}"
 
             if not file_manager.upload_file(local_path, full_remote_path):
                 return jsonify({'error': 'Failed to upload file'}), 500
@@ -105,7 +105,7 @@ def upload_file_to_pod(pod_id):
 
             return jsonify({
                 'success': True,
-                'message': f'File {file.filename} uploaded successfully',
+                'message': f'File {filename} uploaded successfully',
                 'path': full_remote_path
             })
         finally:

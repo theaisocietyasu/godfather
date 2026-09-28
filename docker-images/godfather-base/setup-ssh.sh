@@ -4,37 +4,48 @@ set -e
 echo "🚀 Godfather Pod Initialization"
 echo "================================"
 
-# Start SSH service
-echo "🔧 Starting SSH service..."
-service ssh start || /usr/sbin/sshd
-echo "✅ SSH service started"
+mkdir -p /root/.ssh /etc/ssh/godfather_principals
+chmod 700 /root/.ssh
 
-# Setup SSH key if GODFATHER_SSH_PUBLIC_KEY is set
+# Backend key: root access for the web file manager
 if [ -n "$GODFATHER_SSH_PUBLIC_KEY" ]; then
-    echo "🔑 Setting up SSH key for Godfather access..."
-    mkdir -p /root/.ssh
-    
-    # Add the key if it's not already there
-    if ! grep -q "$GODFATHER_SSH_PUBLIC_KEY" /root/.ssh/authorized_keys 2>/dev/null; then
-        echo "$GODFATHER_SSH_PUBLIC_KEY" >> /root/.ssh/authorized_keys
-        chmod 700 /root/.ssh
-        chmod 600 /root/.ssh/authorized_keys
-        echo "✅ SSH key configured successfully"
-    else
-        echo "✅ SSH key already configured"
-    fi
+    touch /root/.ssh/authorized_keys
+    grep -qxF "$GODFATHER_SSH_PUBLIC_KEY" /root/.ssh/authorized_keys || echo "$GODFATHER_SSH_PUBLIC_KEY" >> /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/authorized_keys
+    echo "Backend SSH key configured"
 else
-    echo "⚠️  GODFATHER_SSH_PUBLIC_KEY not set - SSH key authentication won't work"
+    echo "GODFATHER_SSH_PUBLIC_KEY not set: the web file manager will not reach this pod"
 fi
+
+# User CA: CLI users connect with short-lived certificates issued for this pod only
+if [ -n "$GODFATHER_SSH_CA_PUBLIC_KEY" ]; then
+    echo "$GODFATHER_SSH_CA_PUBLIC_KEY" > /etc/ssh/godfather_user_ca.pub
+    chmod 644 /etc/ssh/godfather_user_ca.pub
+    echo "User CA configured"
+else
+    echo "GODFATHER_SSH_CA_PUBLIC_KEY not set: CLI logins will not work"
+fi
+
+if [ -n "$RUNPOD_POD_ID" ]; then
+    echo "gf-$RUNPOD_POD_ID" > /etc/ssh/godfather_principals/root
+else
+    echo "RUNPOD_POD_ID not set: CLI logins will not work"
+    : > /etc/ssh/godfather_principals/root
+fi
+chmod 644 /etc/ssh/godfather_principals/root
+
+ssh-keygen -A >/dev/null
+service ssh start || /usr/sbin/sshd
+echo "SSH service started"
 
 # Create workspace structure
 echo "📁 Setting up workspace structure..."
 mkdir -p /workspace/users
 chmod 755 /workspace/users
 
-# Create a shared directory for collaboration
+# Shared directory for collaboration; sticky so users cannot delete each other's files
 mkdir -p /workspace/shared
-chmod 777 /workspace/shared
+chmod 1777 /workspace/shared
 
 echo "✅ Workspace ready"
 
@@ -93,156 +104,10 @@ chmod -x /etc/update-motd.d/90-updates-available 2>/dev/null || true
 
 echo "✅ Welcome banner created"
 
-# Create user setup script that will be called when users connect
-cat > /usr/local/bin/godfather-user-setup.sh << 'USERSETUP'
-#!/bin/bash
-# This script sets up user workspace and permissions
-
-USERNAME=$1
-IS_ADMIN=$2
-
-if [ -z "$USERNAME" ]; then
-    echo "Error: Username not provided" >&2
-    exit 1
-fi
-
-# Create user's personal workspace
-USER_WORKSPACE="/workspace/users/$USERNAME"
-mkdir -p "$USER_WORKSPACE"
-chown root:root "$USER_WORKSPACE"
-chmod 700 "$USER_WORKSPACE"
-
-# Log to stderr so it doesn't interfere with the profile path output
-echo "Workspace ready: $USER_WORKSPACE" >&2
-
-# If not admin, create restricted environment
-if [ "$IS_ADMIN" != "true" ]; then
-    # Create restricted user account if it doesn't exist
-    if ! id "godfather_$USERNAME" &>/dev/null; then
-        # Create user without sudo privileges and no password
-        useradd -m -s /bin/bash -d "/home/godfather_$USERNAME" "godfather_$USERNAME" 2>/dev/null || true
-        
-        # Lock the user account to prevent password login
-        passwd -l "godfather_$USERNAME" &>/dev/null || true
-        
-        # Ensure user is NOT in sudo/admin groups
-        deluser "godfather_$USERNAME" sudo 2>/dev/null || true
-        deluser "godfather_$USERNAME" admin 2>/dev/null || true
-        deluser "godfather_$USERNAME" wheel 2>/dev/null || true
-    fi
-    
-    # Set proper ownership for the workspace
-    chown -R "godfather_$USERNAME:godfather_$USERNAME" "$USER_WORKSPACE" 2>/dev/null || true
-    
-    # Give restricted user access to shared folder
-    chmod 777 /workspace/shared 2>/dev/null || true
-    
-    # Remove any sudoers files for this user
-    rm -f "/etc/sudoers.d/godfather_$USERNAME" 2>/dev/null || true
-    
-    # Create a wrapper script that switches to the restricted user
-    cat > /tmp/switch_to_restricted_$USERNAME.sh << SWITCHSCRIPT
-#!/bin/bash
-# Switch to restricted user account
-
-# Display user welcome banner
-echo ""
-echo "  ╔════════════════════════════════════════════════════════════════════════╗"
-echo "  ║                    👤 Restricted User Mode                             ║"
-echo "  ╚════════════════════════════════════════════════════════════════════════╝"
-echo ""
-echo "  📁 Your Workspace:     /workspace/users/$USERNAME"
-echo "  🤝 Shared Folder:      /workspace/shared"
-echo "  🔒 Access Level:       Restricted (No sudo/root access)"
-echo "  ⚠️  Note:              You are running as a non-privileged user"
-echo ""
-echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "  💡 Quick Tips:"
-echo "     • All your files are saved in your personal workspace"
-echo "     • Use /workspace/shared for collaboration with others"
-echo "     • Changes persist across sessions"
-echo "     • You cannot install system packages (no sudo access)"
-echo "     • Contact an admin if you need software installed"
-echo ""
-echo "  ⚡ Common Commands:"
-echo "     • ls -la              - List files"
-echo "     • cd ~                - Go to home directory"
-echo "     • pwd                 - Show current path"
-echo "     • exit                - Disconnect from pod"
-echo ""
-echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-# Execute shell as restricted user in their workspace
-# Note: User does NOT have sudo access and cannot escalate privileges
-exec su - "godfather_$USERNAME" -c "cd /workspace/users/$USERNAME && exec bash --rcfile <(echo 'export PS1=\"\[\033[01;36m\]godfather_$USERNAME\[\033[00m\]@\[\033[01;35m\]pod\[\033[00m\]:\[\033[01;33m\]\w\[\033[00m\]\\$ \"'; echo 'alias ll=\"ls -lah --color=auto\"'; echo 'alias workspace=\"cd /workspace/users/$USERNAME\"'; echo 'alias shared=\"cd /workspace/shared\"'; echo 'echo -e \"\033[0;33m⚠️  Note: You do not have sudo access. Contact an admin if you need help.\033[0m\"' )"
-SWITCHSCRIPT
-    
-    chmod +x /tmp/switch_to_restricted_$USERNAME.sh
-    
-    # Return path to switch script
-    echo "/tmp/switch_to_restricted_$USERNAME.sh"
-else
-    # Create admin shell wrapper
-    cat > /tmp/admin_shell_$USERNAME.sh << ADMINSHELL
-#!/bin/bash
-# Godfather Admin Environment
-
-# Display admin welcome banner
-echo ""
-echo "  ╔════════════════════════════════════════════════════════════════════════╗"
-echo "  ║                        👑 Admin Mode                                   ║"
-echo "  ╚════════════════════════════════════════════════════════════════════════╝"
-echo ""
-echo "  📁 Your Workspace:     /workspace/users/$USERNAME"
-echo "  👑 Access Level:       Administrator (Full root access)"
-echo "  ⚡ Sudo:               Available"
-echo ""
-echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "  ⚠️  Important Reminders:"
-echo "     • You have full system access - use with caution"
-echo "     • Changes to system files affect all users"
-echo "     • Keep user workspaces isolated and secure"
-echo ""
-echo "  ⚡ Quick Admin Commands:"
-echo "     • workspace          - Jump to your workspace"
-echo "     • shared             - Go to shared folder"
-echo "     • htop               - View system resources"
-echo "     • nvidia-smi         - Check GPU status"
-echo ""
-echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-# Change to workspace
-cd /workspace/users/$USERNAME 2>/dev/null || cd /workspace
-
-# Start bash with custom prompt and aliases
-exec bash --rcfile <(echo '
-export PS1="\[\033[01;31m\]👑 \u\[\033[00m\]@\[\033[01;35m\]godfather\[\033[00m\]:\[\033[01;33m\]\w\[\033[00m\]\\$ "
-alias ll="ls -lah --color=auto"
-alias workspace="cd /workspace/users/$USERNAME"
-alias shared="cd /workspace/shared"
-alias pods="kubectl get pods 2>/dev/null || echo '\''kubectl not available'\''"
-')
-ADMINSHELL
-    
-    chmod +x /tmp/admin_shell_$USERNAME.sh
-    
-    # Return path to admin shell script
-    echo "/tmp/admin_shell_$USERNAME.sh"
-fi
-USERSETUP
-
-chmod +x /usr/local/bin/godfather-user-setup.sh
-
-echo "✅ User setup script installed"
-
 echo "================================"
 echo "🎉 Pod initialization complete!"
 echo ""
 echo "Note: User workspaces will be created on first connection"
 
-# Keep container running and maintain SSH service
-tail -f /dev/null
+# Keep the container running
+exec sleep infinity

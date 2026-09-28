@@ -1,5 +1,4 @@
 """Main Flask application"""
-import logging
 from datetime import datetime
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -10,7 +9,6 @@ from shared.logger import setup_logging, get_logger
 from domains.auth.routes import auth_bp
 from domains.pods.routes import pods_bp
 from domains.discord.routes import discord_bp
-from domains.ssh.routes import ssh_bp
 from domains.files.routes import files_bp
 
 # Setup logging
@@ -44,7 +42,6 @@ def log_request():
 app.register_blueprint(auth_bp)
 app.register_blueprint(pods_bp)
 app.register_blueprint(discord_bp)
-app.register_blueprint(ssh_bp)
 app.register_blueprint(files_bp)
 
 # Health check endpoint

@@ -1,22 +1,39 @@
-// Thin wrapper around fetch for calls to this app's own /api routes.
-// Handles the X-Discord-User-ID header convention used across the backend proxy routes.
+// Thin wrapper around fetch for calls to the backend API.
+// Every request carries a short-lived signed token from /api/auth/token as a Bearer header.
 
-export interface ApiFetchOptions extends RequestInit {
-  discordId?: string;
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+async function getApiToken(forceRefresh = false): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  if (!forceRefresh && cachedToken && cachedToken.expiresAt - now > 60) {
+    return cachedToken.token;
+  }
+
+  const response = await fetch('/api/auth/token', { cache: 'no-store' });
+  if (!response.ok) {
+    cachedToken = null;
+    throw new Error('Not signed in');
+  }
+  const data = await response.json();
+  cachedToken = { token: data.token, expiresAt: data.expires_at };
+  return data.token;
 }
 
-export async function apiFetch(path: string, options: ApiFetchOptions = {}): Promise<Response> {
-  const { discordId, headers, ...rest } = options;
-  return fetch(path, {
-    ...rest,
-    headers: {
-      ...(discordId ? { 'X-Discord-User-ID': discordId } : {}),
-      ...headers,
-    },
-  });
+export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const send = async (token: string) =>
+    fetch(path, {
+      ...options,
+      headers: { ...options.headers, Authorization: `Bearer ${token}` },
+    });
+
+  let response = await send(await getApiToken());
+  if (response.status === 401) {
+    response = await send(await getApiToken(true));
+  }
+  return response;
 }
 
-export async function apiJson<T = unknown>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+export async function apiJson<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await apiFetch(path, options);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

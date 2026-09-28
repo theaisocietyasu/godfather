@@ -1,10 +1,10 @@
 # Godfather CLI
 
-Command-line client for AI Society ASU's Godfather platform. Lets members log
-in with their Discord account and SSH into shared RunPod GPU pods without
-touching the RunPod dashboard.
+Command-line client for Godfather, free compute for ASU students run by the
+AI Society at ASU. Log in with your Discord account and SSH into a GPU or CPU
+machine the club pays for, with your own private workspace.
 
-![Python](https://img.shields.io/badge/python-3.7+-blue.svg)
+![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## Installation
@@ -37,11 +37,15 @@ pip install -e .
    with Discord, and copy the token shown there.
 3. Paste the token back into the terminal. The CLI verifies it with the
    backend and stores it in `~/.godfather/config.json`.
-4. From the menu (or `godfather connect`), pick a pod. The CLI fetches your
-   SSH key and opens the connection for you.
+4. From the menu (or `godfather connect`), pick a pod. The CLI creates an SSH
+   key on your machine the first time, asks the server for a 12-hour
+   certificate for that pod, and opens the connection.
 
-You only need to log in once — the CLI reuses the stored token until it
-expires, at which point it'll prompt you to log in again automatically.
+A token lasts 30 days. When it expires, or if you leave the Discord server,
+the CLI asks you to log in again.
+
+You need OpenSSH installed (`ssh` and `ssh-keygen`). macOS, Linux and
+Windows 10+ ship it.
 
 ## Usage
 
@@ -65,19 +69,15 @@ godfather update                  # Update the CLI to the latest version
 godfather --api-url https://your-backend.example.com list
 ```
 
-## Configuration
+## Files it keeps
 
-The CLI stores its config in `~/.godfather/config.json`:
+Everything lives in `~/.godfather/`:
 
-```json
-{
-  "token": "discord_<your_discord_id>_<timestamp>",
-  "discord_user_id": "<your_discord_id>"
-}
-```
+- `config.json`: your token (mode 600). Treat it like a password.
+- `ssh/id_ed25519`, `ssh/id_ed25519.pub`: your SSH key, created on first connect. The private key never leaves your machine.
+- `ssh/id_ed25519-cert.pub`: the certificate for the last pod you connected to.
 
-Your fetched SSH private key is written to `~/.godfather/ssh/godfather_key`
-with `0600` permissions and reused for future connections.
+Delete the folder to reset everything.
 
 ### Backend URL
 
@@ -92,12 +92,28 @@ This mainly matters if you're running the backend locally.
   API URL is correct (`godfather status` shows what's currently configured).
 - **"That token is invalid or expired"** — get a fresh token from the admin
   portal's `/cli-auth` page and try again.
-- **SSH connection fails with "SSH key not set up on this pod"** — the pod
-  needs the Godfather SSH key added to `authorized_keys`. Pods built from the
-  `godfather-base` image do this automatically; otherwise the CLI prints the
-  manual fix to run from the RunPod web terminal.
-- **`ssh: command not found`** — install OpenSSH; the CLI shells out to your
-  system's `ssh` client to connect.
+- **"SSH could not log in to the pod"** — the pod was created before
+  Godfather 1.1.0 or does not run the `godfather-base` image. Ask an admin to
+  recreate it.
+- **"A valid SSH public key is required"** — your CLI is older than the
+  server. Run `godfather update`.
+- **`ssh: command not found`** — install OpenSSH; the CLI uses your system's
+  `ssh` and `ssh-keygen`.
+
+## Development
+
+The code is in `godfather_cli/`: `cli.py` (commands and menu), `auth.py`
+(token login), `pod_manager.py` (API calls), `ssh_connector.py` (keys,
+certificate, running ssh), `update_checker.py` (PyPI version check), `ui.py`
+(shared console styling). Tests are in `tests/`:
+
+```bash
+pip install -e . pytest
+pytest -q tests
+```
+
+Releases go to PyPI when a `cli-v<version>` tag is pushed; see DEPLOYMENT.md
+in the repo root.
 
 ## Contributing
 

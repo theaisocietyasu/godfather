@@ -12,6 +12,7 @@ services:
       start_period: 10s
 
   backend:
+    image: ghcr.io/theaisocietyasu/godfather-backend:${GODFATHER_VERSION:-latest}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -22,6 +23,7 @@ services:
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
       DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
       ADMIN_ROLE_ID: ${ADMIN_ROLE_ID}
+      GODFATHER_TOKEN_SECRET: ${GODFATHER_TOKEN_SECRET}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       mongo:
@@ -34,23 +36,18 @@ services:
       start_period: 10s
 
   frontend:
+    image: ghcr.io/theaisocietyasu/godfather-frontend:${GODFATHER_VERSION:-latest}
     build:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      BACKEND_URL: http://backend:5000
-      RUNPOD_API_KEY: ${RUNPOD_API_KEY}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
-      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
-      DISCORD_GUILD_ID: ${DISCORD_GUILD_ID}
-      ADMIN_ROLE_ID: ${ADMIN_ROLE_ID}
-      MONGODB_URI: ${MONGODB_URI:-mongodb://mongo:27017/Godfather}
-      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      GODFATHER_TOKEN_SECRET: ${GODFATHER_TOKEN_SECRET}
     depends_on:
       backend:
         condition: service_healthy

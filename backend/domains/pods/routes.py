@@ -2,9 +2,9 @@
 from flask import Blueprint, request, jsonify
 from domains.auth.middleware import require_auth, require_token
 from domains.pods.service import PodService
-from domains.ssh.service import SSHService
-from domains.auth.service import AuthService
+from domains.ssh.service import SSHService, is_valid_public_key, safe_username
 from domains.discord.service import DiscordService
+from shared.config import settings
 from shared.logger import get_logger
 import secrets
 
@@ -31,11 +31,12 @@ def get_pods():
 def create_pod():
     """Create a new pod"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         logger.info(f'Create pod request: {data.get("name")}')
 
-        ssh_key = SSHService.get_or_create_org_key()
-        if not ssh_key:
+        backend_key = SSHService.get_backend_key()
+        user_ca = SSHService.get_user_ca()
+        if not backend_key or not user_ca:
             return jsonify({'error': 'Failed to setup SSH access'}), 500
 
         config = {
@@ -49,13 +50,17 @@ def create_pod():
             'volume_mount_path': data.get('volume_mount_path', '/workspace'),
             'is_public': data.get('is_public', False),
             'allowed_users': data.get('allowed_users', []),
+            'use_cpu_only': bool(data.get('use_cpu_only', False)),
             'env': data.get('env', {})
         }
+        if data.get('instance_ids'):
+            config['instance_ids'] = data['instance_ids']
 
         pod = PodService.create_pod(
             config=config,
             creator_id=request.discord_user_id,
-            ssh_public_key=ssh_key['public_key']
+            ssh_public_key=backend_key['public_key'],
+            ssh_ca_public_key=user_ca['public_key']
         )
 
         if pod:
@@ -90,7 +95,7 @@ def get_pod_details(pod_id):
 def update_pod(pod_id):
     """Update pod configuration"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         logger.info(f'Update pod: {pod_id}')
 
         PodService.update_pod(pod_id, data)
@@ -105,7 +110,7 @@ def update_pod(pod_id):
 def pod_action(pod_id):
     """Perform actions on a pod (start, stop, restart, terminate)"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         action = data.get('action')
         logger.info(f'Pod action: {action} on {pod_id}')
 
@@ -143,32 +148,42 @@ def get_public_pods():
 @pods_bp.route('/<pod_id>/connect', methods=['POST'])
 @require_token
 def connect_to_pod(pod_id):
-    """Get connection details for a pod"""
+    """Sign the caller's SSH public key for this pod and return connection details"""
     try:
         logger.info(f'Connect request for pod: {pod_id}')
 
         discord_user_id = request.discord_user_id
+        data = request.get_json(silent=True) or {}
+        public_key = data.get('public_key', '')
 
-        if not PodService.check_pod_access(pod_id, discord_user_id):
+        if not is_valid_public_key(public_key):
+            return jsonify({'error': 'A valid SSH public key is required. Update the CLI: pip install -U godfather-cli'}), 400
+
+        member = DiscordService.get_member(discord_user_id)
+        if not member:
+            return jsonify({'error': 'Must be a member of the AI Society Discord server'}), 403
+
+        is_admin = settings.ADMIN_ROLE_ID in member.get('roles', []) if settings.ADMIN_ROLE_ID else False
+
+        if not is_admin and not PodService.check_pod_access(pod_id, discord_user_id):
             return jsonify({'error': 'Pod not accessible'}), 403
 
         ssh_info = PodService.get_pod_ssh_info(pod_id)
         if not ssh_info:
             return jsonify({'error': 'Pod network information not available'}), 503
 
-        is_admin = AuthService.verify_discord_admin(discord_user_id)
+        # Discord username gives a stable per-user workspace folder and account
+        username = safe_username((member.get('user') or {}).get('username') or discord_user_id)
 
-        # Use Discord username as the folder name so pods have a stable per-user workspace
-        member = DiscordService.get_member(discord_user_id)
-        if member and member.get('user'):
-            username = member['user'].get('username', discord_user_id)
-        else:
-            username = discord_user_id
+        certificate = SSHService.sign_user_key(public_key, pod_id, discord_user_id, username, is_admin)
+        if not certificate:
+            return jsonify({'error': 'Failed to issue SSH certificate'}), 500
 
         ssh_info['user_folder'] = username
         ssh_info['is_admin'] = is_admin
+        ssh_info['certificate'] = certificate
 
         return jsonify({'ssh_info': ssh_info})
     except Exception as e:
         logger.error(f'Error in connect_to_pod: {e}', exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500

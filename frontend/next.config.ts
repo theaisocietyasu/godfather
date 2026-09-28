@@ -9,27 +9,30 @@ const nextConfig: NextConfig = {
     serverActions: {
       allowedOrigins: [
         'admin.ais-asu.com',
-        'admin.ais-asu.com',
         'localhost:3000',
-        '100.65.19.4',  // Direct IP access
       ],
     },
   },
   
   async rewrites() {
-    // Only use rewrites in development (docker-compose)
-    // In production, nginx handles the routing
+    // In development, send /api calls that no Next.js route handles to the backend.
+    // In production nginx does this routing. Fallback rewrites run after dynamic routes,
+    // so NextAuth's /api/auth/* handlers still win.
     if (process.env.NODE_ENV === 'development') {
-      return [
-        {
-          source: '/api/:path*',
-          destination: 'http://backend:5000/api/:path*', // Proxy to Backend
-        },
-      ];
+      return {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [
+          {
+            source: '/api/:path*',
+            destination: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/:path*`,
+          },
+        ],
+      };
     }
     return [];
   },
-  
+
   async headers() {
     return [
       {

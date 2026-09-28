@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import {
   Folder as FolderIcon,
@@ -69,8 +68,6 @@ function formatDate(timestamp?: number) {
 }
 
 export default function FileManager({ podId, initialPath = '/workspace' }: FileManagerProps) {
-  const { data: session } = useSession();
-  const discordId = session?.user?.discordId || '';
 
   const [files, setFiles] = useState<FileItem[]>([]);
   const [currentPath, setCurrentPath] = useState(initialPath);
@@ -96,7 +93,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
   const fetchFiles = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listFiles(podId, currentPath, discordId);
+      const data = await listFiles(podId, currentPath);
       setFiles(data);
       setSelectedFiles(new Set());
     } catch (error: unknown) {
@@ -105,7 +102,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     } finally {
       setLoading(false);
     }
-  }, [podId, currentPath, discordId]);
+  }, [podId, currentPath]);
 
   useEffect(() => {
     fetchFiles();
@@ -139,7 +136,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
   const uploadFile = async (file: File) => {
     setUploadingFile(true);
     try {
-      await apiUploadFile(podId, currentPath, file, discordId);
+      await apiUploadFile(podId, currentPath, file);
       toast.success(`${file.name} uploaded`);
       fetchFiles();
     } catch (error: unknown) {
@@ -162,7 +159,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
   const handleDownload = async (fileName: string) => {
     try {
       const filePath = `${currentPath}/${fileName}`.replace(/\/+/g, '/');
-      const blob = await downloadFile(podId, filePath, discordId);
+      const blob = await downloadFile(podId, filePath);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -183,7 +180,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     setDeleting(true);
     try {
       const filePath = `${currentPath}/${deleteTarget.name}`.replace(/\/+/g, '/');
-      await deleteFile(podId, filePath, deleteTarget.type, discordId);
+      await deleteFile(podId, filePath, deleteTarget.type);
       toast.success(`${deleteTarget.type === 'directory' ? 'Directory' : 'File'} deleted`);
       fetchFiles();
     } catch (error: unknown) {
@@ -207,7 +204,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     setDeleting(true);
     try {
       const paths = Array.from(selectedFiles).map((name) => `${currentPath}/${name}`.replace(/\/+/g, '/'));
-      const message = await bulkDeleteFiles(podId, paths, discordId);
+      const message = await bulkDeleteFiles(podId, paths);
       toast.success(message);
       setSelectedFiles(new Set());
       fetchFiles();
@@ -227,7 +224,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     }
     try {
       const dirPath = `${currentPath}/${newFolderName}`.replace(/\/+/g, '/');
-      await createFolder(podId, dirPath, discordId);
+      await createFolder(podId, dirPath);
       toast.success(`Directory ${newFolderName} created`);
       setNewFolderName('');
       setShowNewFolderInput(false);
@@ -241,7 +238,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
   const handlePreview = async (fileName: string) => {
     try {
       const filePath = `${currentPath}/${fileName}`.replace(/\/+/g, '/');
-      const content = await readFile(podId, filePath, discordId);
+      const content = await readFile(podId, filePath);
       setPreviewFile({ path: filePath, content, name: fileName });
     } catch (error: unknown) {
       console.error('Error reading file:', error);
@@ -252,7 +249,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
   const handleEdit = async (fileName: string) => {
     try {
       const filePath = `${currentPath}/${fileName}`.replace(/\/+/g, '/');
-      const content = await readFile(podId, filePath, discordId);
+      const content = await readFile(podId, filePath);
       setEditingFile({ path: filePath, content, name: fileName });
     } catch (error: unknown) {
       console.error('Error reading file:', error);
@@ -263,7 +260,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
   const handleSaveEdit = async () => {
     if (!editingFile) return;
     try {
-      await writeFile(podId, editingFile.path, editingFile.content, discordId);
+      await writeFile(podId, editingFile.path, editingFile.content);
       toast.success('File saved');
       setEditingFile(null);
       fetchFiles();
@@ -278,7 +275,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     try {
       const oldPath = `${currentPath}/${renameFile.oldName}`.replace(/\/+/g, '/');
       const newPath = `${currentPath}/${renameFile.newName}`.replace(/\/+/g, '/');
-      await renameFileOrDir(podId, oldPath, newPath, discordId);
+      await renameFileOrDir(podId, oldPath, newPath);
       toast.success('Item renamed');
       setRenameFile(null);
       fetchFiles();
@@ -299,7 +296,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     try {
       const fileName = copySource.split('/').pop();
       const destPath = `${currentPath}/${fileName}`.replace(/\/+/g, '/');
-      await copyFileOrDir(podId, copySource, destPath, discordId);
+      await copyFileOrDir(podId, copySource, destPath);
       toast.success('Item pasted');
       setCopySource(null);
       fetchFiles();
@@ -316,7 +313,7 @@ export default function FileManager({ podId, initialPath = '/workspace' }: FileM
     }
     setIsSearching(true);
     try {
-      const results = await searchFiles(podId, searchQuery, currentPath, discordId);
+      const results = await searchFiles(podId, searchQuery, currentPath);
       setSearchResults(results);
       toast.success(`Found ${results.length} result(s)`);
     } catch (error: unknown) {

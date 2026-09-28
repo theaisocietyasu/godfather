@@ -81,7 +81,7 @@ class PodService:
             raise
 
     @staticmethod
-    def create_pod(config: Dict, creator_id: str, ssh_public_key: str) -> Optional[Dict]:
+    def create_pod(config: Dict, creator_id: str, ssh_public_key: str, ssh_ca_public_key: str) -> Optional[Dict]:
         """Create a new pod"""
         try:
             logger.info(f'Creating pod: {config.get("name")}')
@@ -93,31 +93,18 @@ class PodService:
 
             env = config.get('env', {})
             env['GODFATHER_SSH_PUBLIC_KEY'] = ssh_public_key
+            env['GODFATHER_SSH_CA_PUBLIC_KEY'] = ssh_ca_public_key
             env['GODFATHER_SETUP'] = 'true'
             config['env'] = env
 
-            # CPU pods use instanceIds/computeType (GraphQL camelCase); GPU pods use gpu_type_id
+            # runpod.create_pod deploys a CPU pod when gpu_type_id is None and takes the CPU instance as instance_id
+            instance_ids = config.pop('instance_ids', None) or []
             if use_cpu_only:
-                config.pop('gpu_type_id', None)
-                config.pop('instance_id', None)
-
-                config['computeType'] = 'CPU'
-
-                if 'instanceIds' not in config and 'instance_ids' not in config:
-                    config['instanceIds'] = ['cpu3c-2-4']
-                elif 'instance_ids' in config:
-                    config['instanceIds'] = config.pop('instance_ids')
-
-                config['gpuCount'] = 0
-
-                logger.info(f'Creating CPU-only pod with instanceIds: {config.get("instanceIds")} and computeType: CPU')
-                logger.info(f'Full CPU config: {config}')
+                config['gpu_type_id'] = None
+                config['instance_id'] = instance_ids[0] if instance_ids else 'cpu3c-2-4'
+                logger.info(f'Creating CPU pod on instance {config["instance_id"]}')
             else:
                 config.pop('instance_id', None)
-                config.pop('instance_ids', None)
-                config.pop('instanceIds', None)
-                config.pop('compute_type', None)
-                config.pop('computeType', None)
                 logger.info(f'Creating GPU pod with gpu_type_id: {config.get("gpu_type_id")}')
 
             logger.info(f'Calling runpod.create_pod with config keys: {list(config.keys())}')

@@ -1,115 +1,81 @@
-# Deployment
+# Deploying and releasing Godfather
 
-Godfather runs as four containers behind nginx: `backend` (Flask/gunicorn),
-`frontend` (Next.js), `mongo`, and `nginx` itself terminating traffic on
-80/443. Everything is defined in `docker-compose.yml` at the repo root.
+Production is one Linux server running docker compose: `nginx` (ports 80 and 443), `frontend`, `backend`, and `mongo`. Everything is defined in `docker-compose.yml`. The portal is served at admin.ais-asu.com.
 
-## Prerequisites
+## First deploy on a new server
 
-- Docker Engine and the Docker Compose plugin (`docker compose version`) on
-  the host. If you're deploying on a RunPod VM, install Docker there first -
-  RunPod's stock images don't ship it by default.
-- A Discord application (bot token + OAuth client) and a RunPod API key,
-  same as before - see `.env.example` for the full list.
-- A MongoDB instance. The compose file includes a `mongo` container with a
-  named volume, which is enough for a single-host deployment. Point
-  `MONGODB_URI` at an external cluster instead if you need one.
-- TLS certificates if you're serving HTTPS directly from this nginx
-  container (see the TLS section below).
-
-## First deploy
-
-1. Clone the repo onto the host and `cd` into it.
-2. Copy the env template and fill in real values:
+1. Install Docker Engine with the compose plugin (`curl -fsSL https://get.docker.com | sh`).
+2. Clone the repo and `cd` into it.
+3. `cp .env.example .env` and fill in every value. See the configuration table in the README.
+4. Put TLS files at `nginx/ssl/cert.pem` and `nginx/ssl/key.pem`, or serve plain HTTP behind a proxy that terminates TLS (Cloudflare, RunPod proxy).
+5. Start it:
 
    ```
-   cp .env.example .env
+   docker compose pull          # released images from GHCR
+   docker compose up -d
    ```
 
-   Fill in `RUNPOD_API_KEY`, `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`,
-   `ADMIN_ROLE_ID`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`,
-   `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and
-   `NEXT_PUBLIC_APP_URL`. Leave `MONGODB_URI` as-is unless you're using an
-   external database.
+   If the images are not reachable (private packages, no release yet), build locally instead: `docker compose up -d --build`.
+6. Check it: `docker compose ps` shows backend and frontend as healthy, and `curl http://localhost/health` returns `healthy`.
 
-3. Build and start everything:
-
-   ```
-   docker compose up -d --build
-   ```
-
-   This builds the backend and frontend images locally from source and
-   starts all four services. First build takes a few minutes (Next.js
-   build + Python wheel build).
-
-4. Confirm it's healthy:
-
-   ```
-   docker compose ps
-   curl http://localhost/health
-   ```
-
-   `docker compose ps` should show `backend` and `frontend` as `healthy`
-   once their healthchecks pass.
-
-## Updating
-
-Once CI has published images (see below), you don't need to rebuild locally.
-Pull the latest tags and recreate the containers:
+## Updating to a new release
 
 ```
+git pull
+# set GODFATHER_VERSION in .env to the release, e.g. 1.1.0, or leave it at latest
 docker compose pull
 docker compose up -d
 ```
 
-If you're still building locally instead of pulling from the registry, use
-`docker compose up -d --build` again - compose only rebuilds layers that
-changed.
+Logs: `docker compose logs -f backend` (or frontend, nginx, mongo). Restart one service with `docker compose restart backend`.
 
-## Logs and troubleshooting
+## Upgrading from 1.0.x to 1.1.0
 
-```
-docker compose logs -f backend
-docker compose logs -f frontend
-docker compose logs -f nginx
-docker compose logs -f mongo
-```
+1.1.0 replaces the old login and SSH scheme, which was not secure. Do these steps once:
 
-Drop `-f` for a one-shot dump. `docker compose ps` shows container and
-healthcheck status. `docker compose restart <service>` restarts a single
-service without touching the others.
+1. Add `GODFATHER_TOKEN_SECRET` to `.env` (`openssl rand -hex 32`). Make sure `ADMIN_ROLE_ID` is set; it is now required.
+2. Publish the new pod image (see below) before recreating pods.
+3. Deploy the new frontend and backend as above.
+4. Recreate every pod from the portal: note its settings, terminate it, create it again. Old pods trust the old shared key, which every CLI user downloaded, so they stay open to anyone who has it until they are terminated. New pods only accept 12-hour certificates.
+5. Tell members to run `pip install -U godfather-cli` and log in again with a token from `/cli-auth`. Old CLI versions and old tokens no longer work.
+6. Optional cleanup once no old pods remain: `docker compose exec mongo mongosh Godfather --eval 'db.ssh_keys.deleteOne({key_type: "organization"})'`.
 
-## TLS
+## Releasing
 
-`nginx/nginx.conf` is mounted read-only into the nginx container along with
-`nginx/ssl/`. Place your certificate and key there as `cert.pem` and
-`key.pem` (these paths are gitignored - never commit real certs). If you're
-running behind a proxy that already terminates TLS (e.g. Cloudflare or
-RunPod's own proxy domain), you can serve plain HTTP from nginx and let the
-upstream proxy handle certificates instead; the existing `server_name`
-block already accepts both a custom domain and `*.proxy.runpod.net`.
+There are three things that ship, each from its own workflow in `.github/workflows/`:
 
-## CI-published images
+| What | Workflow | Trigger | Publishes to |
+| --- | --- | --- | --- |
+| Backend and frontend images | `build-and-push-images.yml` | push to `main` touching `backend/` or `frontend/`, or a `v*.*.*` tag | `ghcr.io/theaisocietyasu/godfather-backend` and `-frontend`, tagged `latest`, short sha, and the version |
+| CLI | `publish-cli.yml` | a `cli-v*.*.*` tag | PyPI `godfather-cli` (TestPyPI first) |
+| Pod image | `build-pod-base-image.yml` | push to `main` touching `docker-images/godfather-base/`, or run it by hand from the Actions tab | Docker Hub `theaisocietyasu/godfather-base:latest` |
 
-Two workflows build and push images automatically; you don't need to run
-either by hand:
+To cut a release:
 
-- `.github/workflows/build-and-push-images.yml` builds `backend/` and
-  `frontend/` on every push to `main` that touches those directories (or the
-  compose file), and on version tags. Images land in GitHub Container
-  Registry as `ghcr.io/theaisocietyasu/godfather-backend` and
-  `ghcr.io/theaisocietyasu/godfather-frontend`, tagged with both the git
-  short sha and `latest`.
-- `.github/workflows/build-pod-base-image.yml` builds the GPU pod image
-  members SSH into (`docker-images/godfather-base/`) and pushes it to
-  Docker Hub as `theaisocietyasu/godfather-base:latest` and
-  `:<short-sha>`. It needs `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
-  configured as repository secrets in GitHub settings; it does nothing
-  useful without them.
+1. Merge the changes to `main` with CI green.
+2. Bump `version` in `cli/pyproject.toml` and `__version__` in `cli/godfather_cli/__init__.py` if the CLI changed. The publish workflow also overwrites both from the tag, so the tag is what counts.
+3. Tag and push:
 
-To run against the CI-built images instead of building locally, either
-point `docker-compose.yml`'s `build:` blocks at `image:` references for
-those tags, or pull and re-tag them manually before `docker compose up -d`.
+   ```
+   git tag v1.1.0 && git tag cli-v1.1.0
+   git push origin v1.1.0 cli-v1.1.0
+   ```
 
-The CLI has its own release flow and is unrelated to this: it publishes to
-PyPI from `.github/workflows/publish-cli.yml` on tags matching `cli-v*.*.*`.
+4. The `release.yml` workflow creates the GitHub release for the `v` tag. It uses `docs/releases/<tag>.md` as the notes when that file exists, so write it before tagging; otherwise it generates notes from merged PRs.
+
+PyPI never accepts the same version twice. If a publish fails after upload, bump the version and tag again.
+
+## Secrets CI needs
+
+Set these under the repository's Settings, Secrets and variables, Actions:
+
+- `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`: a Docker Hub account with push access to `theaisocietyasu/godfather-base`. Without them the pod image workflow fails at login. The image can also be pushed by hand:
+
+  ```
+  cd docker-images/godfather-base
+  docker build -t theaisocietyasu/godfather-base:latest .
+  docker push theaisocietyasu/godfather-base:latest
+  ```
+
+- PyPI publishing uses trusted publishing, so there is no token. The `godfather-cli` project on PyPI (and TestPyPI) must list this repository and `publish-cli.yml` as a trusted publisher.
+- GHCR uses the built-in `GITHUB_TOKEN`. For `docker compose pull` to work without logging in, set both GHCR packages to public in the organization's Packages settings, or run `docker login ghcr.io` on the server.

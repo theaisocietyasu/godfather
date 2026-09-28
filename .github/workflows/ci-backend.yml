@@ -17,10 +17,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -34,14 +34,9 @@ jobs:
       - name: Compile check
         run: python -m compileall -q backend
 
-      - name: Import check
-        # settings.validate() only runs under `if __name__ == "__main__"` in app.py,
-        # so importing the app module does not require real secrets.
-        working-directory: backend
-        run: python -c "import app"
-
       - name: Lint (ruff)
-        # Reports pre-existing style issues without failing the build; this is not
-        # a gate on code we haven't touched.
-        continue-on-error: true
         run: ruff check backend/
+
+      - name: Tests
+        working-directory: backend
+        run: pytest -q
