@@ -2,9 +2,14 @@ name: Publish CLI to PyPI
 
 on:
   push:
+    branches:
+      - main
+    paths:
+      - 'cli/pyproject.toml'
     tags:
       - 'v*.*.*'
       - 'cli-v*.*.*'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -29,6 +34,7 @@ jobs:
           pip install build twine
 
       - name: Sync CLI version from tag
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           VERSION="${GITHUB_REF_NAME#cli-}"
           VERSION="${VERSION#v}"
