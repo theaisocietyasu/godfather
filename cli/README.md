@@ -1,8 +1,8 @@
 # Godfather CLI
 
-Command-line client for AI Society ASU's Godfather platform. Lets members log
-in with their Discord account and SSH into shared RunPod GPU pods without
-touching the RunPod dashboard.
+Command-line client for Godfather, free compute for ASU students run by the
+AI Society at ASU. Log in with your Discord account and SSH into a GPU or CPU
+machine the club pays for, with your own private workspace.
 
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)

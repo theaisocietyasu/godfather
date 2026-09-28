@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "godfather-cli"
 version = "1.1.0"
-description = "AI Society Godfather CLI - RunPod Environment Manager"
+description = "Free compute for ASU students: connect to AI Society at ASU GPU pods"
 authors = [
     {name = "AI Society ASU", email = "theaisocietyasu@gmail.com"}
 ]
