@@ -1,21 +1,34 @@
 # backend
 
-Flask API server for Godfather. See the root [`README.md`](../README.md) for setup, environment variables, and the full API reference. This file covers backend-specific structure that isn't obvious from the code layout alone.
+Flask API for Godfather. The root README explains how auth and SSH access work and where to make common changes; this file is the map of this folder.
 
 ## Layout
 
-- `app.py` - creates the Flask app, registers each domain's blueprint, and defines `/health`. Config validation (`settings.validate()`, which requires `RUNPOD_API_KEY`, `DISCORD_BOT_TOKEN`, and `DISCORD_GUILD_ID`) only runs when `app.py` is executed directly (`python app.py`), not on import - so importing `app` for tooling/CI doesn't require those secrets to be set.
-- `domains/<name>/routes.py` - Flask blueprint with the HTTP routes for that domain.
-- `domains/<name>/service.py` - business logic and external API calls (RunPod, Discord, SSH/SFTP) for that domain.
-- `shared/config.py` - `Settings`, populated from environment variables (loaded from a `.env` file in the repo root).
-- `shared/database.py` - the `pymongo.MongoClient` and collections (`pods`, `users`, `ssh_keys`) shared across domains. The client is created at import time but doesn't connect until first used.
-- `shared/logger.py` - logging setup, shared by all domains via `get_logger(__name__)`.
+- `app.py`: creates the app, registers each area's blueprint, serves `/health`. Validates required settings on import, so it will not start without them.
+- `domains/<area>/routes.py`: HTTP routes for that area (a Flask blueprint).
+- `domains/<area>/service.py`: logic and external calls for that area.
+- `shared/config.py`: settings read from the environment (the repo root `.env`).
+- `shared/database.py`: MongoDB client and collections (`pods`, `users`, `ssh_keys`).
+- `shared/logger.py`: logging. Use `get_logger(__name__)`, not `print`.
+- `tests/`: pytest. `conftest.py` sets fake settings, so tests need no real secrets or database.
+
+| Area | Routes | What it does |
+| --- | --- | --- |
+| `auth` | `GET /api/me` | Token checks (`tokens.py`), the `require_auth` and `require_token` decorators (`middleware.py`), live Discord role checks (`service.py`). |
+| `pods` | `/api/pods`, `/api/pods/<id>`, `/action`, `/public`, `/connect` | Create, list, start, stop, terminate pods on RunPod, access lists in MongoDB, SSH certificates for the CLI. |
+| `files` | `/api/pods/<id>/files/*` | Web file manager over SFTP as root, using the backend key. |
+| `ssh` | none | Backend key, user CA, certificate signing. Needs `ssh-keygen` (installed in the Docker image). |
+| `discord` | `GET /api/discord/members` | Server member list for the access picker. |
+
+## Rules
+
+- Every route except `/health` needs `@require_auth` (admins only) or `@require_token` (any Discord server member). Both read the bearer token; never trust a user ID from a header or request body.
+- Keep private keys inside the backend. Only public keys and certificates go out.
 
 ## Running
 
-```bash
-pip install -r requirements.txt
-python app.py
 ```
-
-Runs on `http://localhost:5000`. Set `FLASK_DEBUG=1` for auto-reload during development.
+pip install -r requirements-dev.txt
+python app.py        # http://localhost:5000, needs the repo root .env
+ruff check . && pytest -q
+```

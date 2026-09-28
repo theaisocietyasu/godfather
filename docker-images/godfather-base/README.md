@@ -1,33 +1,26 @@
 # godfather-base
 
-Custom RunPod base image used for all pods created through Godfather. It adds SSH access, per-user workspace isolation, and a themed shell, on top of `runpod/base:0.4.0-cuda11.8.0`.
+The image every Godfather pod runs, built on `runpod/base`. It runs sshd, trusts the backend's user CA, and gives each member a private account and workspace.
 
-## What it does
+## Files
 
-`setup-ssh.sh` runs as the container entrypoint and:
+- `Dockerfile`: installs tools and openssh-server, copies `rootfs/` into the image, sets `setup-ssh.sh` as the entrypoint.
+- `setup-ssh.sh`: runs when the pod starts. It reads three environment variables:
+  - `GODFATHER_SSH_PUBLIC_KEY`: the backend's key, added to root's `authorized_keys` for the web file manager.
+  - `GODFATHER_SSH_CA_PUBLIC_KEY`: the user CA, written to `/etc/ssh/godfather_user_ca.pub`.
+  - `RUNPOD_POD_ID`: set by RunPod. Root accepts only certificates with the principal `gf-<pod id>`, so a certificate for one pod does not open another.
+  The backend sets the first two when it creates the pod. Then it starts sshd, creates `/workspace/users` and `/workspace/shared`, and writes the login banner.
+- `rootfs/etc/ssh/sshd_config.d/godfather.conf`: key-only root login, CA trust, principals file.
+- `rootfs/usr/local/bin/godfather-login`: runs on every CLI connection. Members reach it as the forced command in their certificate; it creates `godfather_<username>` without sudo, gives them `/workspace/users/<username>` (mode 700), and switches to that account. Admins run it with `--admin` and stay root.
+- `rootfs/etc/godfather/*.bashrc`: prompt and aliases (`workspace`, `shared`, `ll`) for member and admin shells.
 
-1. Starts `sshd`.
-2. If `GODFATHER_SSH_PUBLIC_KEY` is set, appends it to `/root/.ssh/authorized_keys`. The backend sets this env var when creating a pod (`backend/domains/pods/service.py`) so the platform's SSH key can connect as root.
-3. Creates `/workspace/users` (per-user workspaces) and `/workspace/shared` (shared collaboration folder, world-writable).
-4. Installs a custom MOTD.
-5. Installs `/usr/local/bin/godfather-user-setup.sh`, which is invoked over SSH on every connection (see `cli/godfather_cli/ssh_connector.py`) as:
+## Changing it
 
-   ```
-   SCRIPT=$(/usr/local/bin/godfather-user-setup.sh <username> <is_admin>) && bash $SCRIPT
-   ```
+Edit the files above, merge to `main`, and the `build-pod-base-image` workflow pushes `theaisocietyasu/godfather-base:latest` to Docker Hub. Existing pods keep the image they started with; recreate them to pick up changes.
 
-   `godfather-user-setup.sh` creates the user's workspace directory and, depending on `is_admin`:
-   - **Admin**: writes and returns a wrapper script that drops into a root bash shell in the user's workspace, with an admin-themed prompt.
-   - **Non-admin**: creates (if needed) a locked, sudo-less Linux user `godfather_<username>`, owns their workspace, and returns a wrapper script that `su`s into that account with a restricted-themed prompt. Restricted users cannot use sudo and are not added to `sudo`/`admin`/`wheel` groups.
+Build and push by hand:
 
-Both wrapper scripts are written to `/tmp` and executed once per connection, so the shell setup happens fresh each time a user connects rather than being baked into the image at build time.
-
-## Building and publishing
-
-```bash
-cd docker-images/godfather-base
+```
 docker build -t theaisocietyasu/godfather-base:latest .
 docker push theaisocietyasu/godfather-base:latest
 ```
-
-See the root [`DEPLOYMENT.md`](../../DEPLOYMENT.md) for the full release process, including tagging and updating the default image reference used when creating pods.
