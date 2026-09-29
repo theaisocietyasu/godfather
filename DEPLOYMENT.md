@@ -7,7 +7,7 @@ Production is one Linux server running docker compose: `nginx` (ports 80 and 443
 1. Install Docker Engine with the compose plugin (`curl -fsSL https://get.docker.com | sh`).
 2. Clone the repo and `cd` into it.
 3. `cp .env.example .env` and fill in every value. See the configuration table in the README.
-4. Put TLS files at `nginx/ssl/cert.pem` and `nginx/ssl/key.pem`, or serve plain HTTP behind a proxy that terminates TLS (Cloudflare, RunPod proxy).
+4. Terminate TLS in front of nginx (Cloudflare, the RunPod proxy, or Caddy). `nginx/nginx.conf` serves plain HTTP on port 80 and has no 443 server block yet.
 5. Start it:
 
    ```

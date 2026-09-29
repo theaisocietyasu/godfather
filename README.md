@@ -36,7 +36,7 @@ There are four pieces, each in its own folder:
 | `cli/` | `godfather-cli` on PyPI. Members log in and connect with it. | members' laptops |
 | `docker-images/godfather-base/` | The image every pod runs. Sets up sshd, user accounts and workspaces. | each RunPod pod |
 
-`nginx/` is the reverse proxy in front of the frontend and backend. `.github/workflows/` holds CI and the release pipelines.
+`nginx/` is the reverse proxy in front of the frontend and backend. `docs/ARCHITECTURE.md` explains the design in depth and `docs/ROADMAP.md` lists what to build next. `.github/workflows/` holds CI and the release pipelines.
 
 ## How login and access work
 
