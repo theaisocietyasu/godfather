@@ -2,6 +2,10 @@
 
 Godfather gives ASU students free compute. The AI Society at ASU pays for GPU and CPU machines on RunPod, and any student in the club's Discord server can get a private workspace on one: no card, no cloud account, no setup beyond one CLI install. Officers create and share pods from a web portal; students connect with `godfather connect`.
 
+<img width="1280" height="812" alt="image" src="https://github.com/user-attachments/assets/4823bf64-ecc9-4d98-9b34-de42bd7fe163" />
+
+<img width="1289" height="1150" alt="image" src="https://github.com/user-attachments/assets/9e8bd442-72bb-45bb-9959-521798c82abe" />
+
 <img width="2545" height="1228" alt="image" src="https://github.com/user-attachments/assets/31e3f242-4313-48fa-a61e-4ae81cdc39ef" />
 
 
