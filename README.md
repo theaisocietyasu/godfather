@@ -4,6 +4,8 @@ Godfather gives ASU students free compute. The AI Society at ASU pays for GPU an
 
 <img width="1280" height="812" alt="image" src="https://github.com/user-attachments/assets/4823bf64-ecc9-4d98-9b34-de42bd7fe163" />
 
+<img width="1293" height="810" alt="image" src="https://github.com/user-attachments/assets/ac8abe77-ebaf-4f0a-b6d3-3dcc4f29f7ef" />
+
 <img width="1289" height="1150" alt="image" src="https://github.com/user-attachments/assets/9e8bd442-72bb-45bb-9959-521798c82abe" />
 
 <img width="2545" height="1228" alt="image" src="https://github.com/user-attachments/assets/31e3f242-4313-48fa-a61e-4ae81cdc39ef" />
