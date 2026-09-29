@@ -6,10 +6,13 @@ Godfather gives ASU students free compute. The AI Society at ASU pays for GPU an
 
 <img width="1293" height="810" alt="image" src="https://github.com/user-attachments/assets/ac8abe77-ebaf-4f0a-b6d3-3dcc4f29f7ef" />
 
+<img width="892" height="663" alt="image" src="https://github.com/user-attachments/assets/32debb39-65ee-4d1f-a357-cdbbffe0f98a" />
+
 <img width="1289" height="1150" alt="image" src="https://github.com/user-attachments/assets/9e8bd442-72bb-45bb-9959-521798c82abe" />
 
 <img width="2545" height="1228" alt="image" src="https://github.com/user-attachments/assets/31e3f242-4313-48fa-a61e-4ae81cdc39ef" />
 
+<img width="820" height="454" alt="image" src="https://github.com/user-attachments/assets/4747ddcb-dc16-4181-97b3-82eeff5f5d95" />
 
 It is a standalone project with no dependency on other club systems, so it can be run and maintained on its own.
 
