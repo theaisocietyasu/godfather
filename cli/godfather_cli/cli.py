@@ -16,6 +16,10 @@ from .update_checker import check_for_updates, show_update_warning, perform_upda
 from .ui import console, warning, info, BOX, BORDER, PURPLE
 from . import __version__
 
+# The AI Society platform API and org. Override with --api-url/--org or GODFATHER_API_URL/GODFATHER_ORG.
+DEFAULT_API_URL = 'https://854ap0rs1ws50n-8000.proxy.runpod.net'
+DEFAULT_ORG = 'ais'
+
 
 class GodfatherCLI:
     """Wires together auth, pod listing, and SSH connection for the CLI commands."""
@@ -23,24 +27,20 @@ class GodfatherCLI:
     def __init__(self):
         self.config_dir = Path.home() / '.godfather'
 
-        # Resolve the API base URL, in priority order. GODFATHER_API_URL is
-        # the CLI-specific override; the others let us reuse whatever the
-        # web app already has configured in the environment.
+        # A flag or env var wins, then what the last login saved, then the defaults.
+        saved = CLIAuthenticator.read_config(self.config_dir)
         self.api_base = (
-            os.getenv('GODFATHER_API_URL') or
-            os.getenv('BACKEND_URL') or
-            os.getenv('NEXT_PUBLIC_BACKEND_URL') or
-            (os.getenv('NEXT_PUBLIC_API_URL', '').replace('/api', '')) or
-            'https://admin.ais-asu.com'
-        )
+            os.getenv('GODFATHER_API_URL') or saved.get('api_url') or DEFAULT_API_URL
+        ).rstrip('/')
+        self.org = os.getenv('GODFATHER_ORG') or saved.get('org') or DEFAULT_ORG
 
-        self.authenticator = CLIAuthenticator(self.api_base, self.config_dir)
+        self.authenticator = CLIAuthenticator(self.api_base, self.org, self.config_dir)
         self.pod_manager = PodManager(self.api_base, self.authenticator)
         self.ssh_connector = SSHConnector(self.config_dir)
 
     def print_banner(self):
         banner = Panel.fit(
-            f"[bold {PURPLE}]Godfather CLI[/bold {PURPLE}]\n[dim]AI Society RunPod Environment Manager v{__version__}[/dim]",
+            f"[bold {PURPLE}]Godfather CLI[/bold {PURPLE}]\n[dim]Free compute from AI Society at ASU v{__version__}[/dim]",
             border_style=BORDER,
             box=BOX,
         )
@@ -107,6 +107,7 @@ class GodfatherCLI:
 
         table.add_row("Config Directory", str(self.config_dir))
         table.add_row("API Endpoint", self.api_base)
+        table.add_row("Organization", self.org)
         table.add_row("CLI Version", __version__)
 
         console.print(table)
@@ -198,13 +199,19 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
     )
     parser.add_argument(
         '--api-url',
-        help='Use a specific API base URL instead of the default'
+        help='Use a specific platform API URL instead of the default'
+    )
+    parser.add_argument(
+        '--org',
+        help='Organization prefix on the platform (default: ais)'
     )
 
     args = parser.parse_args()
 
     if args.api_url:
         os.environ['GODFATHER_API_URL'] = args.api_url
+    if args.org:
+        os.environ['GODFATHER_ORG'] = args.org
 
     cli = GodfatherCLI()
 
