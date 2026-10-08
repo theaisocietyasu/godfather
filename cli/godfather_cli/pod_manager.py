@@ -27,7 +27,7 @@ class PodManager:
         """Get the pods available to this user for connection."""
         try:
             response = requests.get(
-                f'{self.api_base}/api/pods/public',
+                self.authenticator.compute_url('/me/pods'),
                 headers=self.authenticator.auth_headers(),
                 timeout=10
             )
@@ -39,7 +39,7 @@ class PodManager:
                     error("Received an unreadable response from the server")
                     return []
             elif response.status_code == 401:
-                error("Authentication failed. Run 'godfather auth' to log in again.")
+                error("Your token is invalid or expired. Run 'godfather auth' to log in again.")
                 return []
             else:
                 try:
@@ -60,7 +60,7 @@ class PodManager:
         """Get SSH connection details and a certificate for our public key."""
         try:
             response = requests.post(
-                f'{self.api_base}/api/pods/{pod_id}/connect',
+                self.authenticator.compute_url(f'/me/pods/{pod_id}/connect'),
                 headers=self.authenticator.auth_headers(),
                 json={'public_key': public_key},
                 timeout=15
@@ -94,7 +94,7 @@ class PodManager:
 
         if not pods:
             warning("No pods available right now.")
-            console.print("[dim]Ask a Godfather admin to make a pod public or grant you access.[/dim]")
+            console.print("[dim]Ask an officer to share a pod with you, or check that its session has started.[/dim]")
             return
 
         table = Table(title=f"Available Pods ({len(pods)})", box=BOX, border_style=BORDER)
@@ -102,7 +102,6 @@ class PodManager:
         table.add_column("Status", justify="center")
         table.add_column("Name", style="bold")
         table.add_column("ID", style="dim")
-        table.add_column("Created")
 
         for i, pod in enumerate(pods, 1):
             table.add_row(
@@ -110,7 +109,6 @@ class PodManager:
                 _status_display(pod.get('status', 'unknown')),
                 pod['name'],
                 pod['id'][:12] + "...",
-                pod.get('created_at', 'unknown')
             )
 
         console.print()

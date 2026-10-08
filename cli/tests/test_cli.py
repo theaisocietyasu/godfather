@@ -26,10 +26,67 @@ def test_keypair_is_created_once(tmp_path):
     assert connector.ensure_keypair() == first
 
 
-def test_legacy_token_is_not_authenticated(tmp_path):
-    auth = CLIAuthenticator('https://example.invalid', tmp_path)
-    auth.config = {'token': 'discord_123_1700000000'}
+def test_only_platform_tokens_for_this_server_count(tmp_path):
+    auth = CLIAuthenticator('https://platform.example', 'ais', tmp_path)
+    auth.config = {'token': 'gf1.a.b', 'api_url': 'https://platform.example', 'org': 'ais'}
     assert not auth.is_authenticated()
-    auth.config = {'token': 'gf1.a.b'}
+    auth.config = {'token': 'plat_abc', 'api_url': 'https://platform.example', 'org': 'ais'}
     assert auth.is_authenticated()
-    assert auth.auth_headers() == {'Authorization': 'Bearer gf1.a.b'}
+    assert auth.auth_headers() == {'Authorization': 'Bearer plat_abc'}
+    auth.config['org'] = 'soda'
+    assert not auth.is_authenticated()
+
+
+class Response:
+    def __init__(self, status_code, body):
+        self.status_code = status_code
+        self.body = body
+
+    def json(self):
+        return self.body
+
+
+def test_pods_and_connect_use_the_member_compute_routes(tmp_path, monkeypatch):
+    from godfather_cli import pod_manager
+
+    calls = []
+
+    def get(url, **kwargs):
+        calls.append(('GET', url, kwargs['headers']))
+        return Response(200, {'pods': [{'id': 'pod1', 'name': 'workshop', 'status': 'RUNNING'}]})
+
+    def post(url, **kwargs):
+        calls.append(('POST', url, kwargs['json']))
+        return Response(200, {'ssh_info': INFO})
+
+    monkeypatch.setattr(pod_manager.requests, 'get', get)
+    monkeypatch.setattr(pod_manager.requests, 'post', post)
+    auth = CLIAuthenticator('https://platform.example', 'ais', tmp_path)
+    auth.config = {'token': 'plat_abc'}
+    pods = pod_manager.PodManager(auth.api_base, auth)
+    assert pods.get_public_pods()[0]['id'] == 'pod1'
+    assert pods.get_connection_info('pod1', 'ssh-ed25519 AAAA') == INFO
+    assert calls == [
+        ('GET', 'https://platform.example/api/compute/ais/me/pods', {'Authorization': 'Bearer plat_abc'}),
+        ('POST', 'https://platform.example/api/compute/ais/me/pods/pod1/connect', {'public_key': 'ssh-ed25519 AAAA'}),
+    ]
+
+
+def test_login_saves_server_and_org(tmp_path, monkeypatch):
+    from godfather_cli import auth as auth_module
+
+    opened = []
+    monkeypatch.setattr(auth_module.webbrowser, 'open', opened.append)
+    monkeypatch.setattr(auth_module.Prompt, 'ask', lambda *args, **kwargs: 'plat_abc')
+    monkeypatch.setattr(auth_module.requests, 'get', lambda url, **kwargs: Response(200, {'pods': []}))
+    auth = CLIAuthenticator('https://platform.example', 'ais', tmp_path)
+    assert auth.authenticate()
+    assert opened == ['https://platform.example/api/compute/ais/cli/login']
+    assert CLIAuthenticator.read_config(tmp_path) == {
+        'token': 'plat_abc',
+        'api_url': 'https://platform.example',
+        'org': 'ais',
+    }
+
+    monkeypatch.setattr(auth_module.Prompt, 'ask', lambda *args, **kwargs: 'gf1.a.b')
+    assert not CLIAuthenticator('https://platform.example', 'ais', tmp_path / 'other').authenticate()

@@ -33,15 +33,15 @@ pip install -e .
 
 1. Run `godfather` with no arguments. On first run you won't be logged in
    yet, so it'll walk you into the login flow.
-2. It prints a link to the admin portal's `/cli-auth` page. Open it, sign in
-   with Discord, and copy the token shown there.
-3. Paste the token back into the terminal. The CLI verifies it with the
-   backend and stores it in `~/.godfather/config.json`.
+2. It opens the AI Society platform's sign-in page in your browser (and
+   prints the link). Sign in with Discord and copy the token shown there.
+3. Paste the token back into the terminal. The CLI checks it with the
+   platform and stores it in `~/.godfather/config.json`.
 4. From the menu (or `godfather connect`), pick a pod. The CLI creates an SSH
    key on your machine the first time, asks the server for a 12-hour
    certificate for that pod, and opens the connection.
 
-A token lasts 30 days. When it expires, or if you leave the Discord server,
+A token lasts 90 days. When it expires, or if you leave the Discord server,
 the CLI asks you to log in again.
 
 You need OpenSSH installed (`ssh` and `ssh-keygen`). macOS, Linux and
@@ -65,8 +65,8 @@ godfather auth                    # Log in, or refresh an expired session
 godfather logout                  # Clear the stored session
 godfather update                  # Update the CLI to the latest version
 
-# Point the CLI at a non-default backend (mainly for local development)
-godfather --api-url https://your-backend.example.com list
+# Use another platform server or organization
+godfather --api-url https://platform.example.com --org soda list
 ```
 
 ## Files it keeps
@@ -79,22 +79,22 @@ Everything lives in `~/.godfather/`:
 
 Delete the folder to reset everything.
 
-### Backend URL
+### Server and organization
 
-By default the CLI talks to `https://admin.ais-asu.com`. You can override
-this with, in order of priority: `GODFATHER_API_URL`, `BACKEND_URL`,
-`NEXT_PUBLIC_BACKEND_URL`, `NEXT_PUBLIC_API_URL`, or the `--api-url` flag.
-This mainly matters if you're running the backend locally.
+By default the CLI talks to the AI Society platform with the org `ais`.
+`--api-url` and `--org` (or `GODFATHER_API_URL` and `GODFATHER_ORG`) pick
+another server or org; the ones you last logged in with are remembered.
 
 ## Troubleshooting
 
 - **"Couldn't reach \<url\>"** — check your internet connection and that the
   API URL is correct (`godfather status` shows what's currently configured).
-- **"That token is invalid or expired"** — get a fresh token from the admin
-  portal's `/cli-auth` page and try again.
-- **"SSH could not log in to the pod"** — the pod was created before
-  Godfather 1.1.0 or does not run the `godfather-base` image. Ask an admin to
-  recreate it.
+- **"Your token is invalid or expired"** — run `godfather auth` and sign in
+  again.
+- **"You are no longer a member of this organization"** — rejoin the club's
+  Discord server, then try again.
+- **"SSH could not log in to the pod"** — the pod does not run the
+  `godfather-base` image. Ask an officer to recreate it.
 - **"A valid SSH public key is required"** — your CLI is older than the
   server. Run `godfather update`.
 - **`ssh: command not found`** — install OpenSSH; the CLI uses your system's
@@ -103,7 +103,7 @@ This mainly matters if you're running the backend locally.
 ## Development
 
 The code is in `godfather_cli/`: `cli.py` (commands and menu), `auth.py`
-(token login), `pod_manager.py` (API calls), `ssh_connector.py` (keys,
+(platform sign-in), `pod_manager.py` (API calls), `ssh_connector.py` (keys,
 certificate, running ssh), `update_checker.py` (PyPI version check), `ui.py`
 (shared console styling). Tests are in `tests/`:
 
@@ -112,8 +112,8 @@ pip install -e . pytest
 pytest -q tests
 ```
 
-Releases go to PyPI when a `cli-v<version>` tag is pushed; see DEPLOYMENT.md
-in the repo root.
+Releases go to PyPI when a version bump is merged to main; see the
+repo README.
 
 ## Contributing
 

@@ -1,7 +1,7 @@
 name: GitHub Release
 
-# A merge to main that changes the CLI version creates the release v<version>
-# and builds versioned images. publish-cli.yml publishes the CLI on the same push.
+# A merge to main that changes the CLI version creates the release v<version>.
+# publish-cli.yml publishes the CLI on the same push.
 
 on:
   push:
@@ -52,12 +52,3 @@ jobs:
           fi
           echo "created=true" >> "$GITHUB_OUTPUT"
 
-  images:
-    needs: release
-    if: needs.release.outputs.created == 'true' && github.ref_type != 'tag'
-    permissions:
-      contents: read
-      packages: write
-    uses: ./.github/workflows/build-and-push-images.yml
-    with:
-      version: ${{ needs.release.outputs.version }}
