@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "godfather-cli"
-version = "2.0.0"
+version = "2.0.1"
 description = "Free compute for ASU students: connect to AI Society at ASU GPU pods"
 authors = [
     {name = "AI Society ASU", email = "theaisocietyasu@gmail.com"}

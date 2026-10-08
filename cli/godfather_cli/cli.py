@@ -17,7 +17,9 @@ from .ui import console, warning, info, BOX, BORDER, PURPLE
 from . import __version__
 
 # The AI Society platform API and org. Override with --api-url/--org or GODFATHER_API_URL/GODFATHER_ORG.
-DEFAULT_API_URL = 'https://854ap0rs1ws50n-8000.proxy.runpod.net'
+DEFAULT_API_URL = 'https://zs6k5wi0boaaax-8000.proxy.runpod.net'
+# Servers that no longer exist. A login saved against one of them falls back to the default.
+RETIRED_API_URLS = {'https://854ap0rs1ws50n-8000.proxy.runpod.net'}
 DEFAULT_ORG = 'ais'
 
 
@@ -29,8 +31,11 @@ class GodfatherCLI:
 
         # A flag or env var wins, then what the last login saved, then the defaults.
         saved = CLIAuthenticator.read_config(self.config_dir)
+        saved_url = saved.get('api_url')
+        if saved_url in RETIRED_API_URLS:
+            saved_url = None
         self.api_base = (
-            os.getenv('GODFATHER_API_URL') or saved.get('api_url') or DEFAULT_API_URL
+            os.getenv('GODFATHER_API_URL') or saved_url or DEFAULT_API_URL
         ).rstrip('/')
         self.org = os.getenv('GODFATHER_ORG') or saved.get('org') or DEFAULT_ORG
 
