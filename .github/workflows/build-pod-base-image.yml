@@ -30,7 +30,7 @@ jobs:
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push godfather-base image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./docker-images/godfather-base
           file: ./docker-images/godfather-base/Dockerfile
