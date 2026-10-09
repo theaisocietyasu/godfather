@@ -90,3 +90,13 @@ def test_login_saves_server_and_org(tmp_path, monkeypatch):
 
     monkeypatch.setattr(auth_module.Prompt, 'ask', lambda *args, **kwargs: 'gf1.a.b')
     assert not CLIAuthenticator('https://platform.example', 'ais', tmp_path / 'other').authenticate()
+
+
+def test_retired_server_in_env_falls_back_to_default(tmp_path, monkeypatch):
+    from godfather_cli import cli as cli_module
+
+    monkeypatch.setattr(cli_module.Path, 'home', lambda: tmp_path)
+    monkeypatch.setenv('GODFATHER_API_URL', 'https://8bzhwve1ri5cw2-80.proxy.runpod.net')
+    assert cli_module.GodfatherCLI().api_base == cli_module.DEFAULT_API_URL
+    monkeypatch.setenv('GODFATHER_API_URL', 'https://platform.example/')
+    assert cli_module.GodfatherCLI().api_base == 'https://platform.example'

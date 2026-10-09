@@ -18,8 +18,12 @@ from . import __version__
 
 # The AI Society platform API and org. Override with --api-url/--org or GODFATHER_API_URL/GODFATHER_ORG.
 DEFAULT_API_URL = 'https://zs6k5wi0boaaax-8000.proxy.runpod.net'
-# Servers that no longer exist. A login saved against one of them falls back to the default.
-RETIRED_API_URLS = {'https://854ap0rs1ws50n-8000.proxy.runpod.net'}
+# Servers that no longer exist. A saved login or GODFATHER_API_URL that names one falls back to the default.
+# Installers before 2.0 wrote GODFATHER_API_URL into ~/.bashrc, ~/.zshrc and fish conf.d.
+RETIRED_API_URLS = {
+    'https://854ap0rs1ws50n-8000.proxy.runpod.net',
+    'https://8bzhwve1ri5cw2-80.proxy.runpod.net',
+}
 DEFAULT_ORG = 'ais'
 
 
@@ -32,11 +36,16 @@ class GodfatherCLI:
         # A flag or env var wins, then what the last login saved, then the defaults.
         saved = CLIAuthenticator.read_config(self.config_dir)
         saved_url = saved.get('api_url')
-        if saved_url in RETIRED_API_URLS:
+        if saved_url and saved_url.rstrip('/') in RETIRED_API_URLS:
             saved_url = None
-        self.api_base = (
-            os.getenv('GODFATHER_API_URL') or saved_url or DEFAULT_API_URL
-        ).rstrip('/')
+        env_url = os.getenv('GODFATHER_API_URL')
+        if env_url and env_url.rstrip('/') in RETIRED_API_URLS:
+            warning(
+                f'GODFATHER_API_URL is set to {env_url}, a server that no longer exists. Using '
+                f'{DEFAULT_API_URL} instead. Remove the GODFATHER_API_URL line from your shell profile.'
+            )
+            env_url = None
+        self.api_base = (env_url or saved_url or DEFAULT_API_URL).rstrip('/')
         self.org = os.getenv('GODFATHER_ORG') or saved.get('org') or DEFAULT_ORG
 
         self.authenticator = CLIAuthenticator(self.api_base, self.org, self.config_dir)
