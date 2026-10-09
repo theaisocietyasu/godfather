@@ -130,7 +130,7 @@ class SSHConnector:
         if result.returncode == 255:
             error("SSH could not log in to the pod")
             console.print(
-                "[dim]The pod must run the current theaisocietyasu/godfather-base image and have been "
+                "[dim]The pod must run the current ghcr.io/theaisocietyasu/godfather-base image and have been "
                 "created after the Godfather 1.1.0 upgrade. Ask an admin to recreate it if it is older.[/dim]"
             )
             return result.returncode
