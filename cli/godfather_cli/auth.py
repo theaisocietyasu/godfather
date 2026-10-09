@@ -1,5 +1,6 @@
 """CLI authentication: token storage, login flow, and token verification."""
 
+import datetime
 import json
 import os
 import requests
@@ -12,6 +13,15 @@ from rich.prompt import Prompt
 from .ui import console, success, error, warning, spinner, BOX, BORDER
 
 TOKEN_PREFIX = 'plat_'
+# The platform issues CLI tokens for 90 days.
+TOKEN_DAYS = 90
+
+# Token states that check_token returns.
+TOKEN_OK = 'ok'
+TOKEN_MISSING = 'missing'
+TOKEN_EXPIRED = 'expired'
+TOKEN_UNREACHABLE = 'unreachable'
+TOKEN_REFUSED = 'refused'
 
 
 class CLIAuthenticator:
@@ -69,7 +79,10 @@ class CLIAuthenticator:
         except webbrowser.Error:
             pass
 
-        token = Prompt.ask("Token", password=True).strip()
+        try:
+            token = Prompt.ask("Token", password=True).strip()
+        except EOFError:
+            token = ''
         if not token:
             error("No token entered")
             return False
@@ -134,10 +147,10 @@ class CLIAuthenticator:
         else:
             warning("You weren't logged in")
 
-    def verify_token(self) -> bool:
-        """Check the stored token is still accepted by the backend."""
+    def check_token(self) -> str:
+        """Ask the server whether the stored token works. Returns one of the TOKEN_ states."""
         if not self.is_authenticated():
-            return False
+            return TOKEN_MISSING
 
         try:
             response = requests.get(
@@ -145,6 +158,28 @@ class CLIAuthenticator:
                 headers=self.auth_headers(),
                 timeout=5
             )
-            return response.status_code == 200
         except requests.RequestException:
-            return False
+            return TOKEN_UNREACHABLE
+        if response.status_code == 200:
+            return TOKEN_OK
+        if response.status_code == 401:
+            return TOKEN_EXPIRED
+        return TOKEN_REFUSED
+
+    def verify_token(self) -> bool:
+        """Check the stored token is still accepted by the backend."""
+        return self.check_token() == TOKEN_OK
+
+    def token_saved_at(self) -> Optional[datetime.datetime]:
+        """When the stored token was saved, from the config file time. Only login writes a token."""
+        if not self.is_authenticated():
+            return None
+        try:
+            return datetime.datetime.fromtimestamp(self.config_file.stat().st_mtime)
+        except OSError:
+            return None
+
+    def token_expires_at(self) -> Optional[datetime.datetime]:
+        """About when the stored token expires: TOKEN_DAYS after it was saved."""
+        saved = self.token_saved_at()
+        return saved + datetime.timedelta(days=TOKEN_DAYS) if saved else None

@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """Godfather CLI entry point: argument parsing and the interactive menu."""
 
-import os
 import argparse
+import datetime
+import os
 from pathlib import Path
+from typing import Dict, List, Optional
 
 from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt
 
-from .auth import CLIAuthenticator
-from .pod_manager import PodManager
+from . import picker
+from .auth import (
+    CLIAuthenticator, TOKEN_DAYS, TOKEN_EXPIRED, TOKEN_MISSING, TOKEN_OK, TOKEN_REFUSED, TOKEN_UNREACHABLE,
+)
+from .picker import ask_menu, ask_pod, ask_yes, connectable, is_interactive
+from .pod_manager import ApiError, EXPIRED, PodManager, report
 from .ssh_connector import SSHConnector
 from .update_checker import check_for_updates, show_update_warning, perform_update
-from .ui import console, warning, info, BOX, BORDER, PURPLE
+from .ui import console, error, warning, info, spinner, BOX, BORDER, PURPLE
 from . import __version__
 
 # The AI Society platform API and org. Override with --api-url/--org or GODFATHER_API_URL/GODFATHER_ORG.
@@ -59,6 +65,7 @@ class GodfatherCLI:
             box=BOX,
         )
         console.print(banner)
+        console.print(f"[dim]Server {self.api_base}  Org {self.org}[/dim]")
         console.print()
 
     def ensure_authenticated(self) -> bool:
@@ -67,24 +74,85 @@ class GodfatherCLI:
             info("You're not logged in yet.")
             return self.authenticator.authenticate()
 
-        if not self.authenticator.verify_token():
-            warning("Your session has expired. Please log in again.")
-            return self.authenticator.authenticate()
+        with spinner("Checking your login..."):
+            state = self.authenticator.check_token()
 
+        if state == TOKEN_EXPIRED:
+            warning("Your token has expired, or a newer login replaced it.")
+            if is_interactive():
+                try:
+                    if not ask_yes("Log in again now?"):
+                        return False
+                except (KeyboardInterrupt, EOFError):
+                    return False
+            return self.authenticator.authenticate()
+        if state == TOKEN_UNREACHABLE:
+            error(f"Couldn't reach {self.api_base}")
+            console.print("[dim]Check your internet connection, and the server URL with 'godfather status'.[/dim]")
+            return False
+        # TOKEN_REFUSED: the pods call that follows prints the server's reason.
         return True
+
+    def _offer_login(self, e: ApiError) -> bool:
+        """After an expired token error, offer to log in again. True when the user logged in."""
+        report(e)
+        if not is_interactive():
+            return False
+        try:
+            if not ask_yes("Log in again now?"):
+                return False
+        except (KeyboardInterrupt, EOFError):
+            return False
+        return self.authenticator.authenticate()
+
+    def load_pods(self) -> Optional[List[Dict]]:
+        """Fetch the member's pods with a spinner. None after an error has been printed."""
+        for attempt in range(2):
+            try:
+                with spinner("Fetching your pods..."):
+                    return self.pod_manager.fetch_pods()
+            except ApiError as e:
+                if e.kind == EXPIRED and attempt == 0:
+                    if self._offer_login(e):
+                        continue
+                    return None
+                report(e)
+                return None
+        return None
 
     def list_pods(self):
         if not self.ensure_authenticated():
             return
+        pods = self.load_pods()
+        if pods is not None:
+            self.pod_manager.show_pods(pods)
 
-        self.pod_manager.list_pods()
+    def choose_pod(self) -> Optional[str]:
+        """Fetch pods and let the user pick one. None when there is none or the user cancels."""
+        pods = self.load_pods()
+        if pods is None:
+            return None
+        if not pods:
+            self.pod_manager.show_no_pods()
+            return None
+        if not is_interactive():
+            return self.pod_manager.prompt_pod_number(pods)
+        if not connectable(pods):
+            error("None of your pods are running.")
+            console.print("[dim]Ask an officer to start one, then run 'godfather connect' again.[/dim]")
+            return None
+        try:
+            return ask_pod(pods)
+        except (KeyboardInterrupt, EOFError):
+            console.print("[dim]Cancelled[/dim]")
+            return None
 
     def connect_to_pod(self, pod_id: str = None):
         if not self.ensure_authenticated():
             return
 
         if not pod_id:
-            pod_id = self.pod_manager.select_pod()
+            pod_id = self.choose_pod()
             if not pod_id:
                 return
 
@@ -92,9 +160,19 @@ class GodfatherCLI:
         if not public_key:
             return
 
-        console.print(f"Connecting to pod [bold]{pod_id[:8]}[/bold]...")
-
-        ssh_info = self.pod_manager.get_connection_info(pod_id, public_key)
+        ssh_info = None
+        for attempt in range(2):
+            try:
+                with spinner(f"Getting a certificate for pod {pod_id[:12]}..."):
+                    ssh_info = self.pod_manager.fetch_connection_info(pod_id, public_key)
+                break
+            except ApiError as e:
+                if e.kind == EXPIRED and attempt == 0:
+                    if self._offer_login(e):
+                        continue
+                    return
+                report(e)
+                return
         if not ssh_info:
             return
 
@@ -104,27 +182,51 @@ class GodfatherCLI:
         self.ssh_connector.connect(ssh_info)
 
     def status(self):
-        """Print current authentication and configuration state."""
+        """Print the server, org, login, token and version details."""
         table = Table(title="Godfather CLI Status", box=BOX, border_style=BORDER)
         table.add_column("Setting", style=f"bold {PURPLE}", no_wrap=True)
         table.add_column("Value")
 
-        if self.authenticator.is_authenticated():
-            if self.authenticator.verify_token():
-                table.add_row("Authentication", f"[bold {PURPLE}]Logged in[/bold {PURPLE}]")
-                table.add_row("API Connection", f"[bold {PURPLE}]Connected[/bold {PURPLE}]")
-            else:
-                table.add_row("Authentication", "[yellow]Session expired[/yellow]")
-                table.add_row("API Connection", f"[dim]{self.api_base}[/dim]")
-        else:
-            table.add_row("Authentication", "[red]Not logged in[/red]")
+        with spinner("Checking the server and PyPI..."):
+            state = self.authenticator.check_token()
+            pods = None
+            if state == TOKEN_OK:
+                try:
+                    pods = self.pod_manager.fetch_pods()
+                except ApiError:
+                    pods = None
+            has_update, latest = check_for_updates()
 
-        table.add_row("Config Directory", str(self.config_dir))
-        table.add_row("API Endpoint", self.api_base)
+        table.add_row("Server", self.api_base)
         table.add_row("Organization", self.org)
-        table.add_row("CLI Version", __version__)
+        table.add_row("Login", LOGIN_TEXT.get(state, state))
+        if self.authenticator.is_authenticated():
+            table.add_row("Signed in as", "Your Discord account [dim](the server does not send the name)[/dim]")
+            token = str(self.authenticator.get_token() or '')
+            table.add_row("Token", f"{token[:9]}...")
+            saved = self.authenticator.token_saved_at()
+            expires = self.authenticator.token_expires_at()
+            if saved and expires:
+                left = (expires.date() - datetime.date.today()).days
+                when = f"about {expires:%Y-%m-%d}" + (f" ({left} days left)" if left >= 0 else " (past)")
+                table.add_row(
+                    "Token expires", f"{when} [dim](logged in {saved:%Y-%m-%d}, tokens last {TOKEN_DAYS} days)[/dim]"
+                )
+        if pods is not None:
+            table.add_row("Pods you can use", str(len(pods)))
+        table.add_row("Config directory", str(self.config_dir))
+        if has_update:
+            table.add_row("CLI version", f"{__version__} [yellow]({latest} available, run 'godfather update')[/yellow]")
+        else:
+            table.add_row("CLI version", f"{__version__} [dim](no newer version found on PyPI)[/dim]")
 
         console.print(table)
+        if state == TOKEN_EXPIRED:
+            console.print("[dim]Run 'godfather auth' to log in again.[/dim]")
+        elif state == TOKEN_UNREACHABLE:
+            console.print("[dim]Check your internet connection, or pass --api-url to use another server.[/dim]")
+        elif state == TOKEN_MISSING:
+            console.print("[dim]Run 'godfather auth' to log in.[/dim]")
 
     def logout(self):
         self.authenticator.logout()
@@ -135,48 +237,73 @@ class GodfatherCLI:
     def update(self):
         perform_update()
 
-    def interactive_menu(self):
-        self.print_banner()
+    def run_action(self, action: str) -> None:
+        """Run one main menu action."""
+        if action == picker.CONNECT:
+            self.connect_to_pod()
+        elif action == picker.LIST:
+            self.list_pods()
+        elif action == picker.STATUS:
+            self.status()
+        elif action == picker.LOGIN:
+            self.authenticate()
+        elif action == picker.LOGOUT:
+            self.logout()
 
+    def interactive_menu(self):
+        """The main menu: arrow keys on a terminal, numbered choices otherwise."""
+        self.print_banner()
+        if not is_interactive():
+            self.plain_menu()
+            return
+
+        while True:
+            try:
+                action = ask_menu(self.authenticator.is_authenticated())
+                if action == picker.EXIT:
+                    break
+                console.print()
+                self.run_action(action)
+                console.print()
+            except (KeyboardInterrupt, EOFError):
+                console.print()
+                break
+        console.print("Goodbye.")
+
+    def plain_menu(self):
+        """The numbered menu for input that is not a terminal."""
+        actions = {'1': picker.LIST, '2': picker.CONNECT, '3': picker.STATUS, '4': picker.LOGOUT, '5': picker.EXIT}
         while True:
             console.print()
             menu = Table.grid(padding=(0, 2))
             menu.add_column(style=f"bold {PURPLE}", justify="right")
             menu.add_column()
-
             menu.add_row("1.", "List available pods")
             menu.add_row("2.", "Connect to a pod")
             menu.add_row("3.", "Show status")
             menu.add_row("4.", "Log out")
             menu.add_row("5.", "Exit")
-
-            panel = Panel(
-                menu,
-                title="What would you like to do?",
-                border_style=BORDER,
-                box=BOX,
-            )
-            console.print(panel)
+            console.print(Panel(menu, title="What would you like to do?", border_style=BORDER, box=BOX))
 
             try:
-                choice = Prompt.ask("\nEnter your choice", choices=["1", "2", "3", "4", "5"], default="1")
+                choice = Prompt.ask("\nEnter your choice", choices=list(actions), default="1")
+            except (KeyboardInterrupt, EOFError):
                 console.print()
-
-                if choice == '1':
-                    self.list_pods()
-                elif choice == '2':
-                    self.connect_to_pod()
-                elif choice == '3':
-                    self.status()
-                elif choice == '4':
-                    self.logout()
-                elif choice == '5':
-                    console.print("Goodbye.")
-                    break
-
-            except KeyboardInterrupt:
-                console.print("\nGoodbye.")
                 break
+            console.print()
+            if actions[choice] == picker.EXIT:
+                break
+            self.run_action(actions[choice])
+        console.print("Goodbye.")
+
+
+LOGIN_TEXT = {
+    TOKEN_OK: f"[bold {PURPLE}]Logged in, the server accepts the token[/bold {PURPLE}]",
+    TOKEN_EXPIRED: "[yellow]Token expired or replaced by a newer login[/yellow]",
+    TOKEN_UNREACHABLE: "[red]Server not reachable[/red]",
+    TOKEN_REFUSED: "[yellow]Server refused the token (run 'godfather list' to see why)[/yellow]",
+    TOKEN_MISSING: "[red]Not logged in[/red]",
+}
 
 
 def main():
@@ -233,7 +360,8 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
         # Only check for updates on the interactive menu, not on every
         # scripted invocation - a 'godfather list' shouldn't wait on a
         # PyPI round trip.
-        has_update, latest_version = check_for_updates()
+        with spinner("Checking for updates..."):
+            has_update, latest_version = check_for_updates()
         if has_update:
             show_update_warning(latest_version)
         cli.interactive_menu()

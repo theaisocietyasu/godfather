@@ -51,8 +51,16 @@ Windows 10+ ship it.
 
 ### Interactive menu
 
-Running `godfather` with no arguments opens a menu to list pods, connect,
-check status, or log out.
+Running `godfather` with no arguments opens a menu. Use the arrow keys to
+choose Connect to a pod, List pods, Status, Log out or Exit, and press Enter.
+Ctrl-C quits.
+
+Connect to a pod shows a list of your pods with their status, access and
+pod ID. A pod that is not running shows with the reason and cannot be
+chosen. If only one pod is running, the CLI asks for a yes instead.
+
+When input is not a terminal (for example in a script), the menu and the pod
+list use numbered prompts.
 
 ### Commands
 
@@ -60,7 +68,7 @@ check status, or log out.
 godfather list                    # List pods you can connect to
 godfather connect                 # Connect to a pod, picking from a list
 godfather connect <pod-id>        # Connect to a specific pod
-godfather status                  # Show login and configuration status
+godfather status                  # Show server, org, login, token expiry and version
 godfather auth                    # Log in, or refresh an expired session
 godfather logout                  # Clear the stored session
 godfather update                  # Update the CLI to the latest version
@@ -90,7 +98,8 @@ another server or org; the ones you last logged in with are remembered.
 - **"Couldn't reach \<url\>"** — check your internet connection and that the
   API URL is correct (`godfather status` shows what's currently configured).
 - **"Your token is invalid or expired"** — run `godfather auth` and sign in
-  again.
+  again. In the menu, the CLI offers to do this for you.
+- **"Pod is not running"** — the pod stopped. Ask an officer to start it.
 - **"You are no longer a member of this organization"** — rejoin the club's
   Discord server, then try again.
 - **"SSH could not log in to the pod"** — the pod does not run the
@@ -102,7 +111,7 @@ another server or org; the ones you last logged in with are remembered.
 
 ## Development
 
-The code is in `godfather_cli/`: `cli.py` (commands and menu), `auth.py`
+The code is in `godfather_cli/`: `cli.py` (commands and menu), `picker.py` (arrow-key menu and pod picker), `auth.py`
 (platform sign-in), `pod_manager.py` (API calls), `ssh_connector.py` (keys,
 certificate, running ssh), `update_checker.py` (PyPI version check), `ui.py`
 (shared console styling). Tests are in `tests/`:
