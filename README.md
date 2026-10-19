@@ -2,7 +2,7 @@
 
 Godfather gives ASU students free compute. The AI Society at ASU pays for GPU and CPU machines on RunPod. Any student in the club's Discord server can get a private workspace on one, with no card, no cloud account, and no setup beyond installing the CLI.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/theaisocietyasu/godfather?style=social)](https://github.com/theaisocietyasu/godfather/stargazers) [![GitHub forks](https://img.shields.io/github/forks/theaisocietyasu/godfather?style=social)](https://github.com/theaisocietyasu/godfather/forks)
 
 Since 2.0.0, pods are managed by the compute module of the AI Society platform (theaisocietyasu/bedrock, a fork of asusoda/platform). Officers create pods, share them, and schedule workshop sessions there. This repo keeps the two pieces that run outside the platform:
 
