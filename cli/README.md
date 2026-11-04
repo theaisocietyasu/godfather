@@ -55,7 +55,7 @@ Windows 10+ ship it.
 ### Interactive menu
 
 Running `godfather` with no arguments opens a menu. Use the arrow keys to
-choose Connect to a pod, List pods, Sessions, Status, Log out or Exit, and
+choose Connect to a pod, List pods, Sessions, Set up VS Code, Status, Log out or Exit, and
 press Enter. Ctrl-C quits.
 
 Connect to a pod shows a list of your pods with their status, access and
@@ -75,6 +75,8 @@ godfather connect                 # Connect to a pod, picking from a list
 godfather connect <pod-id>        # Connect to a specific pod
 godfather connect --admin         # Ask for a root shell (officers, when pod admin is on)
 godfather sessions                # Upcoming sessions on your pods, in local time
+godfather vscode                  # Set up VS Code Remote-SSH for a pod, picking from a list
+godfather vscode <pod-id>         # The same for one pod; run it again to renew the certificate
 godfather status                  # Show server, org, login, token expiry and version
 godfather auth                    # Log in with Discord in your browser
 godfather auth --paste            # Log in by pasting the token
@@ -85,6 +87,16 @@ godfather update                  # Update the CLI to the latest version
 godfather --api-url https://platform.example.com --org soda list
 ```
 
+### VS Code
+
+`godfather vscode` sets up a pod for the VS Code Remote - SSH extension:
+
+1. It gets a 12-hour certificate for the pod and saves it as `~/.godfather/ssh/<pod-id>-cert.pub`.
+2. It writes a `Host godfather-<pod-id>` block to `~/.godfather/ssh/config` and adds one `Include` line for that file at the top of `~/.ssh/config`.
+3. If the `code` command is on your PATH, it opens VS Code on `/workspace/users/<you>` on the pod. Otherwise run **Remote-SSH: Connect to Host...** in VS Code and pick `godfather-<pod-id>`.
+
+VS Code runs as your pod account (`godfather_<you>`), with the same files and limits as `godfather connect`. After 12 hours VS Code cannot reconnect; run `godfather vscode <pod-id>` again. The pod must run image 2.3.0 or later. `godfather vscode --admin` gives officers a root login on a pod with pod admin on.
+
 ## Files it keeps
 
 Everything lives in `~/.godfather/`:
@@ -92,6 +104,7 @@ Everything lives in `~/.godfather/`:
 - `config.json`: your token (mode 600). Treat it like a password.
 - `ssh/id_ed25519`, `ssh/id_ed25519.pub`: your SSH key, created on first connect. The private key never leaves your machine.
 - `ssh/id_ed25519-cert.pub`: the certificate for the last pod you connected to.
+- `ssh/<pod-id>-cert.pub`, `ssh/config`: the certificate and Host block of each pod set up for VS Code.
 
 Delete the folder to reset everything.
 

@@ -11,7 +11,7 @@ The image every Godfather pod runs, built on `runpod/base`. It runs sshd, trusts
   - `RUNPOD_POD_ID`: set by RunPod. Root accepts only certificates with the principal `gf-<pod id>`, so a certificate for one pod does not open another.
   Platform sets the first two when it creates the pod. The image does not read `GODFATHER_SETUP`, which Platform also sends. Then it starts sshd, creates `/workspace/users` and `/workspace/shared`, and writes the login banner.
 - `rootfs/etc/ssh/sshd_config.d/godfather.conf`: key-only root login, CA trust, principals file, forwarding and login limits.
-- `rootfs/usr/local/bin/godfather-login`: runs on every CLI connection. Members reach it as the forced command in their certificate. It creates `godfather_<username>`, gives them `/workspace/users/<username>` and a home folder (both mode 700), and switches to that account with umask 077. Admins run it with `--admin` and stay root.
+- `rootfs/usr/local/bin/godfather-login`: runs on every CLI connection. Members reach it as the forced command in their certificate. It creates `godfather_<username>`, gives them `/workspace/users/<username>` and a home folder (both mode 700), and switches to that account with umask 077. When the client sends a command (VS Code Remote-SSH, scp, sftp), sshd puts it in `SSH_ORIGINAL_COMMAND`, and `godfather-login` runs it as that account in the workspace, with no banner. Admins run it with `--admin` and stay root.
 - `VERSION`: the image version. `tests/run.sh`: the image tests.
 - `rootfs/etc/godfather/*.bashrc`: prompt and aliases (`workspace`, `shared`, `ll`) for member and admin shells.
 
@@ -30,7 +30,7 @@ Members on one pod share one container. The image limits what one member can do 
 | sshd | `AllowTcpForwarding local`, no X11, tunnels, socket forwarding, user environment or user rc. `MaxAuthTries 3`, `LoginGraceTime 30`. |
 | Backend key | `restrict`: no pty and no forwarding. Platform uses it for SFTP and `ps`. |
 
-Member port forwarding also depends on Platform: a member certificate must not carry `permit-port-forwarding` (asusoda/platform#468).
+Member certificates carry `permit-port-forwarding`, because VS Code Remote-SSH reaches its server through a local forward. sshd allows only local forwards, so a member can open no listening port and no Unix socket. A local forward reaches only addresses that a member's shell can already reach on the pod, so services on `127.0.0.1` are shared by every member of the pod.
 
 ## Version
 

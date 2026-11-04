@@ -31,7 +31,7 @@ done
 # Certificates as Platform signs them in modules/godfather/ssh.py.
 sign_member() {
     ssh-keygen -q -s "$WORK/ca" -I "test:$1" -n "$2" -V +1h \
-        -O clear -O permit-pty -O no-port-forwarding \
+        -O clear -O permit-pty -O permit-port-forwarding \
         -O force-command="/usr/local/bin/godfather-login $1" "$WORK/$3.pub"
 }
 sign_member alice "gf-$POD_ID" alice
@@ -57,7 +57,7 @@ for _ in $(seq 1 60); do
     sleep 1
 done
 
-# A member login: the forced command ignores the remote command, so the script goes on stdin.
+# A member shell: with no remote command, godfather-login opens the interactive shell, so the script goes on stdin.
 as_member() {
     ssh "${SSH_OPTS[@]}" -T -i "$WORK/$1" root@127.0.0.1 2>/dev/null <<<"$2
 exit"
@@ -147,15 +147,17 @@ else
     pass "7 certificate for another pod refused"
 fi
 
-# 8. Forwarding: none for members, no remote forwards, local forwards for admins.
-if local_forward_works alice; then
-    fail "8 member local forward accepted"
+# 8. Forwarding: local forwards for members and admins, no remote forwards.
+if ! local_forward_works alice; then
+    fail "8 member local forward refused"
+elif remote_forward_works alice; then
+    fail "8 member remote forward accepted"
 elif remote_forward_works admin; then
     fail "8 admin remote forward accepted"
 elif ! local_forward_works admin; then
     fail "8 admin local forward refused"
 else
-    pass "8 member -L refused, admin -R refused, admin -L works"
+    pass "8 member and admin -L work, member and admin -R refused"
 fi
 
 # 9. The backend key: SFTP works, no pty, no forwarding.
@@ -182,19 +184,41 @@ else
     fail "10 output: $out"
 fi
 
-# 11. hidepid status file, and hidden processes when it is on.
+# 11. A command from the client runs as the member, in the workspace, with no banner.
+out="$(ssh "${SSH_OPTS[@]}" -T -i "$WORK/alice" root@127.0.0.1 'id -un; umask; pwd' </dev/null 2>/dev/null || true)"
+expected="godfather_alice
+0077
+/workspace/users/alice"
+if [ "$out" = "$expected" ]; then
+    pass "11 member command runs as godfather_alice in the workspace, no banner"
+else
+    fail "11 member command output: $out"
+fi
+
+# 12. SFTP as a member runs as the member, so VS Code and scp can copy files.
+sftp_out="$(sftp -P "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR \
+    -o BatchMode=yes -o IdentitiesOnly=yes -i "$WORK/alice" root@127.0.0.1 <<<"pwd
+put $WORK/alice.pub sftp-file" 2>/dev/null || true)"
+owner="$(as_admin stat -c %U /workspace/users/alice/sftp-file || true)"
+if grep -q '/workspace/users/alice' <<<"$sftp_out" && [ "$owner" = "godfather_alice" ]; then
+    pass "12 member sftp starts in the workspace and writes as godfather_alice"
+else
+    fail "12 member sftp output: $sftp_out, owner: $owner"
+fi
+
+# 13. hidepid status file, and hidden processes when it is on.
 state="$(as_admin cat /etc/godfather/hidepid || true)"
 if [ "$state" = "on" ]; then
     others="$(as_member alice 'ps -e -o user= | sort -u | grep -vc "^godfather_alice$" || true' | grep -E '^[0-9]+$' | tail -n1)"
     if [ "$others" = "0" ]; then
-        pass "11 hidepid on, member sees only own processes"
+        pass "13 hidepid on, member sees only own processes"
     else
-        fail "11 hidepid on, member sees $others other users"
+        fail "13 hidepid on, member sees $others other users"
     fi
 elif [ "$state" = "off" ]; then
-    pass "11 hidepid off (container has no CAP_SYS_ADMIN)"
+    pass "13 hidepid off (container has no CAP_SYS_ADMIN)"
 else
-    fail "11 hidepid status is '$state'"
+    fail "13 hidepid status is '$state'"
 fi
 
 exit "$FAILED"

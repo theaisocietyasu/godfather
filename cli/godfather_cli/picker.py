@@ -40,6 +40,7 @@ STATUS_CLASS = {
 CONNECT = 'connect'
 LIST = 'list'
 SESSIONS = 'sessions'
+VSCODE = 'vscode'
 STATUS = 'status'
 LOGIN = 'login'
 LOGOUT = 'logout'
@@ -117,6 +118,7 @@ def menu_options(logged_in: bool) -> List[Tuple[str, str, str]]:
         (CONNECT, 'Connect to a pod', 'Pick a running pod and open an SSH session'),
         (LIST, 'List pods', 'Show every pod you can use, with its status and ID'),
         (SESSIONS, 'Sessions', 'Upcoming sessions on your pods'),
+        (VSCODE, 'Set up VS Code', 'Open a pod in VS Code Remote-SSH'),
         (STATUS, 'Status', 'Server, org, login, token expiry and CLI version'),
         account,
         (EXIT, 'Exit', 'Quit Godfather'),

@@ -92,7 +92,7 @@ def test_menus_offer_sessions(tmp_path, monkeypatch):
     monkeypatch.setattr(cli_module.Path, 'home', lambda: tmp_path)
     monkeypatch.delenv('GODFATHER_API_URL', raising=False)
     godfather = cli_module.GodfatherCLI()
-    answers = iter(['5', '6'])
+    answers = iter(['5', '7'])
     ran = []
     monkeypatch.setattr(cli_module.Prompt, 'ask', lambda *a, **kw: next(answers))
     monkeypatch.setattr(godfather, 'run_action', ran.append)
