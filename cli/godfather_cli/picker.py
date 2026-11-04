@@ -110,7 +110,7 @@ def menu_options(logged_in: bool) -> List[Tuple[str, str, str]]:
     account = (
         (LOGOUT, 'Log out', 'Remove the saved token from this computer')
         if logged_in
-        else (LOGIN, 'Log in', 'Sign in with Discord and paste your token')
+        else (LOGIN, 'Log in', 'Sign in with Discord in your browser')
     )
     return [
         (CONNECT, 'Connect to a pod', 'Pick a running pod and open an SSH session'),

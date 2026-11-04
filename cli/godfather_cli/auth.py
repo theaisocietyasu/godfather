@@ -1,21 +1,29 @@
 """CLI authentication: token storage, login flow, and token verification."""
 
+import base64
 import datetime
+import hashlib
 import json
 import os
+import secrets
 import webbrowser
 from pathlib import Path
 from typing import Dict, Optional
+from urllib.parse import urlencode
 
 import requests
 from rich.panel import Panel
 from rich.prompt import Prompt
 
+from .login_server import LoopbackReceiver
 from .ui import BORDER, BOX, console, error, spinner, success, warning
 
 TOKEN_PREFIX = 'plat_'
 # The platform issues CLI tokens for 90 days.
 TOKEN_DAYS = 90
+
+# How long the CLI waits for the browser sign-in.
+LOGIN_WAIT_SECONDS = 300
 
 # Token states that check_token returns.
 TOKEN_OK = 'ok'
@@ -23,6 +31,17 @@ TOKEN_MISSING = 'missing'
 TOKEN_EXPIRED = 'expired'
 TOKEN_UNREACHABLE = 'unreachable'
 TOKEN_REFUSED = 'refused'
+
+
+def make_verifier() -> str:
+    """A PKCE code verifier (RFC 7636): 64 URL-safe characters."""
+    return secrets.token_urlsafe(48)
+
+
+def challenge_for(verifier: str) -> str:
+    """The S256 code challenge of a verifier: base64url SHA-256 without padding."""
+    digest = hashlib.sha256(verifier.encode('ascii')).digest()
+    return base64.urlsafe_b64encode(digest).rstrip(b'=').decode('ascii')
 
 
 class CLIAuthenticator:
@@ -62,8 +81,84 @@ class CLIAuthenticator:
         """URL of a platform compute route for the configured org."""
         return f"{self.api_base}/api/compute/{self.org}{path}"
 
-    def authenticate(self) -> bool:
-        """Walk the user through signing in with Discord and pasting the token it shows."""
+    def authenticate(self, paste: bool = False) -> bool:
+        """Sign in with Discord. The browser hands the token back; the paste flow is the fallback."""
+        if not paste:
+            if self.supports_loopback():
+                token = self._browser_login()
+                if token:
+                    return self._verify_and_save(token)
+            else:
+                console.print("[dim]This server does not support browser sign-in yet. Paste the token instead.[/dim]")
+        return self._paste_login()
+
+    def supports_loopback(self) -> bool:
+        """True when the server has the cli/token route. It answers 400 to an empty body."""
+        try:
+            response = requests.post(self.compute_url('/cli/token'), json={}, timeout=10)
+        except requests.RequestException:
+            return False
+        return response.status_code == 400
+
+    def _browser_login(self) -> Optional[str]:
+        """The token from the localhost callback with PKCE, or None after printing why not."""
+        state = secrets.token_urlsafe(16)
+        verifier = make_verifier()
+        try:
+            receiver = LoopbackReceiver(state)
+        except OSError:
+            console.print("[dim]Could not listen on 127.0.0.1. Paste the token instead.[/dim]")
+            return None
+        try:
+            query = urlencode(
+                {
+                    'port': receiver.port,
+                    'state': state,
+                    'code_challenge': challenge_for(verifier),
+                    'code_challenge_method': 'S256',
+                }
+            )
+            login_url = f"{self.compute_url('/cli/login')}?{query}"
+            try:
+                opened = webbrowser.open(login_url)
+            except webbrowser.Error:
+                opened = False
+            if not opened:
+                console.print("[dim]No browser opened on this computer. Paste the token instead.[/dim]")
+                return None
+            console.print(f"Sign in with Discord in your browser. If it did not open, go to:\n{login_url}")
+            try:
+                with spinner("Waiting for the browser sign-in..."):
+                    code = receiver.wait(LOGIN_WAIT_SECONDS)
+            except KeyboardInterrupt:
+                console.print("[dim]Cancelled[/dim]")
+                return None
+        finally:
+            receiver.close()
+        if not code:
+            console.print("[dim]The browser sign-in did not finish in time. Paste the token instead.[/dim]")
+            return None
+        return self._redeem(code, verifier)
+
+    def _redeem(self, code: str, verifier: str) -> Optional[str]:
+        """Exchange the one-time code and the PKCE verifier for a token."""
+        try:
+            with spinner("Getting your token..."):
+                response = requests.post(
+                    self.compute_url('/cli/token'),
+                    json={'code': code, 'code_verifier': verifier},
+                    timeout=10,
+                )
+            token = str(response.json().get('token') or '') if response.status_code == 200 else ''
+        except (requests.RequestException, ValueError, AttributeError):
+            token = ''
+        if not token.startswith(TOKEN_PREFIX):
+            console.print("[dim]The server did not return a token. Paste the token instead.[/dim]")
+            return None
+        return token
+
+    def _paste_login(self) -> bool:
+        """Open the sign-in page and take the token the member pastes."""
         login_url = self.compute_url('/cli/login')
         panel = Panel(
             f"[bold]1.[/bold] Open [bold]{login_url}[/bold] and sign in with Discord\n"
@@ -92,7 +187,10 @@ class CLIAuthenticator:
             error("That doesn't look like a valid Godfather token")
             console.print(f"[dim]Tokens start with {TOKEN_PREFIX}. Get a fresh one from {login_url}[/dim]")
             return False
+        return self._verify_and_save(token)
 
+    def _verify_and_save(self, token: str) -> bool:
+        """Check the token with GET /me/pods, then save it with the server and org."""
         try:
             with spinner("Verifying token..."):
                 response = requests.get(

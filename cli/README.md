@@ -33,10 +33,13 @@ pip install -e .
 
 1. Run `godfather` with no arguments. On first run you won't be logged in
    yet, so it'll walk you into the login flow.
-2. It opens the AI Society platform's sign-in page in your browser (and
-   prints the link). Sign in with Discord and copy the token shown there.
-3. Paste the token back into the terminal. The CLI checks it with the
-   platform and stores it in `~/.godfather/config.json`.
+2. It opens the sign-in page in your browser and prints the link. Sign in
+   with Discord. The browser sends the login back to the CLI, which checks it
+   and stores the token in `~/.godfather/config.json`.
+3. If the browser cannot reach the CLI (no browser on this computer, an
+   older server, or no sign-in within 5 minutes), the CLI asks you to paste
+   the token that the sign-in page shows. `godfather auth --paste` goes
+   straight to that, for a browser on another computer.
 4. From the menu (or `godfather connect`), pick a pod. The CLI creates an SSH
    key on your machine the first time, asks the server for a 12-hour
    certificate for that pod, and opens the connection.
@@ -69,7 +72,8 @@ godfather list                    # List pods you can connect to
 godfather connect                 # Connect to a pod, picking from a list
 godfather connect <pod-id>        # Connect to a specific pod
 godfather status                  # Show server, org, login, token expiry and version
-godfather auth                    # Log in, or refresh an expired session
+godfather auth                    # Log in with Discord in your browser
+godfather auth --paste            # Log in by pasting the token
 godfather logout                  # Clear the stored session
 godfather update                  # Update the CLI to the latest version
 
@@ -112,7 +116,7 @@ another server or org; the ones you last logged in with are remembered.
 ## Development
 
 The code is in `godfather_cli/`: `cli.py` (commands and menu), `picker.py` (arrow-key menu and pod picker), `auth.py`
-(platform sign-in), `pod_manager.py` (API calls), `ssh_connector.py` (keys,
+(platform sign-in), `login_server.py` (the sign-in callback), `pod_manager.py` (API calls), `ssh_connector.py` (keys,
 certificate, running ssh), `update_checker.py` (PyPI version check), `ui.py`
 (shared console styling). Tests are in `tests/`:
 
