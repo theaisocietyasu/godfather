@@ -50,6 +50,53 @@ chmod 700 "/home/$ACCOUNT"
 chown "$ACCOUNT:$ACCOUNT" "$WORKSPACE"
 chmod 700 "$WORKSPACE"
 
+# Member setup: Platform writes repo (a public https git URL) and script (shell run as the member)
+# to /workspace/.godfather/member-setup when an officer sets them for the pod. Each member gets
+# the setup once per version of these files, on their next connection. Nothing runs when both are absent.
+SETUP_DIR=/workspace/.godfather/member-setup
+DONE_DIR=/workspace/.godfather/setup-done
+INTERACTIVE=true
+[ -n "${SSH_ORIGINAL_COMMAND:-}" ] && INTERACTIVE=false
+if [ -s "$SETUP_DIR/repo" ] || [ -s "$SETUP_DIR/script" ]; then
+    chmod 700 /workspace/.godfather "$SETUP_DIR"
+    mkdir -p "$DONE_DIR"
+    chmod 700 "$DONE_DIR"
+    DIGEST="$({ cat "$SETUP_DIR/repo" "$SETUP_DIR/script" 2>/dev/null || true; } | sha256sum | cut -c1-16)"
+    if [ "$(cat "$DONE_DIR/$USERNAME" 2>/dev/null)" != "$DIGEST" ]; then
+        exec 9>"$DONE_DIR/$USERNAME.lock"
+        flock 9
+        if [ "$(cat "$DONE_DIR/$USERNAME" 2>/dev/null)" != "$DIGEST" ]; then
+            LOG="/home/$ACCOUNT/godfather-setup.log"
+            [ "$INTERACTIVE" = "true" ] && echo "Setting up your folder. Log: ~/godfather-setup.log" >&2
+            : > "$LOG"
+            chown "$ACCOUNT:$ACCOUNT" "$LOG"
+            chmod 600 "$LOG"
+            REPO="$({ head -n1 "$SETUP_DIR/repo" 2>/dev/null || true; } | tr -d '[:space:]')"
+            if [ -n "$REPO" ]; then
+                NAME="$(basename "$REPO" .git)"
+                if ! [[ "$REPO" =~ ^https://[A-Za-z0-9._~:/?#@!\&+,\;=%-]+$ ]] || ! [[ "$NAME" =~ ^[A-Za-z0-9._-]+$ ]] \
+                    || [ "$NAME" = "." ] || [ "$NAME" = ".." ]; then
+                    echo "repo is not a public https git URL" >> "$LOG"
+                elif [ -e "$WORKSPACE/$NAME" ]; then
+                    echo "$NAME exists already; not cloned" >> "$LOG"
+                else
+                    # shellcheck disable=SC2016 # $1 to $3 expand in the member shell
+                    su - "$ACCOUNT" -c 'umask 077; cd "$1" && GIT_TERMINAL_PROMPT=0 timeout 300 git clone --quiet -- "$2" "$3"' \
+                        godfather-setup "$WORKSPACE" "$REPO" "$NAME" >> "$LOG" 2>&1 9>&- \
+                        || echo "git clone failed" >> "$LOG"
+                fi
+            fi
+            if [ -s "$SETUP_DIR/script" ]; then
+                # shellcheck disable=SC2016 # $1 expands in the member shell
+                su - "$ACCOUNT" -c 'umask 077; cd "$1" && timeout 300 bash -s' godfather-setup "$WORKSPACE" \
+                    < "$SETUP_DIR/script" >> "$LOG" 2>&1 9>&- || echo "setup script failed" >> "$LOG"
+            fi
+            echo "$DIGEST" > "$DONE_DIR/$USERNAME"
+        fi
+        exec 9>&-
+    fi
+fi
+
 REQUESTED="${SSH_ORIGINAL_COMMAND:-}"
 if [ -n "$REQUESTED" ]; then
     # The subsystem name arrives for sftp and for scp, which uses sftp since OpenSSH 9.0.

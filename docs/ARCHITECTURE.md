@@ -13,7 +13,7 @@ Godfather is a CLI and a pod image. Platform's `godfather` module manages the po
 
 ## Pod image (`docker-images/godfather-base`)
 
-Built on `runpod/base`. At start `setup-ssh.sh` reads `GODFATHER_SSH_PUBLIC_KEY` (the platform's key for the officer file manager) and `GODFATHER_SSH_CA_PUBLIC_KEY` (the org's user CA), configures sshd to trust the CA for principal `gf-<pod id>`, and creates `/workspace/users` and `/workspace/shared`. `/workspace/users` is mode 711. `godfather-login` creates `godfather_<username>` with a private folder and home (mode 700) and switches to it with umask 077. The image has no sudo. The label `com.ais-asu.godfather.base-version` and the file `/etc/godfather/version` hold the image version from `VERSION`.
+Built on `runpod/base`. At start `setup-ssh.sh` reads `GODFATHER_SSH_PUBLIC_KEY` (the platform's key for the officer file manager) and `GODFATHER_SSH_CA_PUBLIC_KEY` (the org's user CA), configures sshd to trust the CA for principal `gf-<pod id>`, and creates `/workspace/users` and `/workspace/shared`. `/workspace/users` is mode 711. `godfather-login` creates `godfather_<username>` with a private folder and home (mode 700) and switches to it with umask 077. When `/workspace/.godfather/member-setup` holds `repo` (a public https git URL) or `script`, `godfather-login` clones the repo and runs the script as the member in the workspace, once per member for each version of these files; Platform writes them from the pod's Member setup. The image has no sudo. The label `com.ais-asu.godfather.base-version` and the file `/etc/godfather/version` hold the image version from `VERSION`.
 
 ## Platform side
 

@@ -24,7 +24,7 @@ fail() { echo "FAIL $1"; FAILED=1; }
 # Keys: a throwaway user CA, the backend key, and one key for each login.
 ssh-keygen -q -t ed25519 -N '' -C ca -f "$WORK/ca"
 ssh-keygen -q -t ed25519 -N '' -C backend -f "$WORK/backend"
-for name in alice bob admin other; do
+for name in alice bob admin other dan; do
     ssh-keygen -q -t ed25519 -N '' -C "$name" -f "$WORK/$name"
 done
 
@@ -36,6 +36,7 @@ sign_member() {
 }
 sign_member alice "gf-$POD_ID" alice
 sign_member bob "gf-$POD_ID" bob
+sign_member dan "gf-$POD_ID" dan
 sign_member alice gf-other other
 ssh-keygen -q -s "$WORK/ca" -I test:admin -n "gf-$POD_ID" -V +1h "$WORK/admin.pub"
 
@@ -219,6 +220,35 @@ elif [ "$state" = "off" ]; then
     pass "13 hidepid off (container has no CAP_SYS_ADMIN)"
 else
     fail "13 hidepid status is '$state'"
+fi
+
+# 14. Member setup: the script runs once as the member in the workspace, a client command gets clean output,
+# a bad repo URL is only logged, and members cannot read the setup.
+# shellcheck disable=SC2016 # the variables expand in the pod shell
+as_admin 'mkdir -p /workspace/.godfather/member-setup
+echo "file:///etc/passwd" > /workspace/.godfather/member-setup/repo
+printf "%s\n" "echo run >> setup-runs" "id -un > setup-owner" > /workspace/.godfather/member-setup/script' || true
+out="$(ssh "${SSH_OPTS[@]}" -T -i "$WORK/dan" root@127.0.0.1 'pwd' </dev/null 2>/dev/null || true)"
+as_member dan 'true' >/dev/null || true
+runs="$(as_admin cat /workspace/users/dan/setup-runs | wc -l || true)"
+owner="$(as_admin cat /workspace/users/dan/setup-owner || true)"
+log="$(as_admin cat /home/godfather_dan/godfather-setup.log || true)"
+hidden="$(as_member dan 'cat /workspace/.godfather/member-setup/script >/dev/null 2>&1 && echo read || echo denied')"
+if [ "$out" = "/workspace/users/dan" ] && [ "$runs" = "1" ] && [ "$owner" = "godfather_dan" ] \
+    && grep -q 'not a public https git URL' <<<"$log" && grep -q '^denied$' <<<"$hidden"; then
+    pass "14 member setup runs once as the member, quiet for client commands, hidden from members"
+else
+    fail "14 out: $out, runs: $runs, owner: $owner, log: $log, hidden: $hidden"
+fi
+
+# 15. A changed setup runs again on the next connection.
+as_admin 'echo "echo run >> setup-runs" > /workspace/.godfather/member-setup/script' || true
+as_member dan 'true' >/dev/null || true
+runs="$(as_admin cat /workspace/users/dan/setup-runs | wc -l || true)"
+if [ "$runs" = "2" ]; then
+    pass "15 a changed setup runs again"
+else
+    fail "15 setup runs: $runs"
 fi
 
 exit "$FAILED"
