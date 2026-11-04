@@ -19,15 +19,16 @@ if ! [[ "$USERNAME" =~ ^[a-z0-9_][a-z0-9._-]{0,21}$ ]]; then
 fi
 
 WORKSPACE="/workspace/users/$USERNAME"
+VERSION="$(cat /etc/godfather/version 2>/dev/null || echo unknown)"
 mkdir -p /workspace/users /workspace/shared
-chmod 755 /workspace/users
+chmod 711 /workspace/users
 chmod 1777 /workspace/shared
 mkdir -p "$WORKSPACE"
 
 if [ "$ADMIN" = "true" ]; then
     cat <<BANNER
 
-  Godfather admin shell (root)
+  Godfather admin shell (root), image $VERSION
   Workspace: $WORKSPACE
   Shared:    /workspace/shared
   Changes to system files affect every user of this pod.
@@ -43,16 +44,18 @@ if ! id "$ACCOUNT" >/dev/null 2>&1; then
     useradd -m -s /bin/bash "$ACCOUNT"
     passwd -l "$ACCOUNT" >/dev/null
 fi
+chmod 700 "/home/$ACCOUNT"
 chown "$ACCOUNT:$ACCOUNT" "$WORKSPACE"
 chmod 700 "$WORKSPACE"
 
 cat <<BANNER
 
-  Godfather pod
+  Godfather pod, image $VERSION
   Workspace: $WORKSPACE  (private to you)
   Shared:    /workspace/shared
   You are $ACCOUNT, without sudo. Ask an admin if you need system packages.
+  Files you make are private. To share one, copy it to /workspace/shared and run chmod o+r on it.
 
 BANNER
 
-exec su - "$ACCOUNT" -c "cd '$WORKSPACE' && exec bash --rcfile /etc/godfather/user.bashrc -i"
+exec su - "$ACCOUNT" -c "umask 077; cd '$WORKSPACE' && exec bash --rcfile /etc/godfather/user.bashrc -i"

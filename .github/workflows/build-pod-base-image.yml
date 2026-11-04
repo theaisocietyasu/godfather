@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - 'docker-images/godfather-base/**'
-      - '.github/workflows/build-pod-base-image.yml'
   workflow_dispatch:
 
 permissions:
@@ -17,6 +16,8 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     if: github.repository == 'theaisocietyasu/godfather'
+    env:
+      IMAGE: ghcr.io/theaisocietyasu/godfather-base
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -31,19 +32,43 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set short sha
+      - name: Read the version and the short sha
         id: vars
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(cat docker-images/godfather-base/VERSION)" >> "$GITHUB_OUTPUT"
+          echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push godfather-base image
+      # A version tag is never moved to other content. An image change bumps VERSION.
+      - name: Refuse a version that is already published
+        run: |
+          if docker buildx imagetools inspect "$IMAGE:${{ steps.vars.outputs.version }}" >/dev/null 2>&1; then
+            echo "::error::$IMAGE:${{ steps.vars.outputs.version }} exists. Bump docker-images/godfather-base/VERSION."
+            exit 1
+          fi
+
+      - name: Build the image
         uses: docker/build-push-action@v7
         with:
           context: ./docker-images/godfather-base
-          file: ./docker-images/godfather-base/Dockerfile
+          load: true
+          tags: godfather-base:candidate
+          build-args: GODFATHER_BASE_VERSION=${{ steps.vars.outputs.version }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          push: true
-          tags: |
-            ghcr.io/theaisocietyasu/godfather-base:latest
-            ghcr.io/theaisocietyasu/godfather-base:${{ steps.vars.outputs.sha_short }}
           cache-from: type=gha,scope=godfather-base
           cache-to: type=gha,mode=max,scope=godfather-base
+
+      - name: Test the image
+        run: docker-images/godfather-base/tests/run.sh godfather-base:candidate
+
+      - name: Push the image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./docker-images/godfather-base
+          push: true
+          build-args: GODFATHER_BASE_VERSION=${{ steps.vars.outputs.version }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.vars.outputs.version }}
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.vars.outputs.sha_short }}
+          cache-from: type=gha,scope=godfather-base

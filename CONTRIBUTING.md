@@ -30,7 +30,7 @@ cd cli && uv sync --group dev
 ```bash
 make check         # check-cli and check-image, the same steps as CI
 make check-cli     # ruff, compile, pytest, build
-make check-image   # shellcheck, hadolint, docker build
+make check-image   # shellcheck, hadolint, docker build, image tests
 ```
 
 ## Branches and pull requests

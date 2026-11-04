@@ -9,7 +9,7 @@ Godfather is the CLI (`godfather-cli` on PyPI) and the pod image (`godfather-bas
 ```bash
 make check                                   # the gate: check-cli and check-image; CI runs the same
 make check-cli                               # ruff, compile, pytest, uv build
-make check-image                             # shellcheck, hadolint, docker build
+make check-image                             # shellcheck, hadolint, docker build, tests/run.sh
 cd cli && uv run pytest -q tests
 cd cli && uv run ruff check . && uv run ruff format --check .
 docker build -t godfather-base:dev docker-images/godfather-base
@@ -27,7 +27,7 @@ docker build -t godfather-base:dev docker-images/godfather-base
 | `cli/godfather_cli/update_checker.py` | The PyPI version check |
 | `cli/godfather_cli/ui.py` | Console output and styles |
 | `cli/tests/` | pytest tests |
-| `docker-images/godfather-base/` | `Dockerfile`, `setup-ssh.sh` (the entrypoint), `rootfs/` (files copied into the image) |
+| `docker-images/godfather-base/` | `Dockerfile`, `setup-ssh.sh` (the entrypoint), `rootfs/` (files copied into the image), `VERSION`, `tests/run.sh` |
 | `docs/releases/` | Release notes, one file for each version |
 | `.github/workflows/` | `check.yml` (the gate), image publish, release, PyPI publish |
 | `.agents/skills/` | Skills for agents |
@@ -40,7 +40,8 @@ docker build -t godfather-base:dev docker-images/godfather-base
   - the certificate principal `gf-<pod id>`;
   - `/usr/local/bin/godfather-login <username>` and `godfather-login --admin <username>`;
   - the account name `godfather_<username>` and the `su - godfather_<username>` process that `modules/godfather/presence.py` matches;
-  - `/etc/godfather/admin.bashrc`, which `presence.py` also matches.
+  - `/etc/godfather/admin.bashrc`, which `presence.py` also matches;
+  - the label `com.ais-asu.godfather.base-version` and the file `/etc/godfather/version`, from `docker-images/godfather-base/VERSION`.
 - Comments are plain ASCII and say what the code does.
 - Never write a token, key or secret in code, tests, docs or commits.
 
