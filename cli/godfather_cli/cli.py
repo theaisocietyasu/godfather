@@ -4,6 +4,8 @@
 import argparse
 import datetime
 import os
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -23,7 +25,7 @@ from .auth import (
 )
 from .picker import ask_menu, ask_pod, ask_yes, connectable, is_interactive
 from .pod_manager import EXPIRED, ApiError, PodManager, report
-from .ssh_connector import SSHConnector
+from .ssh_connector import USERNAME_RE, SSHConnector
 from .ui import BORDER, BOX, PURPLE, console, error, info, spinner, warning
 from .update_checker import check_for_updates, perform_update, show_update_warning
 
@@ -194,32 +196,77 @@ class GodfatherCLI:
             if not pod_id:
                 return
 
-        public_key = self.ssh_connector.ensure_keypair()
-        if not public_key:
-            return
-
-        ssh_info = None
-        for attempt in range(2):
-            try:
-                with spinner(f"Getting a certificate for pod {pod_id[:12]}..."):
-                    ssh_info = self.pod_manager.fetch_connection_info(pod_id, public_key, admin=admin)
-                break
-            except ApiError as e:
-                if e.kind == EXPIRED and attempt == 0:
-                    if self._offer_login(e):
-                        continue
-                    return
-                report(e)
-                return
+        ssh_info = self.fetch_certificate(pod_id, admin)
         if not ssh_info:
             return
-
         if not self.ssh_connector.save_certificate(ssh_info.get('certificate', '')):
             return
         if admin and not ssh_info.get('is_admin'):
             warning("The server gave you a member shell, not root.")
 
         self.ssh_connector.connect(ssh_info)
+
+    def fetch_certificate(self, pod_id: str, admin: bool = False) -> Optional[Dict]:
+        """The connection details with a fresh certificate, or None after printing why not."""
+        public_key = self.ssh_connector.ensure_keypair()
+        if not public_key:
+            return None
+        for attempt in range(2):
+            try:
+                with spinner(f"Getting a certificate for pod {pod_id[:12]}..."):
+                    return self.pod_manager.fetch_connection_info(pod_id, public_key, admin=admin)
+            except ApiError as e:
+                if e.kind == EXPIRED and attempt == 0:
+                    if self._offer_login(e):
+                        continue
+                    return None
+                report(e)
+                return None
+        return None
+
+    def setup_vscode(self, pod_id: str = None, admin: bool = False):
+        """Write an SSH config entry for a pod and open it in VS Code Remote-SSH."""
+        if not self.ensure_authenticated():
+            return
+        if not pod_id:
+            pod_id = self.choose_pod()
+            if not pod_id:
+                return
+
+        ssh_info = self.fetch_certificate(pod_id, admin)
+        if not ssh_info:
+            return
+        cert_file = self.ssh_connector.pod_cert_file(pod_id)
+        if not self.ssh_connector.save_certificate(ssh_info.get('certificate', ''), cert_file):
+            return
+        alias = self.ssh_connector.write_host(pod_id, ssh_info, Path.home() / '.ssh' / 'config')
+        if not alias:
+            return
+
+        is_admin = bool(ssh_info.get('is_admin'))
+        if admin and not is_admin:
+            warning("The server gave you a member certificate, not root.")
+        user_folder = str(ssh_info.get('user_folder', ''))
+        folder = f"/workspace/users/{user_folder}" if USERNAME_RE.match(user_folder) else '/workspace'
+        steps = (
+            f"[bold]Host[/bold]      {alias}  [dim](in ~/.ssh/config)[/dim]\n"
+            f"[bold]Folder[/bold]    {folder}\n"
+            f"[bold]Valid[/bold]     12 hours. Run [bold]godfather vscode {pod_id}[/bold] again to renew.\n\n"
+            "In VS Code: install the Remote - SSH extension, run [bold]Remote-SSH: Connect to Host...[/bold],\n"
+            f"pick [bold]{alias}[/bold], then open {folder}."
+        )
+        if is_admin:
+            steps += "\n[yellow]This is a root login. Changes to system files affect every user of the pod.[/yellow]"
+        console.print(Panel(steps, title="VS Code is set up", border_style=BORDER, box=BOX))
+
+        code = shutil.which('code')
+        if code:
+            uri = f'vscode-remote://ssh-remote+{alias}{folder}'
+            try:
+                subprocess.Popen([code, '--folder-uri', uri])
+                info("Opening VS Code...")
+            except OSError:
+                pass
 
     def status(self):
         """Print the server, org, login, token and version details."""
@@ -285,6 +332,8 @@ class GodfatherCLI:
             self.list_pods()
         elif action == picker.SESSIONS:
             self.list_sessions()
+        elif action == picker.VSCODE:
+            self.setup_vscode()
         elif action == picker.STATUS:
             self.status()
         elif action == picker.LOGIN:
@@ -320,7 +369,8 @@ class GodfatherCLI:
             '3': picker.STATUS,
             '4': picker.LOGOUT,
             '5': picker.SESSIONS,
-            '6': picker.EXIT,
+            '6': picker.VSCODE,
+            '7': picker.EXIT,
         }
         while True:
             console.print()
@@ -332,7 +382,8 @@ class GodfatherCLI:
             menu.add_row("3.", "Show status")
             menu.add_row("4.", "Log out")
             menu.add_row("5.", "Show sessions")
-            menu.add_row("6.", "Exit")
+            menu.add_row("6.", "Set up VS Code")
+            menu.add_row("7.", "Exit")
             console.print(Panel(menu, title="What would you like to do?", border_style=BORDER, box=BOX))
 
             try:
@@ -370,6 +421,8 @@ Examples:
   godfather connect <pod-id>    Connect to a specific pod
   godfather connect --admin     Connect as root (officers, on a pod with pod admin on)
   godfather sessions            Show upcoming sessions on your pods
+  godfather vscode              Set up VS Code Remote-SSH for a pod, picking from a list
+  godfather vscode <pod-id>     Set up VS Code for a pod, or renew its 12-hour certificate
   godfather status              Show login and configuration status
   godfather auth                Log in with Discord in your browser
   godfather auth --paste        Log in by pasting the token (browser on another computer)
@@ -383,20 +436,20 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
     parser.add_argument(
         'command',
         nargs='?',
-        choices=['list', 'connect', 'sessions', 'status', 'logout', 'auth', 'update'],
+        choices=['list', 'connect', 'vscode', 'sessions', 'status', 'logout', 'auth', 'update'],
         help='Command to run (omit to open the interactive menu)',
     )
-    parser.add_argument('pod_id', nargs='?', help='Pod ID to connect to (only used with "connect")')
+    parser.add_argument('pod_id', nargs='?', help='Pod ID (with "connect" or "vscode")')
     parser.add_argument('--api-url', help='Use a specific platform API URL instead of the default')
     parser.add_argument('--org', help='Organization prefix on the platform (default: ais)')
     parser.add_argument('--paste', action='store_true', help='With "auth": paste the token, no browser sign-in')
-    parser.add_argument('--admin', action='store_true', help='With "connect": ask for a root shell')
+    parser.add_argument('--admin', action='store_true', help='With "connect" or "vscode": ask for root')
 
     args = parser.parse_args()
     if args.paste and args.command != 'auth':
         parser.error('--paste works only with "auth"')
-    if args.admin and args.command != 'connect':
-        parser.error('--admin works only with "connect"')
+    if args.admin and args.command not in ('connect', 'vscode'):
+        parser.error('--admin works only with "connect" and "vscode"')
 
     if args.api_url:
         os.environ['GODFATHER_API_URL'] = args.api_url
@@ -420,6 +473,8 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
         cli.list_pods()
     elif args.command == 'connect':
         cli.connect_to_pod(args.pod_id, admin=args.admin)
+    elif args.command == 'vscode':
+        cli.setup_vscode(args.pod_id, admin=args.admin)
     elif args.command == 'sessions':
         cli.list_sessions()
     elif args.command == 'status':

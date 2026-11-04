@@ -26,6 +26,7 @@ godfather connect  CLI -> platform /api/compute/<org>/me/pods/<id>/connect -> 12
 1. `godfather auth` opens Platform's sign-in page with a localhost callback and a PKCE challenge. The member signs in with Discord, and Platform sends a one-time code back to the CLI, which exchanges it for the token. If that is not possible, the member pastes the token that the page shows. The token lasts 90 days and stops working if they leave the Discord server.
 2. The CLI makes its own SSH key once (`~/.godfather/ssh/id_ed25519`) and sends the public half when connecting. The platform returns a certificate signed by the org's user CA, valid for 12 hours and for that one pod.
 3. The pod trusts the CA (`TrustedUserCAKeys`) and only accepts certificates naming its own pod ID. A member's certificate forces `godfather-login <username>`, which puts them in their own account. Members cannot list other workspaces and have no sudo. Officers get root.
+4. `godfather vscode` does steps 2 and 3 for the VS Code Remote - SSH extension. It writes a `Host godfather-<pod-id>` entry to the member's SSH config. The commands that VS Code sends run through `godfather-login` in the member's account.
 
 Platform setup, routes, sessions and the file manager are in the Platform repo under `docs/modules/godfather.md`.
 

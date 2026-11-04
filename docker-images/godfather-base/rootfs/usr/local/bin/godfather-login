@@ -4,6 +4,8 @@
 #   godfather-login <username>
 # Admins hold unrestricted root certificates and the CLI runs:
 #   godfather-login --admin <username>
+# When the member's client sends a command (VS Code Remote-SSH, scp, sftp),
+# sshd puts it in SSH_ORIGINAL_COMMAND and it runs as the member, without a banner.
 set -euo pipefail
 
 ADMIN=false
@@ -47,6 +49,15 @@ fi
 chmod 700 "/home/$ACCOUNT"
 chown "$ACCOUNT:$ACCOUNT" "$WORKSPACE"
 chmod 700 "$WORKSPACE"
+
+REQUESTED="${SSH_ORIGINAL_COMMAND:-}"
+if [ -n "$REQUESTED" ]; then
+    # The subsystem name arrives for sftp and for scp, which uses sftp since OpenSSH 9.0.
+    if [ "$REQUESTED" = "sftp" ] || [ "$REQUESTED" = "internal-sftp" ]; then
+        REQUESTED=/usr/lib/openssh/sftp-server
+    fi
+    exec su - "$ACCOUNT" -c "umask 077; cd '$WORKSPACE' && $REQUESTED"
+fi
 
 cat <<BANNER
 
