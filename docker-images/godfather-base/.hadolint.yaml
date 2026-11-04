@@ -1,0 +1,3 @@
+ignored:
+  # The runpod/base tag in FROM pins the package set; apt versions are not pinned.
+  - DL3008

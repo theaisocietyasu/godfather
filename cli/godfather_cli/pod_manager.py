@@ -1,11 +1,12 @@
 """Pod listing and selection."""
 
-import requests
-from typing import List, Dict, Optional
-from rich.table import Table
-from rich.prompt import IntPrompt
+from typing import Dict, List, Optional
 
-from .ui import console, error, warning, spinner, BOX, BORDER, PURPLE
+import requests
+from rich.prompt import IntPrompt
+from rich.table import Table
+
+from .ui import BORDER, BOX, PURPLE, console, error, spinner, warning
 
 RUNNING = 'RUNNING'
 
@@ -107,19 +108,17 @@ class PodManager:
         """The pods this member may connect to. Raises ApiError."""
         try:
             response = requests.get(
-                self.authenticator.compute_url('/me/pods'),
-                headers=self.authenticator.auth_headers(),
-                timeout=10
+                self.authenticator.compute_url('/me/pods'), headers=self.authenticator.auth_headers(), timeout=10
             )
         except requests.RequestException as e:
-            raise _network_error(self.api_base, e)
+            raise _network_error(self.api_base, e) from e
 
         if response.status_code != 200:
             raise _response_error(response, 'Failed to fetch pods')
         try:
             pods = response.json().get('pods', [])
         except (ValueError, AttributeError):
-            raise ApiError(FAILED, "Received an unreadable response from the server")
+            raise ApiError(FAILED, "Received an unreadable response from the server") from None
         return [p for p in pods if isinstance(p, dict) and p.get('id')]
 
     def get_public_pods(self) -> List[Dict]:
@@ -137,10 +136,10 @@ class PodManager:
                 self.authenticator.compute_url(f'/me/pods/{pod_id}/connect'),
                 headers=self.authenticator.auth_headers(),
                 json={'public_key': public_key},
-                timeout=15
+                timeout=15,
             )
         except requests.RequestException as e:
-            raise _network_error(self.api_base, e)
+            raise _network_error(self.api_base, e) from e
 
         if response.status_code != 200:
             raise _response_error(response, 'Connection failed')
@@ -149,7 +148,7 @@ class PodManager:
         except (ValueError, AttributeError):
             ssh_info = None
         if not isinstance(ssh_info, dict):
-            raise ApiError(FAILED, "Received an unreadable response from the server")
+            raise ApiError(FAILED, "Received an unreadable response from the server") from None
         return ssh_info
 
     def get_connection_info(self, pod_id: str, public_key: str) -> Optional[Dict]:

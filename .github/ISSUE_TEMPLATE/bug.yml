@@ -1,0 +1,38 @@
+name: Bug
+description: The CLI or a pod did something wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what happened, and what you expected.
+    validations:
+      required: true
+  - type: dropdown
+    id: part
+    attributes:
+      label: Part
+      options:
+        - CLI
+        - Pod image
+        - Platform side
+        - Docs
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: CLI version
+      description: The version that `godfather status` shows.
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 15, Ubuntu 24.04, Windows 11
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: The terminal output. Remove tokens and keys first.
+      render: text

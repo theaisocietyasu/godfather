@@ -142,7 +142,7 @@ def test_single_connectable_pod_skips_the_picker():
 
 
 def test_menu_offers_login_or_logout():
-    from godfather_cli.picker import menu_options, LOGIN, LOGOUT
+    from godfather_cli.picker import LOGIN, LOGOUT, menu_options
 
     actions = [action for action, _, _ in menu_options(True)]
     assert actions == ['connect', 'list', 'status', LOGOUT, 'exit']
@@ -151,6 +151,7 @@ def test_menu_offers_login_or_logout():
 
 def test_picker_choices_build_without_a_terminal():
     from questionary import Choice
+
     from godfather_cli.picker import pod_options
 
     choices = [Choice(o.parts, value=o.pod_id, disabled=o.disabled) for o in pod_options(PODS)]
@@ -159,6 +160,7 @@ def test_picker_choices_build_without_a_terminal():
 
 def test_api_errors_say_what_happened(tmp_path, monkeypatch):
     import pytest
+
     from godfather_cli import pod_manager
 
     auth = CLIAuthenticator('https://platform.example', 'ais', tmp_path)

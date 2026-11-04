@@ -8,19 +8,24 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from rich.panel import Panel
-from rich.table import Table
 from rich.prompt import Prompt
+from rich.table import Table
 
-from . import picker
+from . import __version__, picker
 from .auth import (
-    CLIAuthenticator, TOKEN_DAYS, TOKEN_EXPIRED, TOKEN_MISSING, TOKEN_OK, TOKEN_REFUSED, TOKEN_UNREACHABLE,
+    TOKEN_DAYS,
+    TOKEN_EXPIRED,
+    TOKEN_MISSING,
+    TOKEN_OK,
+    TOKEN_REFUSED,
+    TOKEN_UNREACHABLE,
+    CLIAuthenticator,
 )
 from .picker import ask_menu, ask_pod, ask_yes, connectable, is_interactive
-from .pod_manager import ApiError, EXPIRED, PodManager, report
+from .pod_manager import EXPIRED, ApiError, PodManager, report
 from .ssh_connector import SSHConnector
-from .update_checker import check_for_updates, show_update_warning, perform_update
-from .ui import console, error, warning, info, spinner, BOX, BORDER, PURPLE
-from . import __version__
+from .ui import BORDER, BOX, PURPLE, console, error, info, spinner, warning
+from .update_checker import check_for_updates, perform_update, show_update_warning
 
 # The AI Society platform API and org. Override with --api-url/--org or GODFATHER_API_URL/GODFATHER_ORG.
 DEFAULT_API_URL = 'https://zs6k5wi0boaaax-8000.proxy.runpod.net'
@@ -60,7 +65,8 @@ class GodfatherCLI:
 
     def print_banner(self):
         banner = Panel.fit(
-            f"[bold {PURPLE}]Godfather CLI[/bold {PURPLE}]\n[dim]Free compute from AI Society at ASU v{__version__}[/dim]",
+            f"[bold {PURPLE}]Godfather CLI[/bold {PURPLE}]\n"
+            f"[dim]Free compute from AI Society at ASU v{__version__}[/dim]",
             border_style=BORDER,
             box=BOX,
         )
@@ -324,28 +330,18 @@ Examples:
   godfather update              Update the CLI to the latest version
 
 Questions or issues: https://discord.gg/fXWXwz6fEG
-        """
+        """,
     )
 
     parser.add_argument(
         'command',
         nargs='?',
         choices=['list', 'connect', 'status', 'logout', 'auth', 'update'],
-        help='Command to run (omit to open the interactive menu)'
+        help='Command to run (omit to open the interactive menu)',
     )
-    parser.add_argument(
-        'pod_id',
-        nargs='?',
-        help='Pod ID to connect to (only used with "connect")'
-    )
-    parser.add_argument(
-        '--api-url',
-        help='Use a specific platform API URL instead of the default'
-    )
-    parser.add_argument(
-        '--org',
-        help='Organization prefix on the platform (default: ais)'
-    )
+    parser.add_argument('pod_id', nargs='?', help='Pod ID to connect to (only used with "connect")')
+    parser.add_argument('--api-url', help='Use a specific platform API URL instead of the default')
+    parser.add_argument('--org', help='Organization prefix on the platform (default: ais)')
 
     args = parser.parse_args()
 

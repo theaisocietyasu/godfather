@@ -1,0 +1,20 @@
+name: Task
+description: Maintenance work with a clear end
+labels: [chore]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What changes
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Files
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+    validations:
+      required: true

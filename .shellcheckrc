@@ -1,0 +1,2 @@
+# The bashrc files source /etc/bash.bashrc and /root/.bashrc, which exist only in the image.
+disable=SC1091

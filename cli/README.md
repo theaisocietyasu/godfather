@@ -117,18 +117,18 @@ certificate, running ssh), `update_checker.py` (PyPI version check), `ui.py`
 (shared console styling). Tests are in `tests/`:
 
 ```bash
-pip install -e . pytest
-pytest -q tests
+uv sync --group dev
+uv run pytest -q tests
 ```
+
+`make check-cli` at the repo root runs ruff, the tests and a build, as CI does.
 
 Releases go to PyPI when a version bump is merged to main; see the
 repo README.
 
 ## Contributing
 
-1. Fork the repository.
-2. Create a feature branch (`git checkout -b feature/your-feature`).
-3. Commit your changes and open a Pull Request.
+See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## License
 

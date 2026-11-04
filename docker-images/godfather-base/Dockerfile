@@ -2,7 +2,7 @@
 FROM runpod/base:0.4.0-cuda11.8.0
 
 # Install additional tools
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \
     git \
     curl \

@@ -1,6 +1,6 @@
 # godfather-base
 
-The image every Godfather pod runs, built on `runpod/base`. It runs sshd, trusts the org's user CA from the platform compute module, and gives each member a private account and workspace.
+The image every Godfather pod runs, built on `runpod/base`. It runs sshd, trusts the org's user CA from Platform's `godfather` module, and gives each member a private account and workspace.
 
 ## Files
 
@@ -16,11 +16,11 @@ The image every Godfather pod runs, built on `runpod/base`. It runs sshd, trusts
 
 ## Changing it
 
-Edit the files above, merge to `main`, and the `build-pod-base-image` workflow pushes `theaisocietyasu/godfather-base:latest` to Docker Hub. Existing pods keep the image they started with; recreate them to pick up changes.
+Edit the files above and merge to `main`. The `build-pod-base-image` workflow pushes `ghcr.io/theaisocietyasu/godfather-base:latest` and `:<short sha>`. Existing pods keep the image they started with. Recreate them to get the change.
 
 Build and push by hand:
 
 ```
-docker build -t theaisocietyasu/godfather-base:latest .
-docker push theaisocietyasu/godfather-base:latest
+docker build -t ghcr.io/theaisocietyasu/godfather-base:latest .
+docker push ghcr.io/theaisocietyasu/godfather-base:latest
 ```

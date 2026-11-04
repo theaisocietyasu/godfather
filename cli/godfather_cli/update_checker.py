@@ -8,7 +8,7 @@ from packaging import version as version_lib
 from rich.panel import Panel
 
 from . import __version__
-from .ui import console, success, error, spinner, BORDER
+from .ui import BORDER, console, error, spinner, success
 
 
 def check_for_updates(force_check=False):
@@ -20,10 +20,7 @@ def check_for_updates(force_check=False):
     CLI use.
     """
     try:
-        response = requests.get(
-            "https://pypi.org/pypi/godfather-cli/json",
-            timeout=3
-        )
+        response = requests.get("https://pypi.org/pypi/godfather-cli/json", timeout=3)
         if response.status_code == 200:
             data = response.json()
             latest_version = data['info']['version']
@@ -38,12 +35,14 @@ def check_for_updates(force_check=False):
 def show_update_warning(latest_version):
     """Print a non-blocking notice that a newer version is available."""
     console.print()
-    console.print(Panel.fit(
-        f"Update available: [dim]{__version__}[/dim] -> [bold]{latest_version}[/bold]\n"
-        f"Run [bold]godfather update[/bold] to install it.",
-        border_style="yellow",
-        title="[bold yellow]Update available[/bold yellow]",
-    ))
+    console.print(
+        Panel.fit(
+            f"Update available: [dim]{__version__}[/dim] -> [bold]{latest_version}[/bold]\n"
+            f"Run [bold]godfather update[/bold] to install it.",
+            border_style="yellow",
+            title="[bold yellow]Update available[/bold yellow]",
+        )
+    )
     console.print()
 
 
@@ -59,9 +58,7 @@ def perform_update():
     with spinner(f"Updating from {__version__} to {latest_version}..."):
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "--upgrade", "godfather-cli"],
-                capture_output=True,
-                text=True
+                [sys.executable, "-m", "pip", "install", "--upgrade", "godfather-cli"], capture_output=True, text=True
             )
         except OSError as e:
             error(f"Update failed: {e}")
@@ -70,12 +67,13 @@ def perform_update():
 
     if result.returncode == 0:
         console.print()
-        console.print(Panel.fit(
-            f"Updated to version [bold]{latest_version}[/bold].\n"
-            f"Restart your terminal or run the command again.",
-            border_style=BORDER,
-            title="[bold]Update complete[/bold]",
-        ))
+        console.print(
+            Panel.fit(
+                f"Updated to version [bold]{latest_version}[/bold].\nRestart your terminal or run the command again.",
+                border_style=BORDER,
+                title="[bold]Update complete[/bold]",
+            )
+        )
         console.print()
     else:
         error(f"Update failed: {result.stderr.strip()}")

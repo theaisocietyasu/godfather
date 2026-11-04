@@ -39,3 +39,15 @@ Homepage = "https://github.com/theaisocietyasu/godfather"
 Repository = "https://github.com/theaisocietyasu/godfather"
 Issues = "https://github.com/theaisocietyasu/godfather/issues"
 Changelog = "https://github.com/theaisocietyasu/godfather/releases"
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+
+[tool.ruff.format]
+quote-style = "preserve"

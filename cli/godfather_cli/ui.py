@@ -8,8 +8,8 @@ waits on a network call.
 
 from contextlib import contextmanager
 
-from rich.console import Console
 from rich import box
+from rich.console import Console
 
 PURPLE = "#8b5cf6"
 
