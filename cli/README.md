@@ -73,6 +73,7 @@ list use numbered prompts.
 godfather list                    # List pods you can connect to
 godfather connect                 # Connect to a pod, picking from a list
 godfather connect <pod-id>        # Connect to a specific pod
+godfather connect --admin         # Ask for a root shell (officers, when pod admin is on)
 godfather sessions                # Upcoming sessions on your pods, in local time
 godfather status                  # Show server, org, login, token expiry and version
 godfather auth                    # Log in with Discord in your browser

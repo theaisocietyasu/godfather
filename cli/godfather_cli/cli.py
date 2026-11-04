@@ -185,7 +185,7 @@ class GodfatherCLI:
             console.print("[dim]Cancelled[/dim]")
             return None
 
-    def connect_to_pod(self, pod_id: str = None):
+    def connect_to_pod(self, pod_id: str = None, admin: bool = False):
         if not self.ensure_authenticated():
             return
 
@@ -202,7 +202,7 @@ class GodfatherCLI:
         for attempt in range(2):
             try:
                 with spinner(f"Getting a certificate for pod {pod_id[:12]}..."):
-                    ssh_info = self.pod_manager.fetch_connection_info(pod_id, public_key)
+                    ssh_info = self.pod_manager.fetch_connection_info(pod_id, public_key, admin=admin)
                 break
             except ApiError as e:
                 if e.kind == EXPIRED and attempt == 0:
@@ -216,6 +216,8 @@ class GodfatherCLI:
 
         if not self.ssh_connector.save_certificate(ssh_info.get('certificate', '')):
             return
+        if admin and not ssh_info.get('is_admin'):
+            warning("The server gave you a member shell, not root.")
 
         self.ssh_connector.connect(ssh_info)
 
@@ -366,6 +368,7 @@ Examples:
   godfather list                List available pods
   godfather connect             Connect to a pod, picking from a list
   godfather connect <pod-id>    Connect to a specific pod
+  godfather connect --admin     Connect as root (officers, on a pod with pod admin on)
   godfather sessions            Show upcoming sessions on your pods
   godfather status              Show login and configuration status
   godfather auth                Log in with Discord in your browser
@@ -387,10 +390,13 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
     parser.add_argument('--api-url', help='Use a specific platform API URL instead of the default')
     parser.add_argument('--org', help='Organization prefix on the platform (default: ais)')
     parser.add_argument('--paste', action='store_true', help='With "auth": paste the token, no browser sign-in')
+    parser.add_argument('--admin', action='store_true', help='With "connect": ask for a root shell')
 
     args = parser.parse_args()
     if args.paste and args.command != 'auth':
         parser.error('--paste works only with "auth"')
+    if args.admin and args.command != 'connect':
+        parser.error('--admin works only with "connect"')
 
     if args.api_url:
         os.environ['GODFATHER_API_URL'] = args.api_url
@@ -413,7 +419,7 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
     if args.command == 'list':
         cli.list_pods()
     elif args.command == 'connect':
-        cli.connect_to_pod(args.pod_id)
+        cli.connect_to_pod(args.pod_id, admin=args.admin)
     elif args.command == 'sessions':
         cli.list_sessions()
     elif args.command == 'status':

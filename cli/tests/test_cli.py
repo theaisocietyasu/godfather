@@ -222,3 +222,31 @@ def test_choose_pod_without_a_terminal_uses_numbers(tmp_path, monkeypatch):
     monkeypatch.setattr(godfather.pod_manager, 'fetch_pods', lambda: PODS)
     monkeypatch.setattr(godfather.pod_manager, 'prompt_pod_number', lambda pods: pods[1]['id'])
     assert godfather.choose_pod() == 'running000001'
+
+
+def test_connect_asks_for_root_only_with_admin(tmp_path, monkeypatch):
+    from godfather_cli import pod_manager
+
+    bodies = []
+
+    def post(url, **kwargs):
+        bodies.append(kwargs['json'])
+        return Response(200, {'ssh_info': INFO})
+
+    monkeypatch.setattr(pod_manager.requests, 'post', post)
+    auth = CLIAuthenticator('https://platform.example', 'ais', tmp_path)
+    auth.config = {'token': 'plat_abc'}
+    pods = pod_manager.PodManager(auth.api_base, auth)
+    pods.fetch_connection_info('pod1', 'ssh-ed25519 AAAA')
+    pods.fetch_connection_info('pod1', 'ssh-ed25519 AAAA', admin=True)
+    assert bodies == [{'public_key': 'ssh-ed25519 AAAA'}, {'public_key': 'ssh-ed25519 AAAA', 'admin': True}]
+
+
+def test_admin_flag_works_only_with_connect(monkeypatch):
+    import pytest
+
+    from godfather_cli import cli as cli_module
+
+    monkeypatch.setattr('sys.argv', ['godfather', 'list', '--admin'])
+    with pytest.raises(SystemExit):
+        cli_module.main()
