@@ -1,4 +1,5 @@
 [ -f /etc/bash.bashrc ] && . /etc/bash.bashrc
+umask 077
 [ -d /usr/local/cuda/bin ] && export PATH="/usr/local/cuda/bin:$PATH"
 GODFATHER_USER="${USER#godfather_}"
 export PS1='\[\033[01;36m\]\u\[\033[00m\]@\[\033[01;35m\]pod\[\033[00m\]:\[\033[01;33m\]\w\[\033[00m\]\$ '

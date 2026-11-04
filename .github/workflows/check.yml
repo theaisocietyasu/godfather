@@ -48,6 +48,10 @@ jobs:
       - name: Lint the shell scripts and the Dockerfile
         run: make lint-image
 
+      - name: Read the image version
+        id: version
+        run: echo "version=$(cat docker-images/godfather-base/VERSION)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -58,4 +62,8 @@ jobs:
           push: false
           load: true
           tags: godfather-base:check
+          build-args: GODFATHER_BASE_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha,scope=godfather-base
+
+      - name: Test the pod base image
+        run: docker-images/godfather-base/tests/run.sh godfather-base:check
