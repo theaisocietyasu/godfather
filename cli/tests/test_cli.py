@@ -250,3 +250,13 @@ def test_admin_flag_works_only_with_connect(monkeypatch):
     monkeypatch.setattr('sys.argv', ['godfather', 'list', '--admin'])
     with pytest.raises(SystemExit):
         cli_module.main()
+
+
+def test_versions_match():
+    import re
+    from pathlib import Path
+
+    import godfather_cli
+
+    pyproject = (Path(__file__).resolve().parents[1] / 'pyproject.toml').read_text()
+    assert re.search(r'^version = "(.+)"$', pyproject, re.M).group(1) == godfather_cli.__version__
