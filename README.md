@@ -4,7 +4,7 @@ Godfather gives ASU students free compute. The AI Society at ASU pays for GPU an
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/theaisocietyasu/godfather?style=social)](https://github.com/theaisocietyasu/godfather/stargazers) [![GitHub forks](https://img.shields.io/github/forks/theaisocietyasu/godfather?style=social)](https://github.com/theaisocietyasu/godfather/forks)
 
-Since 2.0.0, pods are managed by the compute module of the AI Society platform (theaisocietyasu/bedrock, a fork of asusoda/platform). Officers create pods, share them, and schedule workshop sessions there. This repo keeps the two pieces that run outside the platform:
+Since 2.0.0, the `godfather` module of [Platform](https://github.com/asusoda/platform) manages the pods. Officers create pods, share them, and schedule workshop sessions there. This repo keeps the two pieces that run outside Platform:
 
 | Folder | What it is | Runs where |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ godfather connect  CLI -> platform /api/compute/<org>/me/pods/<id>/connect -> 12
 2. The CLI makes its own SSH key once (`~/.godfather/ssh/id_ed25519`) and sends the public half when connecting. The platform returns a certificate signed by the org's user CA, valid for 12 hours and for that one pod.
 3. The pod trusts the CA (`TrustedUserCAKeys`) and only accepts certificates naming its own pod ID. A member's certificate forces `godfather-login <username>`, which puts them in their own account without sudo. Officers get root.
 
-Platform setup, routes, sessions and the file manager are documented in the platform repo under `docs/compute.md`.
+Platform setup, routes, sessions and the file manager are in the Platform repo under `docs/modules/godfather.md`.
 
 ## Where to make common changes
 
@@ -34,19 +34,19 @@ Platform setup, routes, sessions and the file manager are documented in the plat
 | Add a CLI command | `main()` and `GodfatherCLI` in `cli/godfather_cli/cli.py`. API calls go in `pod_manager.py`, SSH logic in `ssh_connector.py`. |
 | Change the default server or org | `DEFAULT_API_URL` and `DEFAULT_ORG` in `cli/godfather_cli/cli.py`. |
 | Change the pod shell, banner, or tools | `docker-images/godfather-base/`. Pods pick it up when created, so recreate pods after publishing. |
-| Change what members can do on a pod | `docker-images/godfather-base/rootfs/usr/local/bin/godfather-login`, and the certificate options in the platform's `modules/compute/ssh.py`. |
+| Change what members can do on a pod | `docker-images/godfather-base/rootfs/usr/local/bin/godfather-login`, and the certificate options in Platform's `modules/godfather/ssh.py`. |
 
 ## Checks
 
 ```bash
-cd cli && pip install -e . pytest && pytest -q tests
+make check
 ```
 
-CI runs the CLI tests on every push and pull request.
+`make check` lints, tests and builds the CLI, lints the image scripts and the Dockerfile, and builds the image. The `Check` workflow runs the same steps on every push and pull request. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Releasing
 
-Bump `version` in `cli/pyproject.toml` and `cli/godfather_cli/__init__.py`, add `docs/releases/v<version>.md`, and merge to main. `release.yml` creates the GitHub release and `publish-cli.yml` publishes to PyPI. The pod image is built by `build-pod-base-image.yml` when `docker-images/` changes; it needs the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets.
+Bump `version` in `cli/pyproject.toml` and `cli/godfather_cli/__init__.py`, add `docs/releases/v<version>.md`, and merge to main. `release.yml` creates the GitHub release and `publish-cli.yml` publishes to PyPI. When `docker-images/` changes, `build-pod-base-image.yml` builds the pod image and pushes it to `ghcr.io/theaisocietyasu/godfather-base` with `GITHUB_TOKEN`.
 
 ## License
 

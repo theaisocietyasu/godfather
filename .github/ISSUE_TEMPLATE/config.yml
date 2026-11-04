@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/theaisocietyasu/godfather/security/advisories/new
+    about: Report privately. Never in a public issue.
+  - name: Question
+    url: https://discord.gg/fXWXwz6fEG
+    about: Ask in the AI Society at ASU Discord server.

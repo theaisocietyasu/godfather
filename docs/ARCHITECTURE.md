@@ -1,6 +1,6 @@
 # Architecture
 
-Godfather is a CLI and a pod image. Pod management lives in the AI Society platform's compute module.
+Godfather is a CLI and a pod image. Platform's `godfather` module manages the pods.
 
 ## CLI (`cli/godfather_cli`)
 
@@ -16,4 +16,4 @@ Built on `runpod/base`. At start `setup-ssh.sh` reads `GODFATHER_SSH_PUBLIC_KEY`
 
 ## Platform side
 
-The compute module stores pods per org, signs certificates, runs the officer file manager over SFTP, and starts and stops pods for scheduled sessions. See `docs/compute.md` in the platform repo.
+The `godfather` module stores pods per org, signs certificates, runs the officer file manager over SFTP, and starts and stops pods for scheduled sessions. See `docs/modules/godfather.md` in the Platform repo.
