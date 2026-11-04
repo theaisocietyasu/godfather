@@ -174,13 +174,16 @@ class PodManager:
             report(e)
             return []
 
-    def fetch_connection_info(self, pod_id: str, public_key: str) -> Dict:
+    def fetch_connection_info(self, pod_id: str, public_key: str, admin: bool = False) -> Dict:
         """SSH connection details and a certificate for our public key. Raises ApiError."""
+        body: Dict[str, object] = {'public_key': public_key}
+        if admin:
+            body['admin'] = True
         try:
             response = requests.post(
                 self.authenticator.compute_url(f'/me/pods/{pod_id}/connect'),
                 headers=self.authenticator.auth_headers(),
-                json={'public_key': public_key},
+                json=body,
                 timeout=15,
             )
         except requests.RequestException as e:
