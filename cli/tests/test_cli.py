@@ -145,7 +145,7 @@ def test_menu_offers_login_or_logout():
     from godfather_cli.picker import LOGIN, LOGOUT, menu_options
 
     actions = [action for action, _, _ in menu_options(True)]
-    assert actions == ['connect', 'list', 'status', LOGOUT, 'exit']
+    assert actions == ['connect', 'list', 'sessions', 'status', LOGOUT, 'exit']
     assert (LOGIN, 'Log in', 'Sign in with Discord in your browser') in menu_options(False)
 
 

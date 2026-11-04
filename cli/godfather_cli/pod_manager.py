@@ -1,5 +1,6 @@
-"""Pod listing and selection."""
+"""Pod listing and selection, and the upcoming sessions of the member's pods."""
 
+import datetime
 from typing import Dict, List, Optional
 
 import requests
@@ -40,6 +41,50 @@ def access_label(pod: Dict) -> str:
     if 'is_public' not in pod:
         return ''
     return 'public' if pod.get('is_public') else 'shared with you'
+
+
+def parse_time(value: str) -> Optional[datetime.datetime]:
+    """An ISO 8601 time from the server as an aware datetime, or None."""
+    try:
+        parsed = datetime.datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=datetime.timezone.utc)
+
+
+def starts_in(session: Dict, now: datetime.datetime) -> str:
+    """When the session starts, relative to now: 'starts in 2 h 5 min', or 'now' while it runs."""
+    start = parse_time(session.get('start_at', ''))
+    stop = parse_time(session.get('stop_at', ''))
+    if start is None:
+        return ''
+    if start <= now and (stop is None or now < stop):
+        return 'now'
+    minutes = max(0, int((start - now).total_seconds() // 60))
+    days, rest = divmod(minutes, 24 * 60)
+    hours, minutes = divmod(rest, 60)
+    parts = [f'{days} d'] if days else []
+    if hours:
+        parts.append(f'{hours} h')
+    if minutes or not parts:
+        parts.append(f'{minutes} min')
+    return 'starts in ' + ' '.join(parts)
+
+
+def local_time(value: str, same_day_as: str = '') -> str:
+    """A server time in the member's local zone, 'Tue Oct 21 17:00', or '19:00' on the day of same_day_as."""
+    parsed = parse_time(value)
+    if parsed is None:
+        return ''
+    local = parsed.astimezone()
+    other = parse_time(same_day_as)
+    if other is not None and other.astimezone().date() == local.date():
+        return local.strftime('%H:%M')
+    return local.strftime('%a %b %d %H:%M')
+
+
+def now_utc() -> datetime.datetime:
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 class ApiError(Exception):
@@ -151,6 +196,25 @@ class PodManager:
             raise ApiError(FAILED, "Received an unreadable response from the server") from None
         return ssh_info
 
+    def fetch_sessions(self) -> Optional[List[Dict]]:
+        """Upcoming sessions on the member's pods, soonest first. None when the server has no such route."""
+        try:
+            response = requests.get(
+                self.authenticator.compute_url('/me/sessions'), headers=self.authenticator.auth_headers(), timeout=10
+            )
+        except requests.RequestException as e:
+            raise _network_error(self.api_base, e) from e
+
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise _response_error(response, 'Failed to fetch sessions')
+        try:
+            sessions = response.json().get('sessions', [])
+        except (ValueError, AttributeError):
+            raise ApiError(FAILED, "Received an unreadable response from the server") from None
+        return [s for s in sessions if isinstance(s, dict) and s.get('start_at')]
+
     def get_connection_info(self, pod_id: str, public_key: str) -> Optional[Dict]:
         """SSH connection details, or None after printing the error."""
         try:
@@ -178,6 +242,37 @@ class PodManager:
             ]
             table.add_row(*([str(i)] + row if numbered else row))
         return table
+
+    @staticmethod
+    def sessions_table(sessions: List[Dict], now: Optional[datetime.datetime] = None) -> Table:
+        """A table of sessions with pod, title, local start and end, and time until the start."""
+        now = now or now_utc()
+        table = Table(title=f"Upcoming sessions ({len(sessions)})", box=BOX, border_style=BORDER)
+        table.add_column("Pod", style="bold")
+        table.add_column("Session")
+        table.add_column("Starts", no_wrap=True)
+        table.add_column("Ends", no_wrap=True)
+        table.add_column("In", style="dim", no_wrap=True)
+        for session in sessions:
+            table.add_row(
+                str(session.get('pod_name') or session.get('pod_id') or ''),
+                str(session.get('title') or ''),
+                local_time(session.get('start_at', '')),
+                local_time(session.get('stop_at', ''), same_day_as=session.get('start_at', '')),
+                starts_in(session, now),
+            )
+        return table
+
+    @staticmethod
+    def next_session_line(sessions: List[Dict], now: Optional[datetime.datetime] = None) -> str:
+        """One line about the soonest session, or '' when there is none."""
+        if not sessions:
+            return ''
+        first = sessions[0]
+        name = first.get('pod_name') or first.get('pod_id') or 'a pod'
+        title = first.get('title') or 'Session'
+        when = local_time(first.get('start_at', ''))
+        return f"Next session: {title} on {name}, {when} ({starts_in(first, now or now_utc())})"
 
     @staticmethod
     def show_no_pods() -> None:

@@ -55,12 +55,14 @@ Windows 10+ ship it.
 ### Interactive menu
 
 Running `godfather` with no arguments opens a menu. Use the arrow keys to
-choose Connect to a pod, List pods, Status, Log out or Exit, and press Enter.
-Ctrl-C quits.
+choose Connect to a pod, List pods, Sessions, Status, Log out or Exit, and
+press Enter. Ctrl-C quits.
 
 Connect to a pod shows a list of your pods with their status, access and
 pod ID. A pod that is not running shows with the reason and cannot be
 chosen. If only one pod is running, the CLI asks for a yes instead.
+If none of your pods is running, the CLI shows the next session on your
+pods. A pod starts 10 minutes before its session.
 
 When input is not a terminal (for example in a script), the menu and the pod
 list use numbered prompts.
@@ -71,6 +73,7 @@ list use numbered prompts.
 godfather list                    # List pods you can connect to
 godfather connect                 # Connect to a pod, picking from a list
 godfather connect <pod-id>        # Connect to a specific pod
+godfather sessions                # Upcoming sessions on your pods, in local time
 godfather status                  # Show server, org, login, token expiry and version
 godfather auth                    # Log in with Discord in your browser
 godfather auth --paste            # Log in by pasting the token
