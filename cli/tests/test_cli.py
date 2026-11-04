@@ -80,7 +80,7 @@ def test_login_saves_server_and_org(tmp_path, monkeypatch):
     monkeypatch.setattr(auth_module.Prompt, 'ask', lambda *args, **kwargs: 'plat_abc')
     monkeypatch.setattr(auth_module.requests, 'get', lambda url, **kwargs: Response(200, {'pods': []}))
     auth = CLIAuthenticator('https://platform.example', 'ais', tmp_path)
-    assert auth.authenticate()
+    assert auth.authenticate(paste=True)
     assert opened == ['https://platform.example/api/compute/ais/cli/login']
     assert CLIAuthenticator.read_config(tmp_path) == {
         'token': 'plat_abc',
@@ -89,7 +89,7 @@ def test_login_saves_server_and_org(tmp_path, monkeypatch):
     }
 
     monkeypatch.setattr(auth_module.Prompt, 'ask', lambda *args, **kwargs: 'gf1.a.b')
-    assert not CLIAuthenticator('https://platform.example', 'ais', tmp_path / 'other').authenticate()
+    assert not CLIAuthenticator('https://platform.example', 'ais', tmp_path / 'other').authenticate(paste=True)
 
 
 def test_retired_server_in_env_falls_back_to_default(tmp_path, monkeypatch):
@@ -146,7 +146,7 @@ def test_menu_offers_login_or_logout():
 
     actions = [action for action, _, _ in menu_options(True)]
     assert actions == ['connect', 'list', 'status', LOGOUT, 'exit']
-    assert LOGIN in [action for action, _, _ in menu_options(False)]
+    assert (LOGIN, 'Log in', 'Sign in with Discord in your browser') in menu_options(False)
 
 
 def test_picker_choices_build_without_a_terminal():

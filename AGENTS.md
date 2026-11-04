@@ -21,6 +21,7 @@ docker build -t godfather-base:dev docker-images/godfather-base
 | --- | --- |
 | `cli/godfather_cli/cli.py` | Argument parsing, the interactive menu, the server and org defaults |
 | `cli/godfather_cli/auth.py` | Sign-in, token storage in `~/.godfather/config.json`, token checks |
+| `cli/godfather_cli/login_server.py` | The loopback server that receives the sign-in code |
 | `cli/godfather_cli/pod_manager.py` | Calls to the member routes, the pod table |
 | `cli/godfather_cli/ssh_connector.py` | The SSH key, the certificate, the `ssh` command |
 | `cli/godfather_cli/picker.py` | Arrow-key menus and the pod picker |
@@ -34,7 +35,7 @@ docker build -t godfather-base:dev docker-images/godfather-base
 
 ## Rules
 
-- The CLI calls only the member routes under `/api/compute/<org>/` and the sign-in routes. It imports no Platform code.
+- The CLI calls only the member routes under `/api/compute/<org>/` and the sign-in routes `cli/login` and `cli/token`. It imports no Platform code.
 - The pod image contract is shared with Platform. A change to any item names the matching Platform PR:
   - env names `GODFATHER_SSH_PUBLIC_KEY` and `GODFATHER_SSH_CA_PUBLIC_KEY`;
   - the certificate principal `gf-<pod id>`;

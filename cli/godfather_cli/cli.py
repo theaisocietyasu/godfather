@@ -237,8 +237,8 @@ class GodfatherCLI:
     def logout(self):
         self.authenticator.logout()
 
-    def authenticate(self):
-        self.authenticator.authenticate()
+    def authenticate(self, paste: bool = False):
+        self.authenticator.authenticate(paste=paste)
 
     def update(self):
         perform_update()
@@ -325,7 +325,8 @@ Examples:
   godfather connect             Connect to a pod, picking from a list
   godfather connect <pod-id>    Connect to a specific pod
   godfather status              Show login and configuration status
-  godfather auth                Log in or refresh your session
+  godfather auth                Log in with Discord in your browser
+  godfather auth --paste        Log in by pasting the token (browser on another computer)
   godfather logout              Clear the stored session
   godfather update              Update the CLI to the latest version
 
@@ -342,8 +343,11 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
     parser.add_argument('pod_id', nargs='?', help='Pod ID to connect to (only used with "connect")')
     parser.add_argument('--api-url', help='Use a specific platform API URL instead of the default')
     parser.add_argument('--org', help='Organization prefix on the platform (default: ais)')
+    parser.add_argument('--paste', action='store_true', help='With "auth": paste the token, no browser sign-in')
 
     args = parser.parse_args()
+    if args.paste and args.command != 'auth':
+        parser.error('--paste works only with "auth"')
 
     if args.api_url:
         os.environ['GODFATHER_API_URL'] = args.api_url
@@ -372,7 +376,7 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
     elif args.command == 'logout':
         cli.logout()
     elif args.command == 'auth':
-        cli.authenticate()
+        cli.authenticate(paste=args.paste)
     elif args.command == 'update':
         cli.update()
 
