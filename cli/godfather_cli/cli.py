@@ -132,6 +132,36 @@ class GodfatherCLI:
         pods = self.load_pods()
         if pods is not None:
             self.pod_manager.show_pods(pods)
+            if not pods:
+                self.print_next_session()
+
+    def list_sessions(self):
+        """Print the upcoming sessions on the member's pods."""
+        if not self.ensure_authenticated():
+            return
+        try:
+            with spinner("Fetching sessions..."):
+                sessions = self.pod_manager.fetch_sessions()
+        except ApiError as e:
+            report(e)
+            return
+        if sessions is None:
+            info("This server does not list sessions yet.")
+        elif not sessions:
+            info("No upcoming sessions on your pods.")
+        else:
+            console.print(self.pod_manager.sessions_table(sessions))
+            console.print("[dim]A pod starts 10 minutes before its session.[/dim]")
+
+    def print_next_session(self) -> None:
+        """Print the soonest session on the member's pods. Prints nothing when there is none or on an error."""
+        try:
+            sessions = self.pod_manager.fetch_sessions()
+        except ApiError:
+            return
+        line = self.pod_manager.next_session_line(sessions or [])
+        if line:
+            console.print(line)
 
     def choose_pod(self) -> Optional[str]:
         """Fetch pods and let the user pick one. None when there is none or the user cancels."""
@@ -140,12 +170,14 @@ class GodfatherCLI:
             return None
         if not pods:
             self.pod_manager.show_no_pods()
+            self.print_next_session()
             return None
         if not is_interactive():
             return self.pod_manager.prompt_pod_number(pods)
         if not connectable(pods):
             error("None of your pods are running.")
             console.print("[dim]Ask an officer to start one, then run 'godfather connect' again.[/dim]")
+            self.print_next_session()
             return None
         try:
             return ask_pod(pods)
@@ -249,6 +281,8 @@ class GodfatherCLI:
             self.connect_to_pod()
         elif action == picker.LIST:
             self.list_pods()
+        elif action == picker.SESSIONS:
+            self.list_sessions()
         elif action == picker.STATUS:
             self.status()
         elif action == picker.LOGIN:
@@ -278,7 +312,14 @@ class GodfatherCLI:
 
     def plain_menu(self):
         """The numbered menu for input that is not a terminal."""
-        actions = {'1': picker.LIST, '2': picker.CONNECT, '3': picker.STATUS, '4': picker.LOGOUT, '5': picker.EXIT}
+        actions = {
+            '1': picker.LIST,
+            '2': picker.CONNECT,
+            '3': picker.STATUS,
+            '4': picker.LOGOUT,
+            '5': picker.SESSIONS,
+            '6': picker.EXIT,
+        }
         while True:
             console.print()
             menu = Table.grid(padding=(0, 2))
@@ -288,7 +329,8 @@ class GodfatherCLI:
             menu.add_row("2.", "Connect to a pod")
             menu.add_row("3.", "Show status")
             menu.add_row("4.", "Log out")
-            menu.add_row("5.", "Exit")
+            menu.add_row("5.", "Show sessions")
+            menu.add_row("6.", "Exit")
             console.print(Panel(menu, title="What would you like to do?", border_style=BORDER, box=BOX))
 
             try:
@@ -324,6 +366,7 @@ Examples:
   godfather list                List available pods
   godfather connect             Connect to a pod, picking from a list
   godfather connect <pod-id>    Connect to a specific pod
+  godfather sessions            Show upcoming sessions on your pods
   godfather status              Show login and configuration status
   godfather auth                Log in with Discord in your browser
   godfather auth --paste        Log in by pasting the token (browser on another computer)
@@ -337,7 +380,7 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
     parser.add_argument(
         'command',
         nargs='?',
-        choices=['list', 'connect', 'status', 'logout', 'auth', 'update'],
+        choices=['list', 'connect', 'sessions', 'status', 'logout', 'auth', 'update'],
         help='Command to run (omit to open the interactive menu)',
     )
     parser.add_argument('pod_id', nargs='?', help='Pod ID to connect to (only used with "connect")')
@@ -371,6 +414,8 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
         cli.list_pods()
     elif args.command == 'connect':
         cli.connect_to_pod(args.pod_id)
+    elif args.command == 'sessions':
+        cli.list_sessions()
     elif args.command == 'status':
         cli.status()
     elif args.command == 'logout':

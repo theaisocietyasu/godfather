@@ -35,7 +35,7 @@ docker build -t godfather-base:dev docker-images/godfather-base
 
 ## Rules
 
-- The CLI calls only the member routes under `/api/compute/<org>/` and the sign-in routes `cli/login` and `cli/token`. It imports no Platform code.
+- The CLI calls only the member routes under `/api/compute/<org>/` (`me/pods`, `me/pods/<id>/connect`, `me/sessions`) and the sign-in routes `cli/login` and `cli/token`. It imports no Platform code.
 - The pod image contract is shared with Platform. A change to any item names the matching Platform PR:
   - env names `GODFATHER_SSH_PUBLIC_KEY` and `GODFATHER_SSH_CA_PUBLIC_KEY`;
   - the certificate principal `gf-<pod id>`;
