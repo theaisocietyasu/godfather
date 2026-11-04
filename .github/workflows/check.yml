@@ -52,6 +52,10 @@ jobs:
         id: version
         run: echo "version=$(cat docker-images/godfather-base/VERSION)" >> "$GITHUB_OUTPUT"
 
+      # runpod/base is about 5 GB; the hosted runner fills its disk without this.
+      - name: Free disk space for the image build
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
