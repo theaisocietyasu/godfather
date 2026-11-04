@@ -3,14 +3,15 @@
 import datetime
 import json
 import os
-import requests
 import webbrowser
 from pathlib import Path
 from typing import Dict, Optional
+
+import requests
 from rich.panel import Panel
 from rich.prompt import Prompt
 
-from .ui import console, success, error, warning, spinner, BOX, BORDER
+from .ui import BORDER, BOX, console, error, spinner, success, warning
 
 TOKEN_PREFIX = 'plat_'
 # The platform issues CLI tokens for 90 days.
@@ -95,9 +96,7 @@ class CLIAuthenticator:
         try:
             with spinner("Verifying token..."):
                 response = requests.get(
-                    self.compute_url('/me/pods'),
-                    headers={'Authorization': f'Bearer {token}'},
-                    timeout=10
+                    self.compute_url('/me/pods'), headers={'Authorization': f'Bearer {token}'}, timeout=10
                 )
         except requests.ConnectionError:
             error(f"Couldn't reach {self.api_base}")
@@ -153,11 +152,7 @@ class CLIAuthenticator:
             return TOKEN_MISSING
 
         try:
-            response = requests.get(
-                self.compute_url('/me/pods'),
-                headers=self.auth_headers(),
-                timeout=5
-            )
+            response = requests.get(self.compute_url('/me/pods'), headers=self.auth_headers(), timeout=5)
         except requests.RequestException:
             return TOKEN_UNREACHABLE
         if response.status_code == 200:

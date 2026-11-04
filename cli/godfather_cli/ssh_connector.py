@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from rich.panel import Panel
 
-from .ui import console, success, error, BOX, BORDER
+from .ui import BORDER, BOX, console, error, success
 
 USERNAME_RE = re.compile(r'^[a-z0-9_][a-z0-9._-]{0,21}$')
 
@@ -41,7 +41,8 @@ class SSHConnector:
                         path.unlink()
                 subprocess.run(
                     ['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-C', 'godfather-cli', '-f', str(self.key_file)],
-                    check=True, capture_output=True
+                    check=True,
+                    capture_output=True,
                 )
             except FileNotFoundError:
                 error("ssh-keygen not found. Install OpenSSH to use 'godfather connect'.")
@@ -82,13 +83,20 @@ class SSHConnector:
         command = [
             'ssh',
             '-t',
-            '-i', str(self.key_file),
-            '-o', f'CertificateFile={self.cert_file}',
-            '-o', 'IdentitiesOnly=yes',
-            '-o', 'StrictHostKeyChecking=no',
-            '-o', 'UserKnownHostsFile=/dev/null',
-            '-o', 'LogLevel=ERROR',
-            '-p', str(port),
+            '-i',
+            str(self.key_file),
+            '-o',
+            f'CertificateFile={self.cert_file}',
+            '-o',
+            'IdentitiesOnly=yes',
+            '-o',
+            'StrictHostKeyChecking=no',
+            '-o',
+            'UserKnownHostsFile=/dev/null',
+            '-o',
+            'LogLevel=ERROR',
+            '-p',
+            str(port),
             f'{username}@{host}',
         ]
         # Member certificates carry a forced login command; admins ask for it explicitly

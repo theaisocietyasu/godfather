@@ -13,17 +13,19 @@ from questionary import Choice, Style
 from .pod_manager import RUNNING, access_label
 from .ui import PURPLE
 
-STYLE = Style([
-    ('qmark', f'fg:{PURPLE} bold'),
-    ('question', 'bold'),
-    ('pointer', f'fg:{PURPLE} bold'),
-    ('highlighted', f'fg:{PURPLE} bold'),
-    ('selected', f'fg:{PURPLE}'),
-    ('answer', f'fg:{PURPLE} bold'),
-    ('instruction', 'fg:#858585 italic'),
-    ('disabled', 'fg:#858585 italic'),
-    ('text', ''),
-])
+STYLE = Style(
+    [
+        ('qmark', f'fg:{PURPLE} bold'),
+        ('question', 'bold'),
+        ('pointer', f'fg:{PURPLE} bold'),
+        ('highlighted', f'fg:{PURPLE} bold'),
+        ('selected', f'fg:{PURPLE}'),
+        ('answer', f'fg:{PURPLE} bold'),
+        ('instruction', 'fg:#858585 italic'),
+        ('disabled', 'fg:#858585 italic'),
+        ('text', ''),
+    ]
+)
 
 # Prompt-toolkit styles for pod statuses in the picker.
 STATUS_CLASS = {
@@ -45,6 +47,7 @@ EXIT = 'exit'
 
 class PodOption(NamedTuple):
     """One row of the pod picker."""
+
     pod_id: str
     parts: List[Tuple[str, str]]
     disabled: Optional[str]
@@ -106,8 +109,8 @@ def menu_options(logged_in: bool) -> List[Tuple[str, str, str]]:
     """Main menu rows as (action, title, description)."""
     account = (
         (LOGOUT, 'Log out', 'Remove the saved token from this computer')
-        if logged_in else
-        (LOGIN, 'Log in', 'Sign in with Discord and paste your token')
+        if logged_in
+        else (LOGIN, 'Log in', 'Sign in with Discord and paste your token')
     )
     return [
         (CONNECT, 'Connect to a pod', 'Pick a running pod and open an SSH session'),
