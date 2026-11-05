@@ -74,6 +74,7 @@ godfather list                    # List pods you can connect to
 godfather connect                 # Connect to a pod, picking from a list
 godfather connect <pod-id>        # Connect to a specific pod
 godfather connect --admin         # Ask for a root shell (officers, when pod admin is on)
+godfather connect --forward 8080  # Also open http://localhost:8080 to port 8080 on the pod
 godfather sessions                # Upcoming sessions on your pods, in local time
 godfather vscode                  # Set up VS Code Remote-SSH for a pod, picking from a list
 godfather vscode <pod-id>         # The same for one pod; run it again to renew the certificate
@@ -96,6 +97,17 @@ godfather --api-url https://platform.example.com --org soda list
 3. If the `code` command is on your PATH, it opens VS Code on `/workspace/users/<you>` on the pod. Otherwise run **Remote-SSH: Connect to Host...** in VS Code and pick `godfather-<pod-id>`.
 
 VS Code runs as your pod account (`godfather_<you>`), with the same files and limits as `godfather connect`. After 12 hours VS Code cannot reconnect; run `godfather vscode <pod-id>` again. The pod must run image 2.3.0 or later. `godfather vscode --admin` gives officers a root login on a pod with pod admin on.
+
+## Web apps on a pod
+
+A server that you start on the pod on `127.0.0.1:<port>` (for example a llama.cpp chat UI or Jupyter) is reachable from your laptop through a forward:
+
+```bash
+godfather connect <pod-id> --forward 8080        # http://localhost:8080 opens port 8080 on the pod
+godfather connect <pod-id> --forward 9000:8081   # http://localhost:9000 opens port 8081 on the pod
+```
+
+The forward stays open while the shell is open. VS Code forwards ports by itself. Other members of the pod can reach the same port, so protect a service with a token or password.
 
 ## Files it keeps
 
