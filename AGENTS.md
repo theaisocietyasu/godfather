@@ -42,6 +42,7 @@ docker build -t godfather-base:dev docker-images/godfather-base
   - `/usr/local/bin/godfather-login <username>` and `godfather-login --admin <username>`;
   - the account name `godfather_<username>` and the `su - godfather_<username>` process that `modules/godfather/presence.py` matches;
   - `/etc/godfather/admin.bashrc`, which `presence.py` also matches;
+  - the member setup files `/workspace/.godfather/member-setup/repo` and `script`, which Platform writes;
   - the label `com.ais-asu.godfather.base-version` and the file `/etc/godfather/version`, from `docker-images/godfather-base/VERSION`.
 - Comments are plain ASCII and say what the code does.
 - Never write a token, key or secret in code, tests, docs or commits.
