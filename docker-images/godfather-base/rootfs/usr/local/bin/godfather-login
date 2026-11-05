@@ -83,7 +83,7 @@ if [ -s "$SETUP_DIR/repo" ] || [ -s "$SETUP_DIR/script" ]; then
                     # shellcheck disable=SC2016 # $1 to $3 expand in the member shell
                     su - "$ACCOUNT" -c 'umask 077; cd "$1" && GIT_TERMINAL_PROMPT=0 timeout 300 git clone --quiet -- "$2" "$3"' \
                         godfather-setup "$WORKSPACE" "$REPO" "$NAME" >> "$LOG" 2>&1 9>&- \
-                        || echo "git clone failed" >> "$LOG"
+                        || echo "git clone failed. The repo must be public." >> "$LOG"
                 fi
             fi
             if [ -s "$SETUP_DIR/script" ]; then
@@ -116,4 +116,8 @@ cat <<BANNER
 
 BANNER
 
-exec su - "$ACCOUNT" -c "umask 077; cd '$WORKSPACE' && exec bash --rcfile /etc/godfather/user.bashrc -i"
+# With a terminal, --pty gives the shell its own terminal, so job control works.
+# The process stays "su - godfather_<username>" for presence.
+PTY=()
+[ -t 0 ] && PTY=(--pty)
+exec su - "$ACCOUNT" "${PTY[@]}" -c "umask 077; cd '$WORKSPACE' && exec bash --rcfile /etc/godfather/user.bashrc -i"

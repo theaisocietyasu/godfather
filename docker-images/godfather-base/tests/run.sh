@@ -251,4 +251,14 @@ else
     fail "15 setup runs: $runs"
 fi
 
+# 16. An interactive member shell with a terminal has job control.
+out="$(ssh "${SSH_OPTS[@]}" -tt -i "$WORK/alice" root@127.0.0.1 2>&1 <<<'sleep 5 &
+jobs
+exit' || true)"
+if grep -q 'Running' <<<"$out" && ! grep -q 'no job control' <<<"$out"; then
+    pass "16 member shell with a terminal has job control"
+else
+    fail "16 output: $out"
+fi
+
 exit "$FAILED"
