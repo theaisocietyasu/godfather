@@ -1,5 +1,9 @@
+import argparse
+
+import pytest
+
 from godfather_cli.auth import CLIAuthenticator
-from godfather_cli.ssh_connector import SSHConnector
+from godfather_cli.ssh_connector import SSHConnector, forward_spec
 
 INFO = {'host': '1.2.3.4', 'port': 2200, 'username': 'root', 'user_folder': 'alice'}
 
@@ -13,6 +17,19 @@ def test_member_command_has_no_remote_command(tmp_path):
 def test_admin_command_runs_login_script(tmp_path):
     command = SSHConnector(tmp_path).build_command({**INFO, 'is_admin': True})
     assert command[-1] == '/usr/local/bin/godfather-login --admin alice'
+
+
+def test_forwards_go_before_the_host(tmp_path):
+    command = SSHConnector(tmp_path).build_command({**INFO, 'is_admin': False}, [(8080, 8080), (9000, 8081)])
+    assert command[-5:] == ['-L', '8080:127.0.0.1:8080', '-L', '9000:127.0.0.1:8081', 'root@1.2.3.4']
+
+
+def test_forward_spec():
+    assert forward_spec('8080') == (8080, 8080)
+    assert forward_spec('9000:8081') == (9000, 8081)
+    for bad in ('0', '70000', 'a', '1:2:3', '-1', ''):
+        with pytest.raises(argparse.ArgumentTypeError):
+            forward_spec(bad)
 
 
 def test_rejects_unsafe_username(tmp_path):

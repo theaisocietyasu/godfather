@@ -1,10 +1,11 @@
 """Local SSH key pair, pod certificates, and the SSH connection to a pod."""
 
+import argparse
 import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from rich.panel import Panel
 
@@ -14,6 +15,14 @@ USERNAME_RE = re.compile(r'^[a-z0-9_][a-z0-9._-]{0,21}$')
 POD_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 # The line in ~/.ssh/config that loads the Host blocks this CLI writes.
 INCLUDE_MARK = '# Added by godfather-cli for VS Code Remote-SSH'
+
+
+def forward_spec(value: str) -> Tuple[int, int]:
+    """A (local port, pod port) pair from PORT or LOCAL:POD, for argparse."""
+    parts = value.split(':')
+    if len(parts) > 2 or not all(p.isdigit() and 1 <= int(p) <= 65535 for p in parts):
+        raise argparse.ArgumentTypeError(f'{value!r} is not PORT or LOCAL:POD with ports from 1 to 65535')
+    return int(parts[0]), int(parts[-1])
 
 
 def host_alias(pod_id: str) -> str:
@@ -122,8 +131,8 @@ class SSHConnector:
             error(f"Failed to save SSH certificate: {e}")
             return False
 
-    def build_command(self, ssh_info: Dict) -> Optional[List[str]]:
-        """Build the ssh command line for a pod."""
+    def build_command(self, ssh_info: Dict, forwards: Sequence[Tuple[int, int]] = ()) -> Optional[List[str]]:
+        """Build the ssh command line for a pod. forwards holds (local port, pod port) pairs on 127.0.0.1."""
         host = ssh_info.get('host')
         port = ssh_info.get('port', 22)
         username = ssh_info.get('username', 'root')
@@ -150,16 +159,18 @@ class SSHConnector:
             'LogLevel=ERROR',
             '-p',
             str(port),
-            f'{username}@{host}',
         ]
+        for local, remote in forwards:
+            command += ['-L', f'{local}:127.0.0.1:{remote}']
+        command.append(f'{username}@{host}')
         # Member certificates carry a forced login command; admins ask for it explicitly
         if is_admin:
             command.append(f'/usr/local/bin/godfather-login --admin {user_folder}')
         return command
 
-    def connect(self, ssh_info: Dict) -> int:
-        """Open an SSH session to the pod."""
-        command = self.build_command(ssh_info)
+    def connect(self, ssh_info: Dict, forwards: Sequence[Tuple[int, int]] = ()) -> int:
+        """Open an SSH session to the pod, with local forwards to ports on the pod."""
+        command = self.build_command(ssh_info, forwards)
         if not command:
             error("Incomplete connection details from the server")
             return 1
@@ -171,6 +182,9 @@ class SSHConnector:
             f"Auth    SSH certificate (valid 12 hours)\n"
             f"Mode    {mode}"
         )
+        for local, remote in forwards:
+            details += f"\nForward http://localhost:{local} to port {remote} on the pod"
+
         console.print(Panel(details, title="Connecting", border_style=BORDER, box=BOX))
         console.print()
 

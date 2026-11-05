@@ -25,7 +25,7 @@ from .auth import (
 )
 from .picker import ask_menu, ask_pod, ask_yes, connectable, is_interactive
 from .pod_manager import EXPIRED, ApiError, PodManager, report
-from .ssh_connector import USERNAME_RE, SSHConnector
+from .ssh_connector import USERNAME_RE, SSHConnector, forward_spec
 from .ui import BORDER, BOX, PURPLE, console, error, info, spinner, warning
 from .update_checker import check_for_updates, perform_update, show_update_warning
 
@@ -187,7 +187,7 @@ class GodfatherCLI:
             console.print("[dim]Cancelled[/dim]")
             return None
 
-    def connect_to_pod(self, pod_id: str = None, admin: bool = False):
+    def connect_to_pod(self, pod_id: str = None, admin: bool = False, forwards=()):
         if not self.ensure_authenticated():
             return
 
@@ -204,7 +204,7 @@ class GodfatherCLI:
         if admin and not ssh_info.get('is_admin'):
             warning("The server gave you a member shell, not root.")
 
-        self.ssh_connector.connect(ssh_info)
+        self.ssh_connector.connect(ssh_info, forwards)
 
     def fetch_certificate(self, pod_id: str, admin: bool = False) -> Optional[Dict]:
         """The connection details with a fresh certificate, or None after printing why not."""
@@ -420,6 +420,7 @@ Examples:
   godfather connect             Connect to a pod, picking from a list
   godfather connect <pod-id>    Connect to a specific pod
   godfather connect --admin     Connect as root (officers, on a pod with pod admin on)
+  godfather connect --forward 8080   Connect and open http://localhost:8080 to port 8080 on the pod
   godfather sessions            Show upcoming sessions on your pods
   godfather vscode              Set up VS Code Remote-SSH for a pod, picking from a list
   godfather vscode <pod-id>     Set up VS Code for a pod, or renew its 12-hour certificate
@@ -444,12 +445,22 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
     parser.add_argument('--org', help='Organization prefix on the platform (default: ais)')
     parser.add_argument('--paste', action='store_true', help='With "auth": paste the token, no browser sign-in')
     parser.add_argument('--admin', action='store_true', help='With "connect" or "vscode": ask for root')
+    parser.add_argument(
+        '--forward',
+        action='append',
+        type=forward_spec,
+        default=[],
+        metavar='PORT[:POD_PORT]',
+        help='With "connect": forward localhost:PORT to POD_PORT (default PORT) on the pod. Repeat for more ports',
+    )
 
     args = parser.parse_args()
     if args.paste and args.command != 'auth':
         parser.error('--paste works only with "auth"')
     if args.admin and args.command not in ('connect', 'vscode'):
         parser.error('--admin works only with "connect" and "vscode"')
+    if args.forward and args.command != 'connect':
+        parser.error('--forward works only with "connect"')
 
     if args.api_url:
         os.environ['GODFATHER_API_URL'] = args.api_url
@@ -472,7 +483,7 @@ Questions or issues: https://discord.gg/fXWXwz6fEG
     if args.command == 'list':
         cli.list_pods()
     elif args.command == 'connect':
-        cli.connect_to_pod(args.pod_id, admin=args.admin)
+        cli.connect_to_pod(args.pod_id, admin=args.admin, forwards=args.forward)
     elif args.command == 'vscode':
         cli.setup_vscode(args.pod_id, admin=args.admin)
     elif args.command == 'sessions':
